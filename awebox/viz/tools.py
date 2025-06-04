@@ -22,8 +22,10 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
 
 import matplotlib
+
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -332,6 +334,61 @@ def draw_dcm_axes_for_kite(ax, side, plot_dict, cosmetics, index, kite, heading_
 
 
 
+def test_basic_draw_offside():
+    ### initialize the figure
+
+    x_center = 0. * vect_op.xhat_np()
+    a_hat = vect_op.yhat_np()
+    b_hat = vect_op.zhat_np()
+    scale = 1.
+
+    vec_e = vect_op.xhat_np() + vect_op.yhat_np() + vect_op.zhat_np()
+    ehat = vect_op.normalize(vec_e)
+
+    q1 = 0. * ehat
+    q2 = q1 + 1. * ehat
+    q3 = q2 + 1. * vect_op.xhat_np()
+    q4 = q2
+
+    print(q2)
+
+    fig, ax = plt.subplots()
+    data = cas.horzcat(q1, q2, q3, q4)
+    side = (x_center, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=data)
+    plt.axis('equal')
+    # Figure 1 should give a single line from (y=0, z=0) to (y=0.58, z=0.58)
+
+    fig, ax = plt.subplots()
+    x_center = 1. * vect_op.yhat_np()
+    side = (x_center, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=data)
+    plt.axis('equal')
+    # Figure 2 should give a single line from (y=-1, z=0) to (y=-0.42, z=0.5774)
+
+    fig, ax = plt.subplots()
+    scale = 10.
+    side = (x_center, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=data)
+    plt.axis('equal')
+    # Figure 3 should give a single line from (y=-0.1, z=0) to (y=0, z=0.058)
+
+    fig, ax = plt.subplots()
+    x_center = 0. * vect_op.xhat_np()
+    scale = 1.
+    b_hat = np.array(vect_op.normed_cross(ehat, vect_op.xhat_np()))
+    a_hat = np.array(vect_op.normed_cross(b_hat, ehat))
+    print(cas.mtimes(a_hat.T, vect_op.xhat_dm()))
+    data = cas.horzcat(q1, q2, q3, q4)
+    side = (x_center, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=data)
+    plt.axis('equal')
+    # Figure 4 should give a single line from (x=0, y=0, z=0) to (x=0.82, y=0, z=0)
+
+    plt.show()
+
+
+
 def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None):
 
     no_start = x_start is None
@@ -385,6 +442,48 @@ def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=
     elif side == 'isometric':
         ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
 
+    elif (isinstance(side, tuple)) and (len(side) == 4):
+        center_valid = False
+        ahat_valid = False
+        bhat_valid = False
+        orthonormal = False
+        scale_valid = False
+        eps = 1.e-8
+        if vect_op.is_numeric_columnar(side[0]) and vect_op.count_elements(side[0]) == 3:
+            center_valid = True
+            center = vect_op.columnize(side[0])
+        if vect_op.is_unit_vector(side[1], eps) and vect_op.count_elements(side[1]) == 3:
+            ahat_valid = True
+            ahat = vect_op.columnize(side[1])
+        if vect_op.is_unit_vector(side[2], eps) and vect_op.count_elements(side[2]) == 3:
+            bhat_valid = True
+            bhat = vect_op.columnize(side[2])
+        if ahat_valid and bhat_valid and vect_op.is_unit_vector(vect_op.cross(ahat, bhat), eps):
+            orthonormal = True
+        if vect_op.is_numeric_scalar(side[3]) and vect_op.abs(side[3]) > 1.e-8:
+            scale_valid = True
+            scale = side[3]
+
+        if center_valid and ahat_valid and bhat_valid and orthonormal and scale_valid:
+
+            shifted_data = []
+            for idx in range(data.shape[1]):
+                local_data = vect_op.columnize(data[:, idx])
+                local_data_shifted = (local_data - center)
+                local_data_projected = []
+                for fhat in [ahat, bhat]:
+                    local_projection = cas.mtimes(local_data_shifted.T, fhat) / scale
+                    local_data_projected = cas.vertcat(local_data_projected, local_projection)
+                shifted_data = cas.horzcat(shifted_data, local_data_projected)
+
+            a_valsi = np.array(shifted_data[0, :]).T
+            b_valsi = np.array(shifted_data[1, :]).T
+            ax.plot(a_valsi, b_valsi, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+
+    else:
+        message = 'basic_draw side ' + repr(side) + ' is not recognized'
+        print_op.log_and_raise_error(message)
+
     return None
 
 
@@ -428,6 +527,128 @@ def draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors=bool(False
 
     return None
 
+def get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict):
+    tau_list = plot_dict['cosmetics']['temporal_epigraph_locations']
+    if 'switch' in tau_list:
+        tau_list.remove('switch')
+        _, tau_switch = get_nondim_time_and_switch(plot_dict)
+        tau_list += [tau_switch]
+
+    temporal_epigraph_length = get_trajectory_temporal_epigraph_length(plot_dict)
+    basedash = temporal_epigraph_length / 4.
+    style_dict = {}
+    for tau in tau_list:
+        try:
+            dash_length = int(np.round(basedash * tau))
+        except:
+            pdb.set_trace()
+        break_length = basedash - dash_length
+        if tau < 1e-4 or tau > 1. - 1.e-4:
+            linestyle = '-'
+        else:
+            linestyle = (0, (dash_length, break_length))
+        style_dict[float(tau)] = linestyle
+
+    return style_dict
+
+def draw_trajectory_time_orientation_epigraphs(ax, side, plot_dict, kite, local_color, ref=False):
+    tau_style_dict = get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
+    for tau, linestyle in tau_style_dict.items():
+        draw_single_trajectory_time_orientation_epigraph(ax, side, plot_dict, kite, local_color, tau, ref=ref, linestyle=linestyle)
+
+    return None
+
+def get_trajectory_temporal_epigraph_length(plot_dict):
+    temporal_epigraph_length_to_span = plot_dict['cosmetics']['trajectory']['temporal_epigraph_length_to_span']
+    geometry_params = plot_dict['options']['model']['params']['geometry']
+    wingspan = geometry_params['b_ref']
+    temporal_epigraph_length = temporal_epigraph_length_to_span * wingspan
+    return temporal_epigraph_length
+
+
+def draw_single_trajectory_time_orientation_epigraph(ax, side, plot_dict, kite, local_color, tau, ref=False, linestyle='-'):
+
+    parent = plot_dict['architecture'].parent_map[kite]
+
+    temporal_epigraph_length = get_trajectory_temporal_epigraph_length(plot_dict)
+
+    if ref:
+        search_name = 'ref'
+    else:
+        search_name = 'interpolation'
+    search_name = search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
+    x_vals = plot_dict[search_name]['x']
+
+    epigraph_index = int(np.floor(tau * (len(x_vals['l_t'][0])-1)))
+    index_before = epigraph_index - 1
+    index_after = np.mod(epigraph_index+ 1, len(x_vals['l_t'][0]))
+
+    heading_name = 'aerodynamics'
+    yhat_name = 'ehat_span' + str(kite)
+    zhat_name = 'ehat_up' + str(kite)
+
+    epigraph_center = []
+    ehat_3 = []
+    pos_before = []
+    pos_after = []
+    ehat_2 = []
+    for dim in range(3):
+        local_pos = x_vals['q' + str(kite) + str(parent)][dim][epigraph_index]
+        local_component2 = plot_dict['outputs'][heading_name][yhat_name][dim][epigraph_index]
+        local_component3 = plot_dict['outputs'][heading_name][zhat_name][dim][epigraph_index]
+
+        local_pos_before = x_vals['q' + str(kite) + str(parent)][dim][index_before]
+        local_pos_after = x_vals['q' + str(kite) + str(parent)][dim][index_after]
+
+        pos_before = cas.vertcat(pos_before, local_pos_before)
+        pos_after = cas.vertcat(pos_after, local_pos_after)
+        ehat_2 = cas.vertcat(ehat_2, local_component2)
+        ehat_3 = cas.vertcat(ehat_3, local_component3)
+        epigraph_center = cas.vertcat(epigraph_center, local_pos)
+
+    tangent = pos_after - pos_before
+
+    if side == 'xy':
+        ehat_cross = vect_op.zhat()
+    elif side == 'xz':
+        ehat_cross = vect_op.yhat()
+    elif side == 'yz':
+        ehat_cross = vect_op.xhat()
+    elif side == 'isometric':
+        ehat_cross = ehat_3
+    ehat_epi = vect_op.normed_cross(tangent, ehat_cross)
+
+    # epi_direction = ehat_2
+    epi_direction = ehat_epi
+
+    q_start = epigraph_center - epi_direction * temporal_epigraph_length/2.
+    q_end = epigraph_center + epi_direction * temporal_epigraph_length/2.
+    data = cas.horzcat(q_start, q_end)
+
+    adjust_color = 0.5
+    new_color = adjust_lightness(local_color, amount=adjust_color)
+
+    # label = 'kite ' + str(kite) + ', ' + str(tau) + str('t_f')
+
+    alpha = 1.0
+    basic_draw(ax, side, data=data, color=new_color, marker=None, linestyle=linestyle, alpha=alpha)
+
+    return None
+
+
+
+def adjust_lightness(color, amount=0.5):
+    import matplotlib.colors as mc
+    import colorsys
+    try:
+        c = mc.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
+
+
+
 
 def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
 
@@ -439,14 +660,72 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
         search_name = 'interpolation'
     search_name = search_name + '_' + plot_dict['cosmetics']['variables']['si_or_scaled']
     x_vals = plot_dict[search_name]['x']
+    label = str(node)
 
     data = []
     for dim in range(3):
         local_dim = x_vals['q' + str(node) + str(parent)][dim]
         data = cas.horzcat(data, local_dim)
 
-    basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+    reel_out_threshold = -1e-2
+    sub_data = data[0, :]
+    current_reel_out = (x_vals['dl_t'][0][0] > reel_out_threshold)
+
+    for tdx in range(1, data.shape[0]):
+        if current_reel_out:
+            local_linestyle = linestyle
+            reel_label = ' (out)'
+        else:
+            local_linestyle = plot_dict['cosmetics']['trajectory']['reel_in_linestyle']
+            reel_label = ' (in)'
+
+        loc_reel_out = x_vals['dl_t'][0][tdx] > reel_out_threshold
+        if loc_reel_out != current_reel_out:
+            basic_draw(ax, side, data=sub_data, color=color, marker=marker, linestyle=local_linestyle, alpha=alpha, label=label + reel_label)
+
+            sub_data = cas.vertcat(sub_data[-1, :], data[tdx, :])
+            current_reel_out = loc_reel_out
+        else:
+            sub_data = cas.vertcat(sub_data, data[tdx, :])
+
+    basic_draw(ax, side, data=sub_data, color=color, marker=marker, linestyle=local_linestyle, alpha=alpha, label=label + reel_label)
+
     return None
+
+
+
+def plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
+
+    parent = plot_dict['architecture'].parent_map[kite]
+
+    if ref:
+        search_name = 'ref'
+    else:
+        search_name = 'interpolation'
+    search_name = search_name + '_si'
+
+    x_vals = plot_dict[search_name]['x']
+    label = str(kite)
+
+    geometry_params = plot_dict['options']['model']['params']['geometry']
+    wingspan = geometry_params['b_ref']
+
+    data = []
+    for idx in range(x_vals['l_t'][0].shape[0]):
+
+        local_q = []
+        local_ehat = []
+        for dim in range(3):
+            local_q = cas.vertcat(local_q, x_vals['q' + str(kite) + str(parent)][dim][idx])
+            local_ehat = cas.vertcat(local_ehat, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][dim][idx])
+
+        local_pos = local_q + wingspan * zeta * local_ehat
+        data = cas.horzcat(data, local_pos)
+
+    basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+
+    return None
+
 
 
 def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=0.2, label=None, index=-1):
@@ -479,6 +758,7 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
         basic_draw(ax, side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
 
     return None
+
 
 
 def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None):
@@ -522,6 +802,8 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         if old_label == label:
             label = None
 
+        draw_trajectory_time_orientation_epigraphs(ax, side, plot_dict, kite, local_color, ref=False)
+
         plot_path_of_node(ax, side, plot_dict, kite, ref=False, color=local_color, label=label)
         if cosmetics['plot_ref']:
             plot_path_of_node(ax, side, plot_dict, kite, ref=True, color=local_color, label=label, linestyle='--', alpha=0.5)
@@ -550,7 +832,8 @@ def get_q_limits(plot_dict, cosmetics):
         centers[dim] = np.average(extrema[dim])
         deltas = np.append(deltas, extrema[dim][1] - extrema[dim][0])
 
-    max_dim = np.max(deltas)
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    max_dim = np.max(deltas) + b_ref * 0.5
 
     limits = {}
     signs = [-1., +1.]
@@ -765,7 +1048,7 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
         plot_dict[keys] = values
 
     si_or_scaled = cosmetics['variables']['si_or_scaled']
-    if si_or_scaled == 'scaled':
+    if (si_or_scaled == 'scaled'):
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')
     if cosmetics['plot_ref']:
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='ref')
@@ -973,14 +1256,17 @@ def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
     return axes
 
 
-def add_switching_time_epigraph(axes, nrows, tau, y_min, y_max):
-    if nrows == 1:
-        axes.plot([tau, tau], [y_min, y_max], 'k--')
-    else:
-        for idx in range(nrows):
-            axes[idx].plot([tau, tau], [y_min, y_max], 'k--')
-    return axes
+def add_single_block_temporal_orientation_epigraph(ax, plot_dict, tau, linestyle='--'):
+    time_dim = np.array(plot_dict['time_grids']['ip'])
+    t_f = time_dim[-1]
+    ax.axvline(x=tau * t_f, color='gray', linestyle=linestyle)
+    return None
 
+def add_block_plot_temporal_orientation_epigraphs(ax, plot_dict):
+    tau_style_dict = get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
+    for tau, linestyle in tau_style_dict.items():
+        add_single_block_temporal_orientation_epigraph(ax, plot_dict, tau, linestyle=linestyle)
+    return None
 
 def get_nondim_time_and_switch(plot_dict):
     time_dim = np.array(plot_dict['time_grids']['ip'])
@@ -1195,3 +1481,9 @@ def test_naca_coordinates():
         message = 'something went wrong with the naca 0012 coordinate generation.'
         print_op.log_and_raise_error(message)
     return None
+
+
+
+if __name__ == "__main__":
+    test_naca_coordinates()
+    # test_basic_draw_offside()

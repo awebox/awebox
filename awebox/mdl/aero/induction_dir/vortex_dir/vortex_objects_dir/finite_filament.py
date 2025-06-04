@@ -93,7 +93,7 @@ class FiniteFilament(obj_element.Element):
         num2 = vect_op.cross(vec_0, vec_1)
         den1 = r_squared_0 * r_squared_1
         den2 = r_0 * r_1 * cas.mtimes(vec_0.T, vec_1)
-        den3 = epsilon_vortex
+        den3 = epsilon_vortex + 1e-10
 
         num = factor * num1 * num2
         den = den1 + den2 + den3

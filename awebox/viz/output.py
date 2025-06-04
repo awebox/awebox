@@ -22,6 +22,7 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+import pdb
 
 import matplotlib
 matplotlib.use('TkAgg')
@@ -207,10 +208,12 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                 if (epigraph is not None) and (isinstance(epigraph, float)):
                     relevant_axes.axhline(y=epigraph, color='gray', linestyle='--')
 
-                if 't_switch' in plot_dict['time_grids'].keys():
-                    t_switch = float(plot_dict['time_grids']['t_switch'])
+                # if 't_switch' in plot_dict['time_grids'].keys():
+                #     t_switch = float(plot_dict['time_grids']['t_switch'])
+                #
+                #     relevant_axes.axvline(x=t_switch, color='gray', linestyle='--')
+                tools.add_block_plot_temporal_orientation_epigraphs(relevant_axes, plot_dict)
 
-                    relevant_axes.axvline(x=t_switch, color='gray', linestyle='--')
 
                 if not all_together:
                     relevant_axes.set_ylabel(output_name)
@@ -248,6 +251,11 @@ def plot_power(plot_dict, cosmetics, fig_name, fig_num = None):
     interesting_outputs = [('performance', 'p_current')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+def plot_thrust(plot_dict, cosmetics, fig_name, fig_num = None):
+    interesting_outputs = []
+    for parent in plot_dict['architecture'].layer_nodes:
+        interesting_outputs += [('aerodynamics', 'thrust' + str(parent))]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
 
@@ -321,18 +329,25 @@ def plot_local_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
+def plot_additionally_observed_induction(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for kite in plot_dict['architecture'].kite_nodes:
+        if 'vortex' in plot_dict['outputs_dict'].keys():
+            for out_name in plot_dict['outputs_dict']['vortex'].keys():
+                if 'vec_u_ind' + str(kite) + '_xi_' in out_name:
+                    interesting_outputs += [('vortex', out_name)]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
 
 def plot_relative_radius_of_curvature(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for parent in plot_dict['architecture'].layer_nodes:
         interesting_outputs += [('geometry', 'average_relative_radius_of_curvature' + str(parent))]
-
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
 
-def plot_relative_distance_from_center_to_kite(plot_dict, cosmetics, fig_name, fig_num=None):
+def plot_relative_radius(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for parent in plot_dict['architecture'].layer_nodes:
-        interesting_outputs += [('geometry', 'average_relative_distance_from_center_to_kite' + str(parent))]
-
+        interesting_outputs += [('geometry', 'average_relative_radius' + str(parent))]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)

@@ -83,7 +83,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
 
-    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables['SI'], parameters)
+    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables, parameters)
 
     # enforce the lagrangian dynamics
     lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling)

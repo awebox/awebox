@@ -94,7 +94,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         if len(periodic_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('periodic', shape=periodic_cstr.get_expression_list('all').shape))
 
-        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs_structured, Integral_outputs, model, time_grids)
+        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids)
         ocp_cstr_list.append(vortex_ocp_cstr_list)
         if len(vortex_ocp_cstr_list.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))

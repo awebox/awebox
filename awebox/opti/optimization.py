@@ -28,8 +28,7 @@
 # import matplotlib
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
-
-
+import pdb
 import pickle
 from . import scheduling
 from . import preparation
@@ -101,7 +100,7 @@ class Optimization(object):
         return None
 
     def solve(self, trial_name, options, nlp, model, formulation, visualization,
-              final_homotopy_step='final', warmstart_file=None, debug_flags=[],
+              final_homotopy_step='final', warmstart_file=None, reference_file=None, debug_flags=[],
               debug_locations=[], intermediate_solve=False):
 
         self.__debug_flags = debug_flags
@@ -133,6 +132,15 @@ class Optimization(object):
             # classifications
             use_warmstart = not (warmstart_file == None)
             make_steps = not (final_homotopy_step == 'initial_guess')
+
+            if not (reference_file == None):
+                if ('V_opt' in reference_file.keys()) and (nlp.V.shape == reference_file['V_opt'].shape):
+                    self.__V_ref = reference_file['V_opt']
+                    self.__p_fix_num['p', 'ref'] = reference_file['V_opt'].cat
+                else:
+                    message = 'proposed reference solution does not have the same number shape as nlp.V.'
+                    message += ' unable to import V_ref.'
+                    print_op.log_and_raise_error(message)
 
             # solve the problem
             if make_steps:

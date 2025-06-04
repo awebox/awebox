@@ -134,7 +134,8 @@ class WakeSubstructure():
         for element_type in self.get_initialized_element_types():
             elem_list = self.get_list(element_type)
             local = elem_list.evaluate_total_biot_savart_induction(x_obs)
-        vec_u_ind += local
+            vec_u_ind += local
+
         return vec_u_ind
 
 
@@ -145,7 +146,7 @@ class WakeSubstructure():
             number_of_elements = elem_list.number_of_elements
             for edx in range(number_of_elements):
                 elem = elem_list.list[edx]
-                unpacked, cosmetics = elem.prepare_to_draw(variables_scaled, parameters, {})
+                unpacked = elem.evaluate_and_unpack_info(variables_scaled, parameters)
                 value, _, _ = elem.calculate_biot_savart_induction(unpacked, x_obs)
                 vec_u_ind += value
 

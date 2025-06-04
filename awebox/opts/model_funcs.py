@@ -726,6 +726,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
     options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'wake_nodes'), 'vortex_wake_nodes')
 
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'convection_type'), 'vortex_convection_type')
 
     u_ref = get_u_ref(options['user_options'])
     vortex_u_ref = u_ref
@@ -789,6 +790,8 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ref = get_u_ref(options['user_options'])
     u_ind = a_ref * u_ref
+    # print_op.warn_about_temporary_functionality_alteration(reason='theres something in the way scaling enters biot-savart that does not work correctly yet.')
+    # u_ind = cas.DM(1.)
 
     clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))

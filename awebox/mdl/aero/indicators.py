@@ -106,6 +106,12 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
             average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
             outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
 
+            thrust = cas.DM(0.)
+            nhat = outputs['rotation']['ehat_normal' + str(parent)]
+            for kite in architecture.get_kite_children(parent):
+                thrust += cas.mtimes(outputs['aerodynamics']['f_aero_earth' + str(kite)].T, nhat)
+            outputs['aerodynamics']['thrust' + str(parent)] = thrust
+
     return outputs
 
 def get_performance_outputs(model_options, atmos, wind, variables_si, outputs, parameters, architecture):
@@ -220,7 +226,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
         outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
-
 
     outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
 

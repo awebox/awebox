@@ -30,7 +30,7 @@ _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
 '''
 import copy
-
+import pdb
 
 import numpy as np
 import casadi.tools as cas
@@ -177,7 +177,7 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
 
         ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-        for var_type in ['x', 'z']:
+        for var_type in ['x', 'z', 'xdot', 'u']:
             for name in struct_op.subkeys(model.variables, var_type):
                 if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init_si.keys():
                     V_init_si[var_type, ndx, name] = ret[name]

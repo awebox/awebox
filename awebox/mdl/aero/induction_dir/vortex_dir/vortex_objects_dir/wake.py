@@ -128,7 +128,8 @@ class Wake():
         initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
         for substructure_type in initialized_types:
             local = self.get_substructure(substructure_type).evaluate_total_biot_savart_induction(x_obs)
-        vec_u_ind += local
+            vec_u_ind += local
+
         return vec_u_ind
 
 

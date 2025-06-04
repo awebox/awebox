@@ -118,8 +118,9 @@ def get_number_of_algebraic_variables_set_outside_dynamics(nlp_options, model):
             for tip in tip_list:
                 for wake_node_or_ring in wake_node_or_ring_list:
 
-                    if abbreviated_var_name[:2] == 'wx':
-                        count += 3
+                    if (abbreviated_var_name[:2] == 'wx'):
+                        if (wake_node_or_ring > 0):
+                            count += 3
 
                     elif abbreviated_var_name[:2] == 'wg':
                         count += 1
@@ -492,10 +493,10 @@ def get_wake_node_position_var_type(model_options):
 
     return var_type
 
-def get_wake_node_position_si(model_options, variables, kite_shed, tip, wake_node, scaling=None):
+def get_wake_node_position_si(model_options, variables_si, kite_shed, tip, wake_node, scaling=None):
     var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
     var_type = get_wake_node_position_var_type(model_options)
-    return get_variable_si(variables, var_type, var_name, scaling)
+    return get_variable_si(variables_si, var_type, var_name, scaling)
 
 
 def get_vortex_ring_strength_si(variables, kite_shed, ring, scaling=None):

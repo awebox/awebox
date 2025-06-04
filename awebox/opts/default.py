@@ -123,10 +123,11 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'normal_vector_model',  'tether_parallel',  ('selection of estimation method for normal vector', ['least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
 
         ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
+        ('model', 'aero', 'vortex',     'convection_type',      'rigid',    ('are the wake nodes convected rigidly or freely?', ['rigid', 'free']), 'x'),
         ('model', 'aero', 'vortex',     'wake_nodes',           5,          ('number of wake nodes per kite per wingtip; note that the bound wake nodes ARE counted here.', None), 'x'),
         ('model', 'aero', 'vortex',     'far_wake_element_type', 'semi_infinite_filament', ('the type of vortex elements used to model the far-wake vorticity', ['finite_filament', 'semi_infinite_filament', 'semi_infinite_right_cylinder', 'not_in_use']), 'x'),
         ('model', 'aero', 'vortex',     'approximation_order_for_elliptic_integrals', 5, ('the approximation order for the elliptic integrals, must be an integer between 0 and 6', None), 'x'),
-        ('model', 'aero', 'vortex',     'far_wake_convection_time',  120.,  ('the time [s] that the infinitely far away vortex nodes have been convected', None), 'x'),
+        ('model', 'aero', 'vortex',     'far_wake_convection_time',  120.,  ('the time [s] that the infinitely far away vortex nodes have been convected, if using a finite-length element', None), 'x'),
         ('model', 'aero', 'vortex',     'core_to_chord_ratio',  0.05,        ('the ratio between the vortex-filament core radius and the airfoil chord, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_m',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, dimensionless, [-]', None), 'x'),
         ('model', 'aero', 'vortex',     'epsilon_r',            1.e-8,      ('the (small) vortex cylinder smoothing parameter, specified in meters, [-]', None), 'x'),
@@ -139,6 +140,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'verification_points',                  50,             ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
+        ('model', 'aero', 'vortex',     'additional_induction_observation_points', [],          ('a list of additional points (spanwise, nondimensional aka "xi") where the induced velocity should be observed', None), 'x'),
 
         ('model', 'aero', 'overwrite',  'f_aero_rot',           None,       ('3-component [radial, tangential, normal] lift force in the rotating frame, to over-write stability-derivative forces in case of vortex verification/validation tests', None), 'x'),
 
@@ -282,6 +284,7 @@ def set_default_options(default_user_options, help_options):
 
         ## numerics
         #### NLP options
+        ('nlp', None, None, 'try_skeleton', True, ('????', None), 't'),
         ('nlp',  None,               None, 'n_k',                  40,                     ('control discretization [int]', None),'t'),
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'t'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
@@ -342,7 +345,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  None,   None,   'hippo_strategy',       True,       ('enable hippo strategy to increase homotopy speed', [True, False]),'x'),
-        ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotop parameter for hippo strategy [float]', None),'x'),
+        ('solver',  None,   None,   'mu_hippo',             1e-2,       ('target for interior point homotopy parameter for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'tol_hippo',            1e-4,       ('ipopt solution tolerance for hippo strategy [float]', None),'x'),
         ('solver',  None,   None,   'max_iter_hippo',       2000,       ('max iter for hippo strategy [int]', None),'x'),
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
@@ -355,6 +358,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', None, 'inclination_deg',      40.,        ('initial tether inclination angle [deg]. for single kite simulations, should be larger than the cone angle', None),'x'),
         ('solver',  'initialization', None, 'min_rel_radius',       2.,         ('minimum allowed radius to span ratio allowed in initial guess [-]', None), 'x'),
         ('solver',  'initialization', None, 'kite_dcm',             'aero_validity',     ('initialize kite dcm so that aero validity constraints are satisfied, or based on circular geometry', ['aero_validity', 'circular']), 'x'),
+        ('solver',  'initialization', None, 'casadi_pitch_fun',     None,       ('pass a casadi function that describes the kite pitch angle in radians as a function of time. this function should be signed so that increasing pitch moves trailing edge further downwind.', None), 'x'),
         ('solver',  'initialization', None, 'psi0_rad',             0.,         ('azimuthal angle at time 0 [rad]', None), 'x'),
         ('solver',  'initialization', None, 'l_t',                  500.,       ('initial main tether length [m]', None), 'x'),
         ('solver',  'initialization', None, 'max_cone_angle_multi', 80.,        ('maximum allowed cone angle allowed in initial guess, for multi-kite scenarios [deg]', None),'x'),
@@ -509,6 +513,8 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'actuator_n_theta', 180,       ('number of tangential steps to be drawn in actuator annulus', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'alpha',       0.3,            ('transparency of trajectories in animation', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'margin',      0.05,           ('trajectory figure margins', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'reel_in_linestyle', '-',      ('drawing style of reel-in trajectory, as linestyle input', ['-', '--', ':']), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'temporal_epigraph_length_to_span',  0.,   ('how long to draw the temporal-orientation epigraphs in a trajectory plot, in multiples of the kite wingspan', None), 'x'),
         ('visualization', 'cosmetics', None,         'save_figs',   False,          ('save the figures', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'save',       'format_list', ['eps', 'pdf'], ('save the figures as files of these types', None), 'x'),
         ('visualization', 'cosmetics', None,         'plot_coll',   True,           ('plot the collocation variables', [True, False]), 'x'),
@@ -538,6 +544,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'induction',   'comparison_data_for_velocity_distribution', 'not_in_use', ('whether to add comparison data from Rancourt2018 or Trevisi2023 to plot of spanwise velocity distribution', ['not_in_use', 'rancourt', 'trevisi']), 'x'),
         ('visualization', 'cosmetics', 'animation',   'snapshot_index', 0,          ('???', None), 'x'),
         ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
+        ('visualization', 'cosmetics', None,          'temporal_epigraph_locations',    ['switch', 1.0], ('draw temporal-orientation lines/gates into the plots at certain fractions of the optimizaton_period. switch includes the phase switching time; decimal values between 0. and 1. indicate fractions of period', None), 'x'),
 
         # quality check options
         ('quality', None,       None, 'when',           'final_success',    ('run a quality-check never (never), at final solution (final), at a final solution if solve succeeded (final_success)', ['never', 'final', 'final_success']), 'x'),

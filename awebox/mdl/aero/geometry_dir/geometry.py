@@ -166,12 +166,15 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
     for kite in architecture.kite_nodes:
         local_period_of_rotation = get_local_period_of_rotation(model_options, variables_si, kite, architecture, scaling)
         vector_from_center_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
+        ehat_radial = outputs['rotation']['ehat_radial' + str(kite)]
+        abs_radial_projection_of_vector_from_center_to_kite = vect_op.abs(cas.mtimes(vector_from_center_to_kite.T, ehat_radial))
+
         clockwise_rotation = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, kite, architecture, wind)
         radius_of_curvature = frenet_geom.get_radius_of_curvature(variables_si, kite, architecture.parent_map[kite])
 
         outputs['geometry']['local_period_of_rotation' + str(kite)] = local_period_of_rotation
         outputs['geometry']['vector_from_center_to_kite' + str(kite)] = vector_from_center_to_kite
-        outputs['geometry']['distance_from_center_to_kite' + str(kite)] = vect_op.norm(vector_from_center_to_kite)
+        outputs['geometry']['radius' + str(kite)] = abs_radial_projection_of_vector_from_center_to_kite
         outputs['geometry']['kite_motion_is_right_hand_rule_positive_around_wind_direction' + str(kite)] = clockwise_rotation
         outputs['geometry']['radius_of_curvature' + str(kite)] = radius_of_curvature
 
@@ -188,11 +191,11 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['u_zero' + str(parent)] = vect_op.norm(vec_u_zero)
 
         average_radius_of_curvature = cas.DM.zeros((1, 1))
-        average_distance_from_center_to_kite = cas.DM.zeros((1, 1))
+        average_radius = cas.DM.zeros((1, 1))
         average_period_of_rotation = cas.DM.zeros((1, 1))
         for kite in architecture.kites_map[parent]:
             average_radius_of_curvature += outputs['geometry']['radius_of_curvature' + str(kite)] / float(architecture.get_number_siblings(kite))
-            average_distance_from_center_to_kite += outputs['geometry']['distance_from_center_to_kite' + str(kite)] / float(architecture.get_number_siblings(kite))
+            average_radius += outputs['geometry']['radius' + str(kite)] / float(architecture.get_number_siblings(kite))
             average_period_of_rotation += outputs['geometry']['local_period_of_rotation' + str(kite)] / float(
                 architecture.get_number_siblings(kite))
 
@@ -202,8 +205,8 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['average_relative_radius_of_curvature' + str(parent)] = average_radius_of_curvature / b_ref
         outputs['geometry']['average_curvature' + str(parent)] = 1./average_radius_of_curvature
         outputs['geometry']['average_period_of_rotation' + str(parent)] = average_period_of_rotation
-        outputs['geometry']['average_distance_from_center_to_kite' + str(parent)] = average_distance_from_center_to_kite
-        outputs['geometry']['average_relative_distance_from_center_to_kite' + str(parent)] = average_distance_from_center_to_kite / b_ref
+        outputs['geometry']['average_radius' + str(parent)] = average_radius
+        outputs['geometry']['average_relative_radius' + str(parent)] = average_radius / b_ref
 
     outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture)
 

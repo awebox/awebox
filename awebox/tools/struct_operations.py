@@ -596,10 +596,14 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
     return scaling_value
 
 
-def var_si_to_scaled(var_type, var_name, var_si, scaling):
-    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
-    if message is not None:
-        print_op.base_print(message, level='warning')
+def var_si_to_scaled(var_type, var_name, var_si, scaling, make_safety_check=True):
+
+    if make_safety_check:
+        should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
+        if message is not None:
+            print_op.base_print(message, level='warning')
+    else:
+        should_multiply = True
 
     if should_multiply:
         scale = scaling[var_type, var_name]
@@ -608,11 +612,14 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling):
     else:
         return var_si
 
-def var_scaled_to_si(var_type, var_name, var_scaled, scaling):
+def var_scaled_to_si(var_type, var_name, var_scaled, scaling, make_safety_check=True):
 
-    should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
-    if message is not None:
-        print_op.base_print(message, level='warning')
+    if make_safety_check:
+        should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
+        if message is not None:
+            print_op.base_print(message, level='warning')
+    else:
+        should_multiply = True
 
     if should_multiply:
         scale = scaling[var_type, var_name]

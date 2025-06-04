@@ -31,7 +31,6 @@ import pdb
 
 import numpy as np
 import casadi.tools as cas
-from sympy.physics.units import velocity, acceleration
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -51,8 +50,8 @@ def get_rotor_reference_frame(init_options):
         z_rot_hat = vect_op.zhat_np()
     else:
         u_hat = vect_op.xhat_np()
-        z_rot_hat = vect_op.normed_cross(u_hat, n_rot_hat)
-        y_rot_hat = vect_op.normed_cross(z_rot_hat, n_rot_hat)
+        y_rot_hat = vect_op.normed_cross(n_rot_hat, u_hat)
+        z_rot_hat = vect_op.normed_cross(n_rot_hat, y_rot_hat)
 
     return n_rot_hat, y_rot_hat, z_rot_hat
 
@@ -119,7 +118,47 @@ def get_omega_vector(t, init_options, model, node, ret):
     omega_norm = init_options['precompute']['angular_speed']
     ehat2_in_body_frame = vect_op.zhat_dm()
     omega_vector = rotation_direction_sign * omega_norm * ehat2_in_body_frame
-    return omega_vector
+    domega_vector = cas.DM.zeros((3, 1))
+
+    # print_op.warn_about_temporary_functionality_alteration()
+    if init_options['casadi_pitch_fun'] is not None:
+        if (not init_options['clockwise_rotation_about_xhat']):
+            message = 'casadi function pitching is not yet available for counter-clockwise rotation directions'
+            print_op.log_and_raise_error(message)
+
+        casadi_pitch_fun= init_options['casadi_pitch_fun']
+        t_sym = cas.SX.sym('t_sym', (1, 1))
+        casadi_dpitch_fun = cas.Function('casadi_dpitch_fun', [t_sym], [cas.jacobian(casadi_pitch_fun(t_sym), t_sym)])
+        casadi_ddpitch_fun = cas.Function('casadi_dpitch_fun', [t_sym], [cas.jacobian(casadi_dpitch_fun(t_sym), t_sym)])
+        pitch_rad = casadi_pitch_fun(t)
+        dpitch_rad = casadi_dpitch_fun(t)
+        ddpitch_rad = casadi_ddpitch_fun(t)
+
+        dpsi = omega_norm
+        ddpsi = cas.DM.zeros((1, 1))
+
+        omega1 = cas.sin(pitch_rad) * dpsi
+        omega2 = -dpitch_rad
+        omega3 = cas.cos(pitch_rad) * dpsi
+        omega_vector = cas.vertcat(omega1, omega2, omega3)
+
+        domega1 = cas.cos(pitch_rad) * dpitch_rad * dpsi + cas.sin(pitch_rad) * ddpsi
+        domega2 = - ddpitch_rad
+        domega3 = - cas.sin(pitch_rad) * dpitch_rad  * dpsi + cas.cos(pitch_rad) * ddpsi
+        domega_vector = cas.vertcat(domega1, domega2, domega3)
+
+        # print_op.warn_about_temporary_functionality_alteration()
+        # omega1 = -cas.sin(pitch_rad) * omega_norm
+        # omega2 = dpitch_rad
+        # omega3 = cas.cos(pitch_rad) * omega_norm
+        # omega_vector = cas.vertcat(omega1, omega2, omega3)
+        #
+        # domega1 = - omega_norm * cas.cos(pitch_rad) * dpitch_rad
+        # domega2 = ddpitch_rad
+        # domega3 = - omega_norm * cas.sin(pitch_rad) * dpitch_rad
+        # domega_vector = cas.vertcat(domega1, domega2, domega3)
+
+    return omega_vector, domega_vector
 
 def get_dpsi(init_options):
     omega_norm = init_options['precompute']['angular_speed']
@@ -186,7 +225,7 @@ def get_air_velocity(init_options, model, node, ret):
 
     return vec_u_app
 
-def get_kite_dcm(init_options, model, node, ret):
+def get_kite_dcm(t, init_options, model, node, ret):
 
     normal_vector_model = model.options['aero']['actuator']['normal_vector_model']
     if normal_vector_model == 'xhat':
@@ -220,9 +259,42 @@ def get_kite_dcm(init_options, model, node, ret):
         message = 'unknown kite_dcm initialization option (' + kite_dcm_setting_method + ').'
         print_op.log_and_raise_error(message)
 
-    kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
+    if init_options['casadi_pitch_fun'] is not None:
+        casadi_pitch_function = init_options['casadi_pitch_fun']
+        pitch_rad = casadi_pitch_function(t)
 
-    return kite_dcm
+        pseudo_nhat = ehat3
+        ehat1_pitched = cas.cos(pitch_rad) * ehat1 + cas.sin(pitch_rad) * pseudo_nhat
+        ehat3_pitched = vect_op.normed_cross(ehat1_pitched, ehat2)
+
+        # uinfty = 8.7
+        # tsr = 8.1
+        # rext = 30.46
+        # ravg = 16.96
+        # omega = uinfty * tsr / rext
+        # vt = omega * ravg
+        # ua_test = uinfty * vect_op.xhat_dm() - vt * ehat_forwards
+        # alpha_rad = cas.mtimes(ua_test.T, ehat3) / cas.mtimes(ua_test.T, ehat1)
+        # alpha_deg = alpha_rad * 180. / np.pi
+        # alpha_pitched_rad = cas.mtimes(ua_test.T, ehat3_pitched) / cas.mtimes(ua_test.T, ehat1_pitched)
+        # alpha_pitched_deg = alpha_pitched_rad * 180. / np.pi
+        # print(alpha_deg)
+        # print(alpha_pitched_deg)
+        # print_op.warn_about_temporary_functionality_alteration()
+
+        ehat1 = ehat1_pitched
+        ehat3 = ehat3_pitched
+
+        if (not init_options['clockwise_rotation_about_xhat']):
+            message = 'casadi function pitching is not yet available for counter-clockwise rotation directions'
+            print_op.log_and_raise_error(message)
+
+    kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
+    omega_vector, _ = get_omega_vector(t, init_options, model, node, ret)
+    omega_skew = vect_op.skew(omega_vector)
+    kite_ddcm = cas.mtimes(kite_dcm, omega_skew)
+
+    return kite_dcm, kite_ddcm
 
 
 def get_l_t_from_init_options(init_options):

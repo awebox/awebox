@@ -26,6 +26,7 @@
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
 ###################################
+import pdb
 
 from . import tools
 from . import trajectory
@@ -166,10 +167,10 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
-        plot_logic_dict['vortex_haas_verification'] = (wake.plot_haas_verification_test, None)
+        plot_logic_dict['induction_contour'] = (wake.plot_induction_contour_on_kmp, None)
         plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
         plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
-        plot_logic_dict['relative_radius'] = (output.plot_relative_distance_from_center_to_kite, None)
+        plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         plot_logic_dict['relative_radius_of_curvature'] = (output.plot_relative_radius_of_curvature, None)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
@@ -198,6 +199,8 @@ class Visualization(object):
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, None)
+        plot_logic_dict['additionally_observed_induction'] = (output.plot_additionally_observed_induction, None)
+        plot_logic_dict['thrust'] = (output.plot_thrust, None)
 
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})

@@ -326,8 +326,15 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
 
     parallelization_type = options['construction']['parallelization']['type']
     if parallelization_type == 'serial':
+        print_op.base_print('making solvers...', level='info')
+        number_expected = len(ordered_names)
+        edx = 0
         for name in ordered_names:
             solvers[name] = construct_single_solver_from_bundle(dict_of_bundled_nlp_and_options[name])
+            edx += 1
+            print_op.print_progress(edx, number_expected)
+
+        print_op.close_progress()
         results = None
 
     elif parallelization_type == 'multiprocessing_pool':

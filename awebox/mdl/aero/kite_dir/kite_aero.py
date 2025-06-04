@@ -46,8 +46,9 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import casadi.tools as cas
 
-def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+def get_forces_and_moments(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
 
+    variables_si = system_variables['SI']
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture, scaling)
@@ -55,7 +56,7 @@ def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, pa
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
+        outputs = induction.collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
 
     return outputs
 

@@ -168,10 +168,10 @@ def get_stats_values_from_trial(plot_dict, stat_name):
         return float(plot_dict['power_and_performance']['zeta'])
 
     elif stat_name == 'power_output_kw':
-        return plot_dict['power_and_performance']['avg_power'].full()*1e-3
+        return plot_dict['power_and_performance']['avg_power']*1e-3
 
     elif stat_name == 'power_per_surface_area':
-        return plot_dict['power_and_performance']['power_per_surface_area'].full()*1e-3
+        return plot_dict['power_and_performance']['power_per_surface_area']*1e-3
 
     elif stat_name == 't_f':
         local_value = plot_dict['power_and_performance']['time_period']

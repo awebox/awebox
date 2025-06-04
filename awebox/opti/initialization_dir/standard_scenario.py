@@ -131,17 +131,20 @@ def guess_values_at_time(t, init_options, model):
             ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
             ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
 
-            dcm = tools.get_kite_dcm(init_options, model, node, ret)
+            dcm, ddcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
-            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
+            omega_vector, domega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
             if int(kite_dof) == 6:
                 ret['omega' + str(node) + str(parent)] = omega_vector
+                ret['domega' + str(node) + str(parent)] = domega_vector
                 ret['r' + str(node) + str(parent)] = dcm_column
+                if ddcm is not None:
+                    ret['dr' + str(node) + str(parent)] = cas.reshape(ddcm, (9, 1))
 
     return ret
 
@@ -278,9 +281,8 @@ def set_user_radius(init_options):
 def set_user_winding_period(init_options):
 
     ground_speed = init_options['groundspeed']
-    windings = init_options['windings']
     radius = init_options['precompute']['radius']
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+    time_period = (2. * np.pi * radius) / ground_speed
     init_options['precompute']['winding_period'] = time_period
 
     return init_options

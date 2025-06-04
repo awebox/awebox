@@ -294,6 +294,16 @@ def lower_triangular_inclusive(matrix):
                 elements = cas.vertcat(elements, matrix_resquared[r, c])
     return elements
 
+def count_elements(matrix):
+    if hasattr(matrix, 'shape') and len(matrix.shape) == 2:
+        [counted_rows, counted_columns] = matrix.shape
+        number_elements = counted_rows * counted_columns
+    else:
+        message = 'count_elements function is not available for items that are not matrices of dimension 2'
+        print_op.log_and_raise_error(message)
+    return number_elements
+
+
 def columnize(matrix):
 
     if is_scalar(matrix):
@@ -311,8 +321,7 @@ def columnize(matrix):
                 print_op.log_and_raise_error(message)
 
         # only procede with 2D matrices for variable
-        [counted_rows, counted_columns] = matrix.shape
-        number_elements = counted_rows * counted_columns
+        number_elements = count_elements(matrix)
 
         column_var = cas.reshape(matrix, (number_elements, 1))
         return column_var
@@ -881,6 +890,54 @@ def is_numeric(val):
 def is_numeric_columnar(val):
     return is_numeric(val) and (cas.DM(val).shape[1] == 1)
 
+def is_unit_vector(vec, eps):
+
+    if not is_numeric_columnar(vec):
+        return False
+
+    length = norm(vec)
+    resi = abs(length - 1.)
+    if resi < eps:
+        return True
+    else:
+        return False
+
+def test_is_unit_vector():
+
+    eps = 1.e-8
+
+    ehat1 = xhat_np()
+    ehat2 = xhat_dm()
+    angle = 30. * np.pi/ 180.
+    ehat3 = np.cos(angle) * xhat_np() + np.sin(angle) * zhat_np()
+    ehat4 = cas.cos(angle) * xhat_dm() + cas.sin(angle) * zhat_dm()
+
+    should_be_true = [ehat1, ehat2, ehat3, ehat4]
+
+    vec1 = 3. * ehat3
+    vec2 = eps * ehat3
+    vec3 = eps * ehat4
+    vec4 = -eps * ehat3
+    vec5 = 0. * ehat3
+
+    sx1 = 3. * cas.SX.sym('ehat', (3, 1))
+    sx2 = 0. * cas.SX.sym('ehat', (3, 1))
+
+    should_be_false = [vec1, vec2, vec3, vec4, vec5, sx1, sx2]
+
+    message = 'vect_op.is_a_unit_vector is returning an unexpected result for vector '
+    for vec in should_be_true:
+        if not is_unit_vector(vec, eps):
+            message += str(vec)
+            print_op.log_and_raise_error(message)
+
+    for vec in should_be_false:
+        if is_unit_vector(vec, eps):
+            message += str(vec)
+            print_op.log_and_raise_error(message)
+
+    return None
+
 def is_scalar(val):
     if isinstance(val, float):
         return True
@@ -1046,6 +1103,8 @@ def test():
     test_elliptic_pi()
     test_spline_interpolation()
     test_is_strictly_increasing()
+    test_is_unit_vector()
     return None
 
-# test()
+if __name__ == "__main__":
+    test()

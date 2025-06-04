@@ -27,6 +27,8 @@ vortex model of awebox aerodynamics
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2019-21
 '''
+import pdb
+
 import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
@@ -56,20 +58,20 @@ from awebox.logger.logger import Logger as awelogger
 import numpy as np
 import casadi.tools as cas
 
-def build(model_options, architecture, wind, variables_si, parameters):
+def build(model_options, architecture, wind, variables_si, variables_scaled, parameters):
 
     vortex_tools.check_positive_vortex_wake_nodes(model_options)
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'alg':
-        return algebraic_representation.build(model_options, architecture, wind, variables_si, parameters)
+        return algebraic_representation.build(model_options, architecture, wind, variables_si, variables_scaled, parameters)
     else:
         vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
     return None
 
 
-def get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling):
+def get_model_constraints(model_options, wake, system_variables, parameters, outputs, architecture, scaling):
 
     vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
     if vortex_representation == 'state':
@@ -79,8 +81,11 @@ def get_model_constraints(model_options, wake, system_variables, parameters, arc
 
     cstr_list = cstr_op.ConstraintList()
 
+    wingtip_position_cstr = get_wingtip_position_cstr(system_variables['SI'], outputs, architecture, scaling)
+    cstr_list.append(wingtip_position_cstr)
+
     if degree_of_induced_velocity_lifting == 1:
-        unlifted_cstr = get_unlifted_cstr(model_options, wake, system_variables, architecture, scaling)
+        unlifted_cstr = get_unlifted_cstr(wake, system_variables, parameters, architecture, scaling)
         cstr_list.append(unlifted_cstr)
 
     elif degree_of_induced_velocity_lifting >= 2:
@@ -93,7 +98,41 @@ def get_model_constraints(model_options, wake, system_variables, parameters, arc
 
     return cstr_list
 
-def get_unlifted_cstr(model_options, wake, system_variables, architecture, scaling):
+def get_wingtip_position_cstr(variables_si, outputs, architecture, scaling):
+
+    message = 'adding shedding position constraints'
+    print_op.base_print(message, level='info')
+
+    resi_expr = []
+    for kite_shed in architecture.kite_nodes:
+        for tip in ['int', 'ext']:
+            wake_node = 0
+
+            fixing_name = vortex_tools.get_wake_node_position_name(kite_shed=kite_shed, tip=tip,
+                                                                   wake_node=wake_node)
+            node_position_si = variables_si['z'][fixing_name]
+            wingtip_position_si = outputs['aerodynamics']['wingtip_' + tip + str(kite_shed)]
+            local_resi_si = wingtip_position_si - node_position_si
+            local_resi_scaled = struct_op.var_si_to_scaled('z', fixing_name, local_resi_si, scaling)
+            resi_expr = cas.vertcat(resi_expr, local_resi_scaled)
+
+    local_cstr = cstr_op.Constraint(expr=resi_expr,
+                                    name='wx_wingtip_shed',
+                                    cstr_type='eq')
+    print_op.close_progress()
+
+    return local_cstr
+
+def try_getting_wingtip_position_si(kite_shed, tip, Outputs, ndx, ddx=None):
+    if ddx is None:
+        ndx = ndx - 1
+        ddx = -1
+
+    wingtip_position_si = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite_shed)]
+    return wingtip_position_si
+
+
+def get_unlifted_cstr(wake, system_variables, parameters, architecture, scaling):
 
     variables_si = system_variables['SI']
 
@@ -103,7 +142,10 @@ def get_unlifted_cstr(model_options, wake, system_variables, architecture, scali
         parent_obs = architecture.parent_map[kite_obs]
 
         x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
-        vec_u_computed = wake.evaluate_total_biot_savart_induction(x_obs=x_obs)
+        print_op.warn_about_temporary_functionality_alteration()
+        # was calculate until may 30th.
+        # vec_u_computed = wake.evaluate_total_biot_savart_induction(x_obs=x_obs)
+        vec_u_computed = wake.calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs)
 
         vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
         resi_si = vec_u_ind - vec_u_computed
@@ -252,14 +294,14 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
 
     return cstr_list
 
-def get_ocp_constraints(nlp_options, V, Outputs_structured, Integral_outputs, model, time_grids):
+def get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids):
 
     ocp_cstr_list = cstr_op.OcpConstraintList()
 
     if model_is_included_in_comparison(nlp_options):
         vortex_representation = general_tools.get_option_from_possible_dicts(nlp_options, 'representation', 'vortex')
         if vortex_representation == 'alg':
-            return algebraic_representation.get_ocp_constraints(nlp_options, V, Outputs_structured, Integral_outputs, model, time_grids)
+            return algebraic_representation.get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids)
         else:
             vortex_tools.log_and_raise_unknown_representation_error(vortex_representation)
 
@@ -287,7 +329,7 @@ def model_is_included_in_comparison(options):
     return vortex_tools.model_is_included_in_comparison(options)
 
 
-def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, architecture):
+def collect_vortex_outputs(model_options, wind, wake, system_variables, parameters, outputs, architecture):
 
     # break early and loud if there are problems
     test_includes_visualization = model_options['aero']['vortex']['test_includes_visualization']
@@ -296,10 +338,12 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
     if 'vortex' not in list(outputs.keys()):
         outputs['vortex'] = {}
 
+    variables_si = system_variables['SI']
     kite_nodes = architecture.kite_nodes
     for kite_obs in kite_nodes:
 
         parent_obs = architecture.parent_map[kite_obs]
+        q_kite = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
 
         vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
         n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture)
@@ -312,13 +356,18 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
         outputs['vortex']['u_ind_norm' + str(kite_obs)] = u_ind_norm
         outputs['vortex']['local_a' + str(kite_obs)] = local_a
 
-        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
+        x_obs = q_kite
 
         u_ref = wind.get_speed_ref()
 
         substructure_types = wake.get_initialized_substructure_types()
         for substructure in substructure_types:
-            vec_u_ind_from_substructure = wake.get_substructure(substructure).evaluate_total_biot_savart_induction(x_obs=x_obs)
+            print_op.warn_about_temporary_functionality_alteration()
+            # may 4th version is calculate
+            # calculate is max_iterations_exceeded in power_problem predictor step
+            # evaluate is restoration failed
+            # vec_u_ind_from_substructure = wake.get_substructure(substructure).evaluate_total_biot_savart_induction(x_obs=x_obs)
+            vec_u_ind_from_substructure = wake.get_substructure(substructure).calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs)
             u_ind_norm_from_substructure = vect_op.norm(vec_u_ind_from_substructure)
             u_ind_norm_from_substructure_over_total = u_ind_norm_from_substructure / u_ind_norm
             u_ind_norm_from_substructure_over_ref = u_ind_norm_from_substructure / u_ref
@@ -345,6 +394,18 @@ def collect_vortex_outputs(model_options, wind, wake, variables_si, outputs, arc
             for rot_name, rot_ehat in rot_dir_dict.items():
                 outputs['vortex']['u_ind_' + rot_name + str(kite_obs)] = cas.mtimes(vec_u_ind.T, rot_ehat)
 
+            print_op.warn_about_temporary_functionality_alteration(reason='there is something really wrong here')
+            outputs['vortex']['vec_u_ind' + str(kite_obs) + '_xi_00_neg_xhat' ] = -1. * cas.mtimes(vec_u_ind.T, xhat)
+
+            b_ref = parameters['theta0', 'geometry', 'b_ref']
+            for extra_xi_obs in model_options['aero']['vortex']['additional_induction_observation_points']:
+                x_obs_extra = q_kite + extra_xi_obs * b_ref * ehat_span
+                # extra_ui_calculate = wake.calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs_extra)
+                extra_ui_evaluate = wake.evaluate_total_biot_savart_induction(x_obs=x_obs_extra)
+                # outputs['vortex']['vec_u_ind' + str(kite_obs) + '_xi_' + str(extra_xi_obs) + '_neg_xhat_calculate' ] = -1. * cas.mtimes(extra_ui_calculate.T, xhat)
+                outputs['vortex']['vec_u_ind' + str(kite_obs) + '_xi_' + str(extra_xi_obs) + '_neg_xhat_evaluate' ] = -1. * cas.mtimes(extra_ui_evaluate.T, xhat)
+
+
     total_truncation_error_at_kite = cas.DM(0.)
     base_name = 'u_ind_norm_from_far_wake'
     for kite_obs in kite_nodes:
@@ -369,7 +430,7 @@ def get_dictionary_of_derivatives(outputs, architecture):
 def test_that_model_constraint_residuals_have_correct_shape(degree_of_induced_velocity_lifting=3):
 
     model_options, architecture, wind, var_struct, param_struct, variables_dict = alg_structure.construct_test_model_variable_structures(degree_of_induced_velocity_lifting=degree_of_induced_velocity_lifting)
-    wake = build(model_options, architecture, wind, var_struct, param_struct)
+    wake = build(model_options, architecture, wind, var_struct, var_struct, param_struct)
 
     total_number_of_elements = vortex_tools.get_total_number_of_vortex_elements(model_options, architecture)
     number_of_observers = architecture.number_of_kites

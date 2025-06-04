@@ -367,6 +367,16 @@ def generate_options_dict():
     vortex_options['solver.max_cpu_time'] = 1.e7
     vortex_options['quality.raise_exception'] = False
 
+
+    # #################
+    # # remove this
+    # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    # vortex_options['model.aero.vortex.wake_nodes'] = 1
+    # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
+    # vortex_options['visualization.cosmetics.temporal_epigraph_locations'] = ['switch', 0.25, 0.5, 0.75, 1.0]
+    # vortex_options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 5.
+    # ################
+
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
     vortex_force_zero_options = copy.deepcopy(vortex_options)
@@ -450,6 +460,12 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
     trial.optimize(final_homotopy_step=final_homotopy_step)
+    #
+    # #########################
+    # # remove this
+    # trial.plot(['induction_contour', 'projected_xy', 'projected_xz', 'projected_yz', 'power', 'constraints'])
+    # plt.show()
+    # #######################
 
     if not trial.optimization.solve_succeeded:
         message = 'optimization of trial ' + trial_name + ' failed'

@@ -89,10 +89,15 @@ def construct_test_model_variable_structures(element_type='finite_filament', wak
     options['scaling'] = {'z': {}}
     for kite_obs in architecture.kite_nodes:
 
+        # options['scaling']['z']['ui' + str(kite_obs)] = 2.7
+
         near_count = 0
         bound_count = 0
         far_count = 0
         for kite_shed in architecture.kite_nodes:
+
+            # var_name = vortex_tools.get_wake_node_position_name(kite_shed, 'int', 0)
+            # options['scaling']['z'][var_name] = 1.3
 
             for ndx in range(3):
                 wake_type = 'near'
