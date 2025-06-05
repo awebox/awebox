@@ -333,8 +333,7 @@ def generate_options_dict():
     actuator_qaxi_options['visualization.cosmetics.trajectory.kite_bodies'] = True
     actuator_qaxi_options['model.system_bounds.theta.a'] = [-0., 0.5]
     actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 3
-    # actuator_qaxi_options['solver.cost.iota.1'] = 1.e3 #1e3
-    # actuator_qaxi_options['solver.cost.psi.1'] = 1.e3  # 1e3
+    # actuator_qaxi_options['solver.cost.iota.1'] = 1.e3 #1e3d
 
     actuator_qaxi_basic_health_options = make_basic_health_variant(actuator_qaxi_options)
 
@@ -368,8 +367,10 @@ def generate_options_dict():
     vortex_options['quality.raise_exception'] = False
 
 
+
     # #################
     # # remove this
+    vortex_options['solver.cost.psi.1'] = 1.e1
     # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     # vortex_options['model.aero.vortex.wake_nodes'] = 1
     # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
@@ -476,30 +477,30 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
 
 
 if __name__ == "__main__":
-
-    test_single_kite_basic_health()
-    test_single_kite()
-    test_single_kite_6_dof_basic_health()
-    test_single_kite_6_dof()
-    test_segmented_tether()
-    test_poly()
-    test_drag_mode()
-    test_save_trial()
-    test_dual_kite_basic_health()
-    test_dual_kite()
-    test_dual_kite_6_dof_basic_health()
-    test_dual_kite_6_dof()
-
-    # # # test_small_dual_kite()
-    # # # test_small_dual_kite_basic_health()
-    # # # test_large_dual_kite()
-    # # # test_large_dual_kite_basic_health()
     #
-    test_dual_kite_tracking()
-    test_dual_kite_tracking_winch()
+    # test_single_kite_basic_health()
+    # test_single_kite()
+    # test_single_kite_6_dof_basic_health()
+    # test_single_kite_6_dof()
+    # test_segmented_tether()
+    # test_poly()
+    # test_drag_mode()
+    # test_save_trial()
+    # test_dual_kite_basic_health()
+    # test_dual_kite()
+    # test_dual_kite_6_dof_basic_health()
+    # test_dual_kite_6_dof()
+    #
+    # # # # test_small_dual_kite()
+    # # # # test_small_dual_kite_basic_health()
+    # # # # test_large_dual_kite()
+    # # # # test_large_dual_kite_basic_health()
+    # #
+    # test_dual_kite_tracking()
+    # test_dual_kite_tracking_winch()
 
-    test_vortex_force_zero_basic_health()
-    test_vortex_force_zero()
+    # test_vortex_force_zero_basic_health()
+    # test_vortex_force_zero()
     test_vortex_basic_health()
     test_vortex()
 

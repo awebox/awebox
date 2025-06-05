@@ -56,7 +56,7 @@ def get_forces_and_moments(options, atmos, wind, wake, system_variables, outputs
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
+        outputs = induction.collect_outputs(options, atmos, wind, wake, system_variables['SI'], outputs, parameters, architecture, scaling)
 
     return outputs
 
