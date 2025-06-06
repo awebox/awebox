@@ -68,10 +68,9 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
     V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
-    # todo: this check does not work when warmstarting/tracking.
-    # check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, model.architecture)
-    # todo: reconstruct this check @rachel
-    # check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+    check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, model.architecture)
+    check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+    check_that_wake_node_0_always_lays_on_wingtips(init_options, V_init_si, Outputs_init, model.architecture)
 
     return V_init_si
 
@@ -505,23 +504,34 @@ def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_
 
     return None
 
-def make_another_sanity_check_on_convection_distance(time_grids, V_init_scaled, init_options, n_k, d):
-    # test that the predicted convection time for wake-node 0 is always 0
+def check_that_wake_node_0_always_has_a_convection_time_of_zero(time_grids, V_init_scaled, init_options, n_k, d):
+
     tcoll = time_grids['coll'](V_init_scaled['theta', 't_f'])
-    a0 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0,
-                                                                                   ndx=np.floor(n_k / 2))
-    a1 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0,
-                                                                                   ndx=np.floor(n_k / 2),
-                                                                                   ddx=np.floor(d / 2))
-    a2 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=0)
-    a3 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=-1,
-                                                                                   ddx=-1)
-    a4 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=n_k + 3,
-                                                                                   ddx=None)
-    a5 = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, 0, ndx=n_k + 3,
-                                                                                   ddx=np.floor(d / 2))
-    if (a0 != 0) or (a1 != 0) or (a2 != 0) or (a3 != 0) or (a4 != 0) or (a5 != 0):
-        message = 'sometime went wrong when computing the convection time, because the convection time does not evaluate as zero on wake node 0'
+    epsilon = 1.e-7
+
+    all_convection_times_are_zero = True
+    for ndx in range(n_k):
+        conv_time_control = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options,
+                                                                                                          tcoll,
+                                                                                                          wake_node=0,
+                                                                                                          ndx=ndx)
+        control_time_is_zero = (conv_time_control) ** 2. < epsilon ** 2.
+        all_convection_times_are_zero = all_convection_times_are_zero and control_time_is_zero
+
+    for ddx in range(d):
+            conv_time_collocation = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options, tcoll, wake_node=0, ndx=ndx, ddx=ddx)
+            coll_time_is_zero = (conv_time_collocation)**2. < epsilon**2.
+            all_convection_times_are_zero = all_convection_times_are_zero and coll_time_is_zero
+
+    conv_time_final = alg_fixing.get_the_convection_time_from_the_current_indices_and_wake_node(init_options,
+                                                                                                  tcoll,
+                                                                                                  wake_node=0,
+                                                                                                  ndx=-1)
+    final_time_is_zero = (conv_time_final) ** 2. < epsilon ** 2.
+    all_convection_times_are_zero = all_convection_times_are_zero and final_time_is_zero
+
+    if not all_convection_times_are_zero:
+        message = 'sometime went wrong when computing the convection time, because the convection time does not always evaluate as zero on wake node 0'
         print_op.log_and_raise_error(message)
     return None
 
@@ -533,7 +543,7 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
     n_k = init_options['n_k']
     d = init_options['collocation']['d']
 
-    make_another_sanity_check_on_convection_distance(time_grids, V_init_scaled, init_options, n_k, d)
+    check_that_wake_node_0_always_has_a_convection_time_of_zero(time_grids, V_init_scaled, init_options, n_k, d)
 
     kite_shed_or_parent_shed_list, tip_list, wake_node_or_ring_list = vortex_tools.get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, init_options, model.architecture)
 
@@ -563,14 +573,59 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
 
     return V_init_scaled
 
+def check_that_wake_node_0_always_lays_on_wingtips(init_options, V_init_si, Outputs_init, architecture):
 
-def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init, architecture):
+    n_k = init_options['n_k']
+    d = init_options['collocation']['d']
+
+    wake_node = 0
+    for kite in architecture.kite_nodes:
+        for tip in ['int', 'ext']:
+            var_name = vortex_tools.get_var_name('wx',
+                                                 kite_shed_or_parent_shed=kite, tip=tip, wake_node_or_ring=wake_node)
+
+            tolerance = 1.e-4
+            b_ref = init_options['sys_params_num']['geometry']['b_ref']
+
+            for ndx in range(n_k):
+                node_position = V_init_si['z', ndx, var_name]
+                wingtip_position = Outputs_init[
+                    'coll_outputs', ndx-1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                error = vect_op.norm(node_position - wingtip_position) / b_ref
+
+                if error > tolerance:
+                    message = 'wake node 0 (kite ' + str(
+                        kite) + ' and tip ' + tip + ') seems to be misplaced during initialization at control ndx = ' + str(
+                        ndx)
+                    print_op.log_and_raise_error(message)
+
+            for ndx in range(n_k):
+                for ddx in range(d):
+                    node_position = V_init_si['coll_var', ndx, ddx, 'z', var_name]
+                    wingtip_position = Outputs_init['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
+                    error = vect_op.norm(node_position - wingtip_position) / b_ref
+
+                    if error > tolerance:
+                        message = 'wake node 0 (kite ' + str(kite) + ' and tip ' + tip + ') seems to be misplaced during initialization at ndx = ' + str(ndx) + ', ddx = ' + str(ddx)
+                        print_op.log_and_raise_error(message)
+
+
+
+
+def check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, architecture):
+
+    # this check could not/will not work when warmstarting/tracking a non-circular path.
+    # therefore, we're going to turn it off, if the output geometry values are not reasonably consistent
+    initialization_based_on_circular_motion = True
+
     expected_radius = init_options['precompute']['radius']
     expected_period = init_options['precompute']['winding_period']
+    dict_expected_columnized = {'radius': expected_radius, 'period': expected_period}
 
     if architecture.number_of_kites == 1:
         # todo: fix the underlying problem: estimate-radius routine works badly on single kite systems.
-        # (radius of curvature is less sensitive, but get-period-of-rotation depends on radius not radius-of-curvature)
+        # (radius of curvature should work for fine in circular trajectory, but get-period-of-rotation currently depends on radius
+        # not radius-of-curvature)
         epsilon = 0.5
     else:
         epsilon = 0.05
@@ -578,19 +633,28 @@ def check_that_outputs_init_was_plausibly_constructed(init_options, Outputs_init
     for parent in architecture.layer_nodes:
         outputs_radius = Outputs_init['coll_outputs', :, :, 'geometry', 'average_radius_of_curvature' + str(parent)]
         outputs_period = Outputs_init['coll_outputs', :, :, 'geometry', 'average_period_of_rotation' + str(parent)]
-        
-        for ndx in range(len(outputs_radius)):
-            for ddx in range(len(outputs_radius[ndx])):
-                radius_error = (expected_radius - outputs_radius[ndx][ddx]) / expected_radius
-                radius_error_greater_than_theshhold = (radius_error**2. > epsilon**2.)
 
-                period_error = (expected_period - outputs_period[ndx][ddx]) / expected_period
-                period_error_greater_than_theshhold = (period_error ** 2. > epsilon ** 2.)
+        outputs_radius_columnized = vect_op.columnize(outputs_radius)
+        outputs_period_columnized = vect_op.columnize(outputs_period)
+        dict_outputs_columnized = {'radius': outputs_radius_columnized, 'period': outputs_period_columnized}
 
-                if radius_error_greater_than_theshhold or period_error_greater_than_theshhold:
-                    pdb.set_trace()
-                    message = 'something went wrong when computing the outputs used to initialize the vortex variables. is it possible that the si and scaled inputs have gotten confused?'
-                    print_op.log_and_raise_error(message)
+        circular_thresh = 1.e-4
+        for local_outputs_columnized in dict_outputs_columnized.values():
+            for idx in range(local_outputs_columnized.shape[0]):
+                local_diff = (local_outputs_columnized[idx] - local_outputs_columnized[0]) / local_outputs_columnized[0]
+                if local_diff**2. > circular_thresh**2.:
+                    initialization_based_on_circular_motion = False
+
+        if initialization_based_on_circular_motion:
+            for local_output_name, local_outputs_columnized in dict_outputs_columnized.items():
+                expected_val = dict_expected_columnized[local_output_name]
+                for idx in range(local_outputs_columnized.shape[0]):
+                    local_error = (local_outputs_columnized[idx] - expected_val) / expected_val
+                    error_greater_than_threshold = (local_error**2. > epsilon**2.)
+
+                    if error_greater_than_threshold:
+                        message = 'something went wrong when computing the output ' + local_output_name + ' used to initialize the vortex variables. you do seem to be trying to initialize from a circular orbit, so is it possible that the si and scaled inputs have gotten confused?'
+                        print_op.log_and_raise_error(message)
 
     return None
 
@@ -599,7 +663,7 @@ def get_specific_local_initialization(abbreviated_var_name, init_options, V_init
 
     var_name = vortex_tools.get_var_name(abbreviated_var_name, kite_shed_or_parent_shed=kite_shed_or_parent_shed, tip=tip, wake_node_or_ring=wake_node_or_ring)
 
-    # V['coll_var', ndx-1, -1, 'z', var_name] = V['z', ndx, var_name]
+    # reminder: V['coll_var', ndx-1, -1, 'z', var_name] = V['z', ndx, var_name]
 
     if (ddx is None):
         ndx_find = ndx - 1

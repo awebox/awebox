@@ -370,8 +370,14 @@ def generate_options_dict():
 
     # #################
     # # remove this
-    vortex_options['solver.cost.psi.1'] = 1.e1
-    vortex_options['solver.cost_factor.power'] = 1e1 #1e0
+    # vortex_options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
+    # vortex_options['model.scaling.other.force_scaling_method'] = 'synthesized'
+    # vortex_options['model.scaling.other.flight_radius_estimate'] = 'synthesized'
+    # vortex_options['model.scaling.other.tension_estimate'] = 'synthesized'
+    # vortex_options['solver.weights.q'] = 1e0 #1e1: 181 steps, 5e0: maxout, 1e0: 89 steps
+    # # vortex_options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
+    # vortex_options['solver.cost.psi.1'] = 1.e1
+    vortex_options['solver.cost_factor.power'] = 1e-1 #2: 6.9e10, 6.9e-7. #1e0
     # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     # vortex_options['model.aero.vortex.wake_nodes'] = 1
     # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
