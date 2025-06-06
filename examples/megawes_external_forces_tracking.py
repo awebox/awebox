@@ -113,6 +113,8 @@ mpc_opts['mpc']['max_iter'] = 1000
 mpc_opts['mpc']['max_cpu_time'] = 10.
 mpc_opts['mpc']['homotopy_warmstart'] = True
 mpc_opts['mpc']['terminal_point_constr'] = False
+mpc_opts['mpc']['ip_type'] = 'linear'
+
 if tracking_options['nlp.compile_subfunctions']:
     mpc_opts['mpc']['expand'] = False # incompatible
 
