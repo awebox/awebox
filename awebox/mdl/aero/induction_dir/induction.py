@@ -67,7 +67,7 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
             cstr_list.append(actuator_cstr)
 
         if vortex.model_is_included_in_comparison(model_options):
-            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling)
+            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, outputs, architecture, scaling)
             cstr_list.append(vortex_cstr)
 
     return cstr_list
@@ -142,13 +142,13 @@ def get_kite_effective_velocity(variables, wind, kite, architecture):
 
 #### outputs
 
-def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+def collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
 
     if actuator.model_is_included_in_comparison(options):
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture, scaling)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, system_variables, outputs, parameters, architecture, scaling)
 
     if vortex.model_is_included_in_comparison(options):
-        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, architecture)
+        outputs = vortex.collect_vortex_outputs(options, wind, wake, system_variables, parameters, outputs, architecture)
 
     return outputs
 

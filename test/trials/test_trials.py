@@ -371,6 +371,7 @@ def generate_options_dict():
     # #################
     # # remove this
     vortex_options['solver.cost.psi.1'] = 1.e1
+    vortex_options['solver.cost_factor.power'] = 1e1 #1e0
     # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
     # vortex_options['model.aero.vortex.wake_nodes'] = 1
     # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'

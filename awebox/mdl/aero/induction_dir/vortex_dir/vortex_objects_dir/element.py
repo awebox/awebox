@@ -275,14 +275,19 @@ class Element():
 
         return cosmetics
 
-    def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
+    def evaluate_and_unpack_info(self, variables_scaled=None, parameters=None):
         passed_information = (variables_scaled is not None) and (parameters is not None)
+
         if passed_information:
             evaluated = self.evaluate_info(variables_scaled, parameters)
             unpacked = self.unpack_info(external_info=evaluated)
         else:
             unpacked = self.info_dict
+        return unpacked
 
+
+    def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
+        unpacked = self.evaluate_and_unpack_info(variables_scaled=variables_scaled, parameters=parameters)
         if cosmetics is None:
             cosmetics = self.construct_fake_cosmetics(unpacked)
 
