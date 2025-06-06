@@ -186,9 +186,6 @@ class Collocation(object):
         
         else:
 
-            # # TODO: REMOVE, for testing
-            # ip_type = 'linear'
-
             # depending on the interpolation type, construct symbolic interpolator functions
             if ip_type == 'collocation':
                 fun_x, fun_u, fun_z = self.__construct_symbolic_collocation_interpolator_funs(nlp_params, V)

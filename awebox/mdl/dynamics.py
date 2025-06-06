@@ -308,7 +308,7 @@ def make_output_structure(outputs, system_variables, parameters):
     # generate structure with SX expressions
     outputs_struct = out_struct(outputs_vec)
     # generate outputs function
-    outputs_fun = cas.Function('outputs', [system_variables['scaled'], parameters], [outputs_struct.cat],['Scaled Sys. Variables (model.variables)','Parameters'],['Outputs'])
+    outputs_fun = cas.Function('outputs', [system_variables['scaled'], parameters], [outputs_struct.cat])
 
     return [out_struct, outputs_fun, outputs_dict]
 

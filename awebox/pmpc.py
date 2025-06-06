@@ -97,9 +97,7 @@ class Pmpc(object):
             self.__create_reference_interpolator()
 
         self.initialize(startTime=0) # just initialize once
-        awelogger.logger.info("Periodic MPC controller built, not yet initialized.")
 
-        return None
 
     def __build_trial(self):
         """ Build options, model, formulation and nlp of mpc trial.
