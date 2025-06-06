@@ -25,7 +25,8 @@ import os
 import pickle
 import copy
 import matplotlib
-matplotlib.use('Qt5Agg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
@@ -236,9 +237,9 @@ F_aero = ca.Function('F_aero', [x0_init, u0_init], [F_ext_evaluated, M_ext_evalu
 t0 = ca.SX.sym('t0')
 
 # reference interpolation time grid in symbolic form
-t_grid = ca.MX.sym('t_grid', mpc.t_grid_coll.shape[0])
-t_grid_x = ca.MX.sym('t_grid_x', mpc.t_grid_x_coll.shape[0])
-t_grid_u = ca.MX.sym('t_grid_u', mpc.t_grid_u.shape[0])
+t_grid = ca.SX.sym('t_grid', mpc.t_grid_coll.shape[0])
+t_grid_x = ca.SX.sym('t_grid_x', mpc.t_grid_x_coll.shape[0])
+t_grid_u = ca.SX.sym('t_grid_u', mpc.t_grid_u.shape[0])
 
 # time function
 F_tgrids = ca.Function('F_tgrids',[t0], [t0 + mpc.t_grid_coll, t0 + mpc.t_grid_x_coll, t0 + mpc.t_grid_u],

@@ -60,9 +60,8 @@ class Pmpc(object):
         self.__pocp_trial = trial
         self.__ts = ts
         self.__mpc_options = mpc_options
-        self._isInitialized: bool = False
-        self._time = 0.0
-        ''' Current time in the MPC simulation, is incremented with ts after every step() call'''
+        if 'ip_type' not in self.__mpc_options.keys():
+            self.__mpc_options['ip_type'] = 'linear' # 'collocation'
 
         # store model data
         self.__var_list = ['x', 'z', 'u']
@@ -118,8 +117,8 @@ class Pmpc(object):
         self.__trial.visualization.build(self.__trial.model, self.__trial.nlp, 'MPC control', self.__trial.options)
 
         # remove state constraints at k = 0
-        self.__trial.nlp.V_bounds['lb']['x',:] = - np.inf
-        self.__trial.nlp.V_bounds['ub']['x',:] = np.inf
+        self.__trial.nlp.V_bounds['lb']['x',0] = - np.inf
+        self.__trial.nlp.V_bounds['ub']['x',0] = np.inf
         if self.__mpc_options['terminal_point_constr']:
             self.__trial.nlp.V_bounds['lb']['x',-1] = - np.inf
             self.__trial.nlp.V_bounds['ub']['x',-1] = np.inf
@@ -469,39 +468,54 @@ class Pmpc(object):
 
         return t_grid_coll, t_grid_x_coll, t_grid_u
 
-    def get_reference(self, t_grid, t_grid_x_coll, t_grid_u):
-        """ Interpolate (scaled) reference on NLP time grids.
+    def get_reference(self, t_grid, t_grid_x, t_grid_u):
+        """ Interpolate reference on NLP time grids.
         """
         ip_dict = {}
         V_ref = self.__trial.nlp.V(0.0)
+        for var_type in self.__var_list:
+            if var_type == 'x':
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_x, var_type)
+            elif var_type == 'u':
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_u, var_type)
+            elif var_type == 'z':
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_x, var_type)
 
-        # interpolate on the time grids
-        ip_dict['x'] = self._interpolator_scaled(t_grid, 'x')
-        ip_dict['x_coll'] = self._interpolator_scaled(t_grid_x_coll, 'x')
-        ip_dict['u'] = self._interpolator_scaled(t_grid_u, 'u')
-        ip_dict['z'] = self._interpolator_scaled(t_grid_x_coll, 'z')
+        counter = 0
+        counter_x = 0
+        counter_u = 0
+        V_list = []
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
-                V_ref['theta',name] = self.__pocp_trial.optimization.V_opt['theta', name]
+                V_list.append(self.__pocp_trial.optimization.V_opt['theta', name])
             else:
-                V_ref['theta','t_f'] = self.__N * self.__ts
+                V_list.append(self.__N * self.__ts)
+        V_list.append(np.zeros(V_ref['phi'].shape))
 
-        d = self.__trial.nlp.d
         for k in range(self.__N):
+            for j in range(self.__trial.nlp.d+1):
+                if j == 0:
+                    V_list.append(ip_dict['x'][:,counter_x])
+                    counter_x += 1
 
-            # set the shooting nodes x and u
-            V_ref['x',k] = ip_dict['x'][:,k]
-            V_ref['u',k] = ip_dict['u'][:,k]
+                    if self.__mpc_options['u_param'] == 'zoh':
+                        V_list.append(ip_dict['u'][:, counter_u])
+                        V_list.append(np.zeros((self.__nx, 1)))
+                        V_list.append(np.zeros((self.__nz, 1)))
+                        counter_u += 1
+                else:
+                    for var_type in self.__var_list:
+                        if var_type == 'x':
+                            V_list.append(ip_dict[var_type][:,counter_x])
+                            counter_x += 1
+                        elif var_type == 'z' or (var_type == 'u' and self.__mpc_options['u_param']=='poly'):
+                            V_list.append(ip_dict[var_type][:,counter])
+                    counter += 1
 
-            for i in range(d):
-                # set the collocation nodes x and u
-                V_ref['coll_var',k,i,'x'] = ip_dict['x_coll'][:,k*(d+1)+1 + i]
-                V_ref['coll_var',k,i,'z'] = ip_dict['z'][:,k*(d+1)+1 + i]
-                # todo: what about poly parametrization of u?
+        V_list.append(ip_dict['x'][:,counter_x])
 
-        # final shooting node:
-        V_ref['x', -1] = ip_dict['x_coll'][:, -1]
+        V_ref = V_ref(ct.vertcat(*V_list))
 
         return V_ref
 
