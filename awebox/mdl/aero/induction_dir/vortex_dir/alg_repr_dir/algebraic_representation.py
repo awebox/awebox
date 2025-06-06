@@ -110,4 +110,6 @@ def test(test_includes_visualization=False):
 
     return None
 
-# test()
+
+if __name__ == "__main__":
+    test(test_includes_visualization=True)

@@ -145,7 +145,7 @@ def get_kite_effective_velocity(variables, wind, kite, architecture):
 def collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
 
     if actuator.model_is_included_in_comparison(options):
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, system_variables, outputs, parameters, architecture, scaling)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture, scaling)
 
     if vortex.model_is_included_in_comparison(options):
         outputs = vortex.collect_vortex_outputs(options, wind, wake, system_variables, parameters, outputs, architecture)
