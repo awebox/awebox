@@ -21,7 +21,6 @@ def set_reference_options(user = 'A'):
     options['params.tether.cd'] = 1.2
     options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
     # options['user_options.trajectory.fixed_params'] = {'diam_t': 2e-3}
-    # options['model.tether.use_wound_tether'] = False # don't model generator inertia
     options['model.tether.control_var'] = 'ddl_t' # tether acceleration control
 
     # tether drag model (more accurate than the Argatov model in Licitra2019)
@@ -33,9 +32,6 @@ def set_reference_options(user = 'A'):
     options['params.wind.power_wind.exp_ref'] = 0.15
     options['user_options.wind.model'] = 'power'
     options['user_options.wind.u_ref'] = 10.
-
-    # don't model generator
-    # options['model.model_bounds.wound_tether_length.include'] = False
 
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = True
@@ -71,7 +67,7 @@ def set_reference_options(user = 'A'):
     #     t_f_max = 40.0
     options['model.system_bounds.x.l_t'] =  [10.0, l_t_max] # [m]
     options['model.system_bounds.x.dl_t'] =  [-15.0, 20.0] # [m/s]
-    # options['model.ground_station.ddl_t_max'] = 2.4 # [m/s^2]
+    options['model.system_bounds.x.ddl_t'] = [-2.4, 2.4] # Tether acceleration [m/s^2]
     options['model.system_bounds.x.q'] =  [np.array([-ca.inf, -ca.inf, 100.0]), np.array([ca.inf, ca.inf, ca.inf])]
     options['model.system_bounds.theta.t_f'] =  [20.0, t_f_max] # [s]
     options['model.system_bounds.z.lambda'] =  [0., ca.inf] # [N/m]
@@ -101,7 +97,7 @@ def set_reference_options(user = 'A'):
     options['solver.callback_step'] = 1
     options['solver.mu_hippo'] = 1e-2
     options['solver.max_cpu_time'] = 1e5
-    options['solver.max_iter'] = 500
+    options['solver.max_iter'] = 1000
 
     # options['solver.mu_target'] = 1e-4
     options['solver.homotopy_method.gamma'] = 'penalty'
@@ -118,7 +114,7 @@ def set_reference_options(user = 'A'):
     options['solver.cost.psi.1'] = 1e0
     options['solver.cost.tracking.0'] = 1e-1
     options['solver.cost_factor.power'] = 1e1
-    options['solver.max_iter_hippo'] = 300
+    options['solver.max_iter_hippo'] = 100
     options['visualization.cosmetics.plot_ref'] = True
 
     return options
