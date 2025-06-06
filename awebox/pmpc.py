@@ -97,6 +97,7 @@ class Pmpc(object):
         if self.__cost_type == 'tracking':
             self.__create_reference_interpolator()
 
+        self.initialize(startTime=0) # just initialize once
         awelogger.logger.info("Periodic MPC controller built, not yet initialized.")
 
         return None
@@ -442,8 +443,11 @@ class Pmpc(object):
         V_pocp_si = self.__pocp_trial.optimization.V_final_si
         V_opt = awe.tools.struct_operations.si_to_scaled(V_pocp_si, self.__trial.model.scaling)
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
-        self._interpolator_scaled = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids)
-        self._interpolator_si = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_pocp_si, symbolic_interpolator = True, time_grids = tgrids)
+        tgrids_opt = self.__pocp_trial.nlp.time_grids
+        T_opt = V_pocp_si['theta', 't_f']
+
+        self._interpolator_scaled = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
+        self._interpolator_si = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_pocp_si, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
         self._Tref = self.__ref_dict['time_grids']['ip'][-1]
         ''' Period of the reference trajectory in seconds'''
 
@@ -472,6 +476,7 @@ class Pmpc(object):
         V_ref = self.__trial.nlp.V(0.0)
 
         # interpolate on the time grids
+        ip_dict['x'] = self._interpolator_scaled(t_grid, 'x')
         ip_dict['x_coll'] = self._interpolator_scaled(t_grid_x_coll, 'x')
         ip_dict['u'] = self._interpolator_scaled(t_grid_u, 'u')
         ip_dict['z'] = self._interpolator_scaled(t_grid_x_coll, 'z')
@@ -486,7 +491,7 @@ class Pmpc(object):
         for k in range(self.__N):
 
             # set the shooting nodes x and u
-            V_ref['x',k] = ip_dict['x_coll'][:,k*(d+1)]
+            V_ref['x',k] = ip_dict['x'][:,k]
             V_ref['u',k] = ip_dict['u'][:,k]
 
             for i in range(d):

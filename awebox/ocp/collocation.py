@@ -143,7 +143,7 @@ class Collocation(object):
 
         return None
 
-    def build_interpolator(self, nlp_params, V, integral_outputs = None, symbolic_interpolator = False, time_grids = None):
+    def build_interpolator(self, nlp_params, V, integral_outputs = None, time_grids_opt = None, T_opt = None, symbolic_interpolator = False, time_grids = None,  ip_type = 'collocation'):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -186,7 +186,16 @@ class Collocation(object):
         
         else:
 
-            fun_x, fun_u, fun_z = self.__construct_symbolic_integrator_funs(nlp_params, V)
+            # # TODO: REMOVE, for testing
+            # ip_type = 'linear'
+
+            # depending on the interpolation type, construct symbolic interpolator functions
+            if ip_type == 'collocation':
+                fun_x, fun_u, fun_z = self.__construct_symbolic_collocation_interpolator_funs(nlp_params, V)
+            elif ip_type == 'linear':
+                fun_x, fun_u, fun_z = self.__construct_symbolic_linear_interpolator_funs(nlp_params, V, time_grids, time_grids_opt, T_opt)
+            else:
+                raise NotImplementedError("Interpolation type {} not implemented".format(ip_type))
 
             def coll_interpolator(time_grid, var_type):
                 """Interpolating function
@@ -197,11 +206,11 @@ class Collocation(object):
                 """
 
                 if var_type == 'x':
-                    vector_series = fun_x.map(len(time_grid))(time_grid)
+                    vector_series = fun_x.map(time_grid.shape[0])(time_grid)
                 elif var_type == 'u':
-                    vector_series = fun_u.map(len(time_grid))(time_grid)
+                    vector_series = fun_u.map(time_grid.shape[0])(time_grid)
                 elif var_type == 'z':
-                    vector_series = fun_z.map(len(time_grid))(time_grid)
+                    vector_series = fun_z.map(time_grid.shape[0])(time_grid)
 
                 return vector_series
 
@@ -440,7 +449,61 @@ class Collocation(object):
 
         return coll_outputs, Integral_outputs_list, Integral_constraints_list
 
-    def __construct_symbolic_integrator_funs(self, nlp_params, V):
+    def __construct_symbolic_linear_interpolator_funs(self, nlp_params, V, time_grids, time_grids_opt, T_opt):
+
+        awelogger.logger.info('Constructing symbolic linear interpolator functions')
+
+        # single symbolic time where the interpolation is evaluated
+        t = cas.SX.sym('t')
+
+        t_x_coll = time_grids_opt['coll'](T_opt)
+        t_x_coll = [0.0] + cas.reshape(t_x_coll.T, t_x_coll.numel(), 1).full().squeeze().tolist()
+        t_z_coll = t_x_coll
+        t_u = time_grids_opt['u'](T_opt).full().squeeze().tolist()
+
+        sol_x = []
+        sol_z = []
+        sol_u = []
+
+        # collect the shooting variables
+        for k in range(nlp_params['n_k']):
+            if k == 0:
+                sol_x.append(V['x', k].full().squeeze())
+                sol_z.append(V['z', k].full())
+
+            for j in range(nlp_params['collocation']['d']):
+                sol_x.append(V['coll_var', k, j, 'x'].full().squeeze())
+                sol_z.append(V['coll_var', k, j, 'z'].full())
+            sol_u.append(V['u', k].full().squeeze())
+
+        # construct linear interpolation expressions for values of t between the nodes
+        vector_x = []
+        for idx in range(sol_x[0].shape[0]):
+            lut_x = cas.interpolant('LUT','linear',[t_x_coll],[sol_x[k][idx] for k in range(len(sol_x))])
+            vector_x.append(lut_x(t))
+        vector_x = cas.vertcat(*vector_x)
+
+        vector_z = []
+        for idx in range(sol_z[0].shape[0]):
+            lut_z = cas.interpolant('LUT','linear',[t_z_coll],[sol_z[k][idx] for k in range(len(sol_z))])
+            vector_z.append(lut_z(t))
+        vector_z = cas.vertcat(*vector_z)
+
+        vector_u = []
+        for idx in range(sol_u[0].shape[0]):
+            lut_u = cas.interpolant('LUT','linear',[t_u],[sol_u[k][idx] for k in range(len(sol_u))])
+            vector_u.append(lut_u(t))
+        vector_u = cas.vertcat(*vector_u)
+
+        # build symbolic functions to return
+        fun_x =  cas.Function('sym_interpolator_fun_x', [t], [vector_x])
+        fun_u =  cas.Function('sym_interpolator_fun_u', [t], [vector_u])
+        fun_z = cas.Function('sym_interpolator_fun_z', [t], [vector_z])
+
+        return fun_x,fun_u, fun_z
+
+
+    def __construct_symbolic_collocation_interpolator_funs(self, nlp_params, V):
         """
         Construct symbolic interpolator functions x(t), u(t), z(t) for given variable struct V
         :return: a tuple of casadi.Functions (x(t), u(t), z(t))
