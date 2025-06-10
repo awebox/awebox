@@ -40,6 +40,7 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.viz.tools as viz_tools
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -305,15 +306,16 @@ class Element():
         marker = None
         linestyle = '-'
 
-        if side == 'xy':
-            ax.plot(x, y, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'xz':
-            ax.plot(x, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'yz':
-            ax.plot(y, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'isometric':
-            ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle)
+        # if side == 'xy':
+        #     ax.plot(x, y, marker=marker, c=color, linestyle=linestyle)
+        # elif side == 'xz':
+        #     ax.plot(x, z, marker=marker, c=color, linestyle=linestyle)
+        # elif side == 'yz':
+        #     ax.plot(y, z, marker=marker, c=color, linestyle=linestyle)
+        # elif side == 'isometric':
+        #     ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle)
 
+        viz_tools.basic_draw(ax, side=side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle)
         return None
 
 

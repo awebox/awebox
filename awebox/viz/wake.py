@@ -1182,19 +1182,26 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             ax.clabel(cs, cs.levels, inline=True)
 
             ### draw the vortex positions
+            # # kite_index = 0
+            # if vortex_info_exists:
+            #     for elem in wake.get_substructure('bound').get_list('finite_filament').list:
+            #         # unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
+            #         # x_start = unpacked['x_start']
+            #         # x_end = unpacked['x_end']
+            #         # data = cas.horzcat(x_start, x_end)
+            #         # local_color = cosmetics['trajectory']['colors'][kite_index]
+            #         side = get_induction_contour_side(plot_dict, idx_at_eval)
+            #         elem.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters) #, cosmetics=cosmetics)
+            #         # tools.basic_draw(ax, side, data=data, color=local_color, linestyle='-')
+            #         # kite_index += 1
+
             if vortex_info_exists:
-                for elem in wake.get_substructure('bound').get_list('finite_filament').list:
-                    unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
-                    x_start = unpacked['x_start']
-                    x_end = unpacked['x_end']
-
-                    x_start_shifted = (x_start - x_center) / radius
-                    x_end_shifted = (x_end - x_center) / radius
-
-                    y_over_r_vals = [float(x_start_shifted[1]), float(x_end_shifted[1])]
-                    z_over_r_vals = [float(x_start_shifted[2]), float(x_end_shifted[2])]
-
-                    ax.plot(y_over_r_vals, z_over_r_vals)
+                variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+                parameters = plot_dict['parameters_plot']
+                wake = plot_dict['wake']
+                bound_wake = wake.get_substructure('bound')
+                side = get_induction_contour_side(plot_dict, idx_at_eval)
+                bound_wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
             scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
 
@@ -1205,26 +1212,23 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             ax.set_xlabel("y/r [-]")
             ax.set_ylabel("z/r [-]")
             ax.set_aspect(1.)
-
-            ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
-            ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_xticks(ticks_points)
-            ax.set_yticks(ticks_points)
-            plt.xticks(rotation=60)
-            plt.tight_layout()
+            #
+            # ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
+            # ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
+            # ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
+            # ax.set_xticks(ticks_points)
+            # ax.set_yticks(ticks_points)
+            # plt.xticks(rotation=60)
+            # plt.tight_layout()
 
             fig.savefig(plot_dict['name'] + '_induction_contour_on_kmp_tau' + str(tau_rounded) + '.pdf')
 
-        return None
+    return None
 
 
 
 
-
-def draw_swept_background(ax, plot_dict):
-    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-
+def get_induction_contour_side(plot_dict, idx_at_eval):
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     radius = kite_plane_induction_params['average_radius']
@@ -1232,6 +1236,13 @@ def draw_swept_background(ax, plot_dict):
     n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
 
     side = (x_center, a_hat, b_hat, radius)
+    return side
+
+
+def draw_swept_background(ax, plot_dict):
+
+    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
+    side = get_induction_contour_side(plot_dict, idx_at_eval)
 
     for kite in plot_dict['architecture'].kite_nodes:
         for zeta in np.arange(-0.5, 0.5, 1./100.):

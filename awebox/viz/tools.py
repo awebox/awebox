@@ -371,7 +371,7 @@ def test_basic_draw_offside():
     side = (x_center, a_hat, b_hat, scale)
     basic_draw(ax, side, data=data)
     plt.axis('equal')
-    # Figure 3 should give a single line from (y=-0.1, z=0) to (y=0, z=0.058)
+    # Figure 3 should give a single line from (y=-0.1, z=0) to (y=-0.042, z=0.058)
 
     fig, ax = plt.subplots()
     x_center = 0. * vect_op.xhat_np()
@@ -381,11 +381,19 @@ def test_basic_draw_offside():
     print(cas.mtimes(a_hat.T, vect_op.xhat_dm()))
     data = cas.horzcat(q1, q2, q3, q4)
     side = (x_center, a_hat, b_hat, scale)
+    print((q4 - x_center)/scale)
     basic_draw(ax, side, data=data)
     plt.axis('equal')
     # Figure 4 should give a single line from (x=0, y=0, z=0) to (x=0.82, y=0, z=0)
 
+    fig, ax = plt.subplots()
+    side = (cas.DM(x_center), cas.DM(a_hat), cas.DM(b_hat), cas.DM(scale))
+    basic_draw(ax, side, data=cas.DM(data))
+    plt.axis('equal')
+    # Figure 5 should give the same as Figure 4
+
     plt.show()
+    return None
 
 
 
@@ -399,39 +407,37 @@ def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=
     if no_segment and no_data:
         message = 'insufficient data provided to basic_draw'
         print_op.log_and_raise_error(message)
-
     elif (not no_segment) and (not no_data):
         message = 'too much data provided to basic_draw'
         print_op.log_and_raise_error(message)
-
-    elif not no_segment:
-        x = [float(x_start[0]), float(x_end[0])]
-        y = [float(x_start[1]), float(x_end[1])]
-        z = [float(x_start[2]), float(x_end[2])]
-
-    elif not no_data:
-        if (not hasattr(data, 'shape')) or (not len(data.shape) == 2):
-            message = 'data provided to basic_draw has wrong format or wrong shape'
-            print_op.log_and_raise_error(message)
-
-        if isinstance(data, cas.DM):
-            data = np.array(data)
-
-        if data.shape[0] == 3:
-            pass
-        elif data.shape[1] == 3:
-            data = data.T
-        else:
-            message = 'data provided to basic_draw is not 3d-cartesian'
-            print_op.log_and_raise_error(message)
-
-        x = data[0, :]
-        y = data[1, :]
-        z = data[2, :]
-
+    elif no_data:
+        data = cas.horzcat(vect_op.columnize(x_start), vect_op.columnize(x_end))
+    elif no_segment:
+        pass
     else:
         message = 'set of choices intended to be complete, appears not to be.'
         print_op.log_and_raise_error(message)
+
+
+    if (not hasattr(data, 'shape')) or (not len(data.shape) == 2):
+        message = 'data provided to basic_draw has wrong format or wrong shape'
+        print_op.log_and_raise_error(message)
+
+    if isinstance(data, cas.DM):
+        data = np.array(data)
+
+    if data.shape[0] == 3:
+        pass
+    elif data.shape[1] == 3:
+        data = data.T
+    else:
+        message = 'data provided to basic_draw is not 3d-cartesian'
+        print_op.log_and_raise_error(message)
+
+    x = data[0, :]
+    y = data[1, :]
+    z = data[2, :]
+
 
     if side == 'xy':
         ax.plot(x, y, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
@@ -535,15 +541,14 @@ def get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict):
         tau_list += [tau_switch]
 
     temporal_epigraph_length = get_trajectory_temporal_epigraph_length(plot_dict)
+
     basedash = temporal_epigraph_length / 4.
     style_dict = {}
     for tau in tau_list:
-        try:
-            dash_length = int(np.round(basedash * tau))
-        except:
-            pdb.set_trace()
+        dash_length = int(np.round(basedash * tau))
         break_length = basedash - dash_length
-        if tau < 1e-4 or tau > 1. - 1.e-4:
+        tol = 1.e-2
+        if tau < tol or tau > (1. - tol):
             linestyle = '-'
         else:
             linestyle = (0, (dash_length, break_length))
@@ -1486,4 +1491,4 @@ def test_naca_coordinates():
 
 if __name__ == "__main__":
     test_naca_coordinates()
-    # test_basic_draw_offside()
+    test_basic_draw_offside()

@@ -27,6 +27,7 @@ object-oriented vortex finite filament
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021-2022
 '''
+import pdb
 
 import casadi.tools as cas
 import matplotlib.pyplot as plt
