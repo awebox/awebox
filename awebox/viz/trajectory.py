@@ -59,7 +59,7 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
 
     if side == 'quad':
         tools.plot_trajectory_contents(ax_xy, plot_dict, cosmetics, 'xy', init_colors, label=label)
-        tools.plot_trajectory_contents(ax_xz, plot_dict, cosmetics,'xz', init_colors, label=label)
+        tools.plot_trajectory_contents(ax_xz, plot_dict, cosmetics, 'xz', init_colors, label=label)
         tools.plot_trajectory_contents(ax_yz, plot_dict, cosmetics, 'yz', init_colors, label=label)
         tools.plot_trajectory_contents(ax_iso, plot_dict, cosmetics, 'isometric', init_colors, label=label)
     else:
