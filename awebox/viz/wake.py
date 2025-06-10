@@ -49,8 +49,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
-def plot_actuator(plot_dict, cosmetics, fig_name, side):
 
+def plot_actuator(plot_dict, cosmetics, fig_name, side):
     fig, ax = tools.setup_axes_for_side(cosmetics, side)
 
     index = -1
@@ -70,9 +70,11 @@ def plot_actuator(plot_dict, cosmetics, fig_name, side):
 
     return None
 
+
 def draw_actuator(ax, side, plot_dict, cosmetics, index):
     actuator.draw_actuator(ax, side, plot_dict, cosmetics, index)
     return None
+
 
 def plot_wake_legend(plot_dict, cosmetics, fig_name):
     fig, ax = plt.subplots(figsize=(6, 1), layout='constrained')
@@ -91,7 +93,6 @@ def plot_wake_legend(plot_dict, cosmetics, fig_name):
 
 
 def plot_wake(plot_dict, cosmetics, fig_name, side, ref=False):
-
     fig, ax = tools.setup_axes_for_side(cosmetics, side)
 
     all_points = {0: [], 1: [], 2: []}
@@ -178,9 +179,7 @@ def get_variables_scaled(plot_dict, cosmetics, index):
 
 
 def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
-
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
-
         variables_scaled = get_variables_scaled(plot_dict, cosmetics, index)
         parameters = plot_dict['parameters_plot']
         wake = plot_dict['wake']
@@ -191,7 +190,6 @@ def draw_wake_nodes(ax, side, plot_dict, cosmetics, index):
 
 
 def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, idx_at_eval, kdx):
-
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     architecture = plot_dict['architecture']
@@ -214,7 +212,8 @@ def compute_observer_coordinates_for_radial_distribution_in_yz_plane(plot_dict, 
     mu_grid_points = np.linspace(mu_grid_min, mu_grid_max, verification_points, endpoint=True)
     length_mu = mu_grid_points.shape[0]
 
-    verification_uniform_distribution = plot_dict['options']['model']['aero']['vortex']['verification_uniform_distribution']
+    verification_uniform_distribution = plot_dict['options']['model']['aero']['vortex'][
+        'verification_uniform_distribution']
     if verification_uniform_distribution:
         psi_grid_unscaled = np.linspace(0., 1., 2 * half_points)
     else:
@@ -276,14 +275,14 @@ def get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientatio
 
 
 def get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval):
-
     architecture = plot_dict['architecture']
     top_parent = architecture.parent_map[architecture.number_of_nodes - 1]
 
     n_hat = []
     for dim in range(3):
         n_hat = cas.vertcat(n_hat,
-                                 plot_dict['interpolation_si']['outputs']['rotation']['ehat_normal' + str(top_parent)][dim][idx_at_eval])
+                            plot_dict['interpolation_si']['outputs']['rotation']['ehat_normal' + str(top_parent)][dim][
+                                idx_at_eval])
 
     b_hat_temp = vect_op.zhat_dm()
     a_hat = vect_op.normed_cross(b_hat_temp, n_hat)
@@ -295,9 +294,10 @@ def get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval):
 
     return n_hat, a_hat, b_hat
 
-def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
 
-    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction']['comparison_data_for_velocity_distribution']
+def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
+    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction'][
+        'comparison_data_for_velocity_distribution']
 
     if comparison_data_for_velocity_distribution == 'not_in_use':
         message = 'request to produce a velocity-distribution-comparison plot is being ignored because no comparison velocity distribution was input'
@@ -314,7 +314,8 @@ def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
         rancourt_dict = get_rancourt_velocity_distribution(all_xi)
 
     if add_trevisi_comparison_to_velocity_distribution:
-        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(all_xi)
+        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(
+            all_xi)
 
     adx = {}
 
@@ -349,7 +350,6 @@ def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
         ax[adx['a_r']][0].set_ylabel('radial\n induction factor [-]')
         ax[adx['a_n']][0].set_ylabel('normal\n induction factor [-]')
 
-
     if add_rancourt_comparison_to_velocity_distribution:
         ax[adx['cl']][0].set_ylabel('2D lift\n coefficient \n [-]')
         ax[adx['lift_per_unit_span']][0].set_ylabel('lift per unit\nspan [N/m]')
@@ -369,7 +369,8 @@ def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
             if extra_label == '':
                 ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'])
             else:
-                ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], label= extra_label)
+                ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'],
+                                      label=extra_label)
 
     ax[-1][0].set_xlabel('non-dimensional spanwise position [-]')
     ax[-1][0].set_xticks(np.linspace(-0.5, 0.5, 5))
@@ -381,7 +382,7 @@ def plot_velocity_distribution_comparison_only(plot_dict, cosmetics, fig_name):
         ax[adx_val][0].legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
     plt.tight_layout()
     # Adjust the subplots with the new bottom values, leaving space for the legend
-    plt.subplots_adjust(right=1.-shrink_factor)
+    plt.subplots_adjust(right=1. - shrink_factor)
 
     return None
 
@@ -391,7 +392,8 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
     parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
     architecture = plot_dict['architecture']
 
-    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction']['comparison_data_for_velocity_distribution']
+    comparison_data_for_velocity_distribution = plot_dict['options']['visualization']['cosmetics']['induction'][
+        'comparison_data_for_velocity_distribution']
     add_rancourt_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'rancourt')
     add_trevisi_comparison_to_velocity_distribution = (comparison_data_for_velocity_distribution == 'trevisi')
 
@@ -402,7 +404,8 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
         rancourt_dict = get_rancourt_velocity_distribution(all_xi)
 
     if add_trevisi_comparison_to_velocity_distribution:
-        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(all_xi)
+        trevisi_a_normal_dict, trevisi_a_radial_dict, other_trevisi_dict = get_trevisi_induction_factor_distributions(
+            all_xi)
 
     adx = {}
     adx['radius'] = 0
@@ -428,7 +431,8 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
     for kdx in range(len(architecture.kite_nodes)):
         kite = architecture.kite_nodes[kdx]
 
-        fun_dict = get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval=idx_at_eval)
+        fun_dict = get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite,
+                                                                            idx_at_eval=idx_at_eval)
 
         parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
         all_dict = {}
@@ -488,7 +492,8 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
                 extra_label = '||u_' + type + '|| '
             elif type == 'norm_minus':
                 extra_label = '||u_eff|| - ||u_app|| '
-            ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], linestyle='--', label= extra_label + 'Rancourt 2018')
+            ax[adx[type]][0].plot(rancourt_dict[type]['short_xi'], rancourt_dict[type]['short_vals'], linestyle='--',
+                                  label=extra_label + 'Rancourt 2018')
 
     ax[-1][0].set_xlabel('non-dimensional spanwise position [-]')
     ax[-1][0].set_xticks(np.linspace(-0.5, 0.5, 5))
@@ -500,23 +505,22 @@ def plot_velocity_distribution(plot_dict, cosmetics, fig_name):
         ax[adx_val][0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
     plt.tight_layout()
     # Adjust the subplots with the new bottom values, leaving space for the legend
-    plt.subplots_adjust(right=1.-shrink_factor)
+    plt.subplots_adjust(right=1. - shrink_factor)
 
     return None
 
 
 def get_rancourt_velocity_distribution(all_xi):
-
     # Efficient Aerodynamic Method for Interacting Lifting Surfaces over Long Distances
     # David Rancourt and Dimitri N. Mavris
     # Journal of Aircraft 2018 55:6, 2466-2475
 
-    rancourt_b_ref = 8. #m
-    rancourt_c_ref = 1. #m
-    rancourt_rho_air = 1.225 #kg/m^3
-    rancourt_radius = 24. #m
-    rancourt_groundspeed = 30. #m/s
-    rancourt_uinfty = 5. #m/s
+    rancourt_b_ref = 8.  # m
+    rancourt_c_ref = 1.  # m
+    rancourt_rho_air = 1.225  # kg/m^3
+    rancourt_radius = 24.  # m
+    rancourt_groundspeed = 30.  # m/s
+    rancourt_uinfty = 5.  # m/s
     rancourt_omega = 2. * np.pi / (2. * np.pi * rancourt_radius / rancourt_groundspeed)
 
     xi_data_lift = [-0.49595875, -0.49450375, -0.49304875, -0.491595, -0.49014, -0.488685, -0.48723, -0.485545,
@@ -589,19 +593,19 @@ def get_rancourt_velocity_distribution(all_xi):
     norm_u_eff_list = []
     norm_dq_kite_list = []
     for idx in range(len(all_xi)):
-
-        xi  = all_xi[idx]
+        xi = all_xi[idx]
         local_radius = rancourt_radius - xi * rancourt_b_ref
         radius_list = cas.vertcat(radius_list, local_radius)
 
         norm_dq_kite = local_radius * rancourt_omega
         norm_dq_kite_list = cas.vertcat(norm_dq_kite_list, norm_dq_kite)
 
-        u_eff_squared = (2. * lift_per_unit_span_interpolated[idx]) / (rancourt_c_ref * cl_interpolated[idx] * rancourt_rho_air)
-        norm_u_eff = u_eff_squared**0.5
+        u_eff_squared = (2. * lift_per_unit_span_interpolated[idx]) / (
+                    rancourt_c_ref * cl_interpolated[idx] * rancourt_rho_air)
+        norm_u_eff = u_eff_squared ** 0.5
         norm_u_eff_list = cas.vertcat(norm_u_eff_list, norm_u_eff)
 
-        norm_u_app = (norm_dq_kite**2. + rancourt_uinfty**2.)**0.5
+        norm_u_app = (norm_dq_kite ** 2. + rancourt_uinfty ** 2.) ** 0.5
         norm_u_app_list = cas.vertcat(norm_u_app_list, norm_u_app)
 
     rancourt_dict = {}
@@ -631,6 +635,7 @@ def get_rancourt_velocity_distribution(all_xi):
                                    }
     return rancourt_dict
 
+
 def add_shortened_distributions(rancourt_dict, all_xi):
     for label, values in rancourt_dict.items():
         short_xi = []
@@ -645,7 +650,6 @@ def add_shortened_distributions(rancourt_dict, all_xi):
 
 
 def get_trevisi_induction_factor_distributions(all_xi):
-
     #  Vortex model of the aerodynamic wake of airborne wind energy systems
     #     Filippo Trevisi Carlo E. D. Riboldi Alessandro Croce
     #     Wind Energy Science vol. 8 issue 6 (2023) pp: 999-1016
@@ -661,7 +665,6 @@ def get_trevisi_induction_factor_distributions(all_xi):
     kheiri_full_name = 'KK'
     qblade_name = 'QB'
 
-
     wingspan = 5.5
     u_infty = 5.
     omega = 3.88221
@@ -671,33 +674,50 @@ def get_trevisi_induction_factor_distributions(all_xi):
         local_radius = (wingspan / 0.3) + xi * wingspan
         trevisi_radius += [local_radius]
         local_u_tan = omega * local_radius
-        local_u_app = (local_u_tan**2. + u_infty**2.)**0.5
+        local_u_app = (local_u_tan ** 2. + u_infty ** 2.) ** 0.5
         trevisi_app += [local_u_app]
     trevisi_radius = np.array(trevisi_radius).reshape(all_xi.shape)
     trevisi_app = np.array(trevisi_app).reshape(all_xi.shape)
     other_trevisi_dict = {'radius': {'xi': all_xi, 'vals': trevisi_radius},
                           'app': {'xi': all_xi, 'vals': trevisi_app}}
 
-    trevisi_blank_xi = [-0.459632497636364, -0.450145848218182, -0.422512565127273, -0.395952613418181, -0.333559393527273, -0.283076151981818, -0.199572970472728, -0.0756831957272723, 0.0518732390181821, 0.154653052145455, 0.283129485218182, 0.321656081836364, 0.362956006745454, 0.394159283345454, 0.425419226509091, 0.447339186654546, 0.465142487618182]
-    trevisi_blank_ax = [0, 0.20339, 0.27702, 0.24587, 0.25218, 0.26846, 0.27855, 0.3024, 0.32501, 0.34385, 0.36771, 0.36402, 0.37405, 0.38033, 0.42402, 0.36043, 0.0037]
+    trevisi_blank_xi = [-0.459632497636364, -0.450145848218182, -0.422512565127273, -0.395952613418181,
+                        -0.333559393527273, -0.283076151981818, -0.199572970472728, -0.0756831957272723,
+                        0.0518732390181821, 0.154653052145455, 0.283129485218182, 0.321656081836364, 0.362956006745454,
+                        0.394159283345454, 0.425419226509091, 0.447339186654546, 0.465142487618182]
+    trevisi_blank_ax = [0, 0.20339, 0.27702, 0.24587, 0.25218, 0.26846, 0.27855, 0.3024, 0.32501, 0.34385, 0.36771,
+                        0.36402, 0.37405, 0.38033, 0.42402, 0.36043, 0.0037]
     trevisi_blank_ax_interpolated = np.interp(all_xi, trevisi_blank_xi, trevisi_blank_ax, left=np.nan, right=np.nan)
     ax_interpolations[trevisi_blank_name] = {'vals': trevisi_blank_ax_interpolated}
 
-    trevisi_trevisi_xi = [-0.460552495963637, -0.448135851872727, -0.447179186945455, -0.421395900490909, -0.395755947109091, -0.333359393890909, -0.283792817345455, -0.171839687563636, -0.0975064893818182, 0.0227099587090907, 0.270479508218182, 0.29892945649091, 0.331032731454546, 0.375082651363637, 0.396195946309091, 0.424699227818182, 0.447535852963636, 0.466085819236364]
-    trevisi_trevisi_ax = [0, 0.31815, 0.34435, 0.40675, 0.3756, 0.38191, 0.39819, 0.41704, 0.42961, 0.45221, 0.49493, 0.49996, 0.49625, 0.50379, 0.51255, 0.55375, 0.48892, 0.01992]
-    trevisi_trevisi_ax_interpolated = np.interp(all_xi, trevisi_trevisi_xi, trevisi_trevisi_ax, left=np.nan, right=np.nan)
+    trevisi_trevisi_xi = [-0.460552495963637, -0.448135851872727, -0.447179186945455, -0.421395900490909,
+                          -0.395755947109091, -0.333359393890909, -0.283792817345455, -0.171839687563636,
+                          -0.0975064893818182, 0.0227099587090907, 0.270479508218182, 0.29892945649091,
+                          0.331032731454546, 0.375082651363637, 0.396195946309091, 0.424699227818182, 0.447535852963636,
+                          0.466085819236364]
+    trevisi_trevisi_ax = [0, 0.31815, 0.34435, 0.40675, 0.3756, 0.38191, 0.39819, 0.41704, 0.42961, 0.45221, 0.49493,
+                          0.49996, 0.49625, 0.50379, 0.51255, 0.55375, 0.48892, 0.01992]
+    trevisi_trevisi_ax_interpolated = np.interp(all_xi, trevisi_trevisi_xi, trevisi_trevisi_ax, left=np.nan,
+                                                right=np.nan)
     ax_interpolations[trevisi_trevisi_name] = {'vals': trevisi_trevisi_ax_interpolated}
 
-    trevisi_gaunaa_xi = [-0.462372492654545, -0.449989181836364, -0.424202562054546, -0.392139287018182, -0.312302765509091, -0.256316200636364, -0.1718930208, 0.0171499688181817, 0.21719960509091, 0.273179503309091, 0.2924528016, 0.32272607989091, 0.355759353163636, 0.382375971436364, 0.405332596363636, 0.426489224563636, 0.4520625114, 0.464282489181819]
-    trevisi_gaunaa_ax = [0.00878, 0.30568, 0.37182, 0.33943, 0.3545, 0.36829, 0.38211, 0.41603, 0.44871, 0.46001, 0.46377, 0.46381, 0.46635, 0.47387, 0.48762, 0.52506, 0.449, 0.04112]
+    trevisi_gaunaa_xi = [-0.462372492654545, -0.449989181836364, -0.424202562054546, -0.392139287018182,
+                         -0.312302765509091, -0.256316200636364, -0.1718930208, 0.0171499688181817, 0.21719960509091,
+                         0.273179503309091, 0.2924528016, 0.32272607989091, 0.355759353163636, 0.382375971436364,
+                         0.405332596363636, 0.426489224563636, 0.4520625114, 0.464282489181819]
+    trevisi_gaunaa_ax = [0.00878, 0.30568, 0.37182, 0.33943, 0.3545, 0.36829, 0.38211, 0.41603, 0.44871, 0.46001,
+                         0.46377, 0.46381, 0.46635, 0.47387, 0.48762, 0.52506, 0.449, 0.04112]
     trevisi_gaunaa_ax_interpolated = np.interp(all_xi, trevisi_gaunaa_xi, trevisi_gaunaa_ax, left=np.nan, right=np.nan)
     ax_interpolations[trevisi_gaunaa_name] = {'vals': trevisi_gaunaa_ax_interpolated}
 
     gaunaa_gaunaa_ax = np.array(cas.DM.ones(all_xi.shape[0], 1) * 0.900289)
     ax_interpolations[gaunaa_gaunaa_name] = {'vals': gaunaa_gaunaa_ax}
 
-    trevisi_kheiri_xi = [-0.469709145981818, -0.4498625154, -0.422225898981818, -0.391999287272727, -0.333276060709091, -0.271776172527273, -0.157073047745455, 0.0925364984181814, 0.285249481363636, 0.323779411309091, 0.390769289509091, 0.423862562672727, 0.448549184454545, 0.469762479218182]
-    trevisi_kheiri_ax = [0.00877, 0.38925, 0.46288, 0.43298, 0.43805, 0.45808, 0.47319, 0.51841, 0.55358, 0.55238, 0.56369, 0.60614, 0.55129, 0.02491]
+    trevisi_kheiri_xi = [-0.469709145981818, -0.4498625154, -0.422225898981818, -0.391999287272727, -0.333276060709091,
+                         -0.271776172527273, -0.157073047745455, 0.0925364984181814, 0.285249481363636,
+                         0.323779411309091, 0.390769289509091, 0.423862562672727, 0.448549184454545, 0.469762479218182]
+    trevisi_kheiri_ax = [0.00877, 0.38925, 0.46288, 0.43298, 0.43805, 0.45808, 0.47319, 0.51841, 0.55358, 0.55238,
+                         0.56369, 0.60614, 0.55129, 0.02491]
     trevisi_kheiri_ax_interpolated = np.interp(all_xi, trevisi_kheiri_xi, trevisi_kheiri_ax, left=np.nan, right=np.nan)
     ax_interpolations[trevisi_kheiri_name] = {'vals': trevisi_kheiri_ax_interpolated}
 
@@ -707,49 +727,78 @@ def get_trevisi_induction_factor_distributions(all_xi):
     kheiri_full_ax = np.array(cas.DM.ones(all_xi.shape[0], 1) * 0.136719)
     ax_interpolations[kheiri_full_name] = {'vals': kheiri_full_ax}
 
-    qblade_xi_ax = [-0.4976390952, -0.496015764818182, -0.495519099054546, -0.495172433018182, -0.494805767018182, -0.494415767727273,
-         -0.494025768436364, -0.493632435818182, -0.493242436527273, -0.492849103909091, -0.492459104618182, \
-         -0.492069105327273, -0.491675772709091, -0.491285773418182, -0.490895774127273, -0.490502441509091, \
-         -0.490112442218182, -0.4897191096, -0.489019110872727, -0.488305778836364, -0.486892448072727, -0.484649118818182, \
-         -0.483319121236364, -0.482209123254545, -0.481082458636364, -0.479925794072728, -0.478769129509091, \
-         -0.477339132109091, -0.475872468109091, -0.474259137709091, -0.472369141145455, -0.470479144581819, \
-         -0.468349148454545, -0.466192485709091, -0.464115822818182, -0.462229159581819, -0.460339163018182, \
-         -0.454292507345454, -0.447609186163636, -0.440245866218182, -0.431825881527273, -0.423405896836363, \
-         -0.414762579218182, -0.406092594981819, -0.397252611054545, -0.388229294127273, -0.3792793104, -0.370325993345454, \
-         -0.3612760098, -0.352226026254545, -0.343139376109091, -0.334029392672727, -0.324919409236364, -0.315866092363636, \
-         -0.306812775490909, -0.297802791872727, -0.288816141545455, -0.279822824563636, -0.270769507690909, \
-         -0.261716190818182, -0.252662873945454, -0.243609557072727, -0.234559573527273, -0.225506256654546, \
-         -0.216452939781818, -0.207356289654546, -0.198249639545454, -0.189166322727272, -0.180113005854546, \
-         -0.171059688981818, -0.162009705436364, -0.152956388563637, -0.143873071745455, -0.134766421636363, \
-         -0.125666438181818, -0.116606454654546, -0.1075431378, -0.0984864876000002, -0.089433170727273, \
-         -0.0803731872000003, -0.071266537090909, -0.0621598869818185, -0.0530565701999996, -0.0439499200909091, \
-         -0.0348632699454547, -0.0258099530727275, -0.0167566362000002, -0.00765665274545442, 0.00144999736363616, \
-         0.0105599808000004, 0.0196699642363634, 0.0287799476727276, 0.0378865977818182, 0.0469932478909088, \
-         0.0560998979999994, 0.0652032147818182, 0.0743098648909088, 0.0834231816545454, 0.092533165090909, 0.1016398152, \
-         0.110746465309091, 0.119853115418182, 0.128959765527273, 0.138063082309091, 0.147203065690908, 0.156349715727273, \
-         0.165483032454545, 0.174589682563636, 0.183696332672728, 0.192802982781818, 0.201906299563636, 0.211016283, \
-         0.220126266436364, 0.2292395832, 0.238346233309091, 0.247449550090909, 0.2565562002, 0.265662850309091, \
-         0.274769500418181, 0.283916150454546, 0.293059467163636, 0.302179450581818, 0.311282767363637, 0.320376084163636, \
-         0.329429401036364, 0.338482717909091, 0.3475260348, 0.356569351690909, 0.365582668636363, 0.374569318963636, \
-         0.383545969309091, 0.39217262029091, 0.4008026046, 0.409409255618182, 0.418005906654546, 0.427052556872727, \
-         0.436102540418182, 0.444965857636364, 0.453829174854546, 0.456929169218182, 0.458639166109091, 0.463822490018182, \
-         0.466689151472727, 0.468895814127273, 0.471102476781819, 0.473309139436364, 0.475515802090909, 0.477079132581818, \
-         0.478509129981818, 0.479835794236363, 0.480909125618182, 0.481982457, 0.483055788381818, 0.484129119763636, \
-         0.485215784454545, 0.486335782418182, 0.487455780381818, 0.488535778418181, 0.489609109800001, 0.490682441181818, \
-         0.491759105890909, 0.492832437272727, 0.493905768654545, 0.494979100036364]
-    qblade_ax = [0.34304, 0.33077, 0.31833, 0.30586, 0.2934, 0.28094, 0.26848, 0.25602, 0.24356, 0.2311, 0.21863, 0.20617, 0.19371, \
-         0.18125, 0.16879, 0.15633, 0.14387, 0.13141, 0.11897, 0.10654, 0.10536, 0.11746, 0.12979, 0.14218, 0.15457, \
-         0.16694, 0.17932, 0.19165, 0.20397, 0.21625, 0.22847, 0.24068, 0.25282, 0.26496, 0.27711, 0.28933, 0.30154, 0.3106, \
-         0.31917, 0.32634, 0.33133, 0.33631, 0.34052, 0.34463, 0.34599, 0.34506, 0.34784, 0.35061, 0.35269, 0.35475, \
-         0.35651, 0.35801, 0.35952, 0.36158, 0.36364, 0.366, 0.36855, 0.37104, 0.3731, 0.37516, 0.37722, 0.37929, 0.38135, \
-         0.38341, 0.38547, 0.38711, 0.38867, 0.39044, 0.3925, 0.39457, 0.39663, 0.39869, 0.40047, 0.40203, 0.40365, 0.40563, \
-         0.40761, 0.40964, 0.4117, 0.41368, 0.41524, 0.4168, 0.41835, 0.41991, 0.42164, 0.4237, 0.42576, 0.42737, 0.42893, \
-         0.43046, 0.43196, 0.43346, 0.43501, 0.43657, 0.43813, 0.43969, 0.44124, 0.44274, 0.44423, 0.44577, 0.44733, \
-         0.44889, 0.45044, 0.452, 0.45313, 0.45414, 0.45529, 0.45685, 0.45841, 0.45997, 0.46153, 0.46306, 0.46456, 0.46605, \
-         0.46761, 0.46917, 0.47072, 0.47228, 0.47381, 0.47485, 0.4759, 0.47729, 0.47884, 0.48053, 0.48259, 0.48465, 0.48678, \
-         0.48893, 0.49127, 0.49383, 0.49643, 0.5007, 0.50498, 0.50933, 0.51372, 0.51194, 0.51028, 0.51353, 0.51678, 0.51607, \
-         0.50649, 0.49621, 0.48452, 0.47242, 0.46032, 0.44823, 0.43613, 0.42385, 0.41153, 0.3992, 0.38681, 0.37443, 0.36205, \
-         0.34966, 0.33728, 0.3249, 0.31253, 0.30014, 0.28776, 0.27538, 0.26299, 0.25061, 0.23823, 0.22584]
+    qblade_xi_ax = [-0.4976390952, -0.496015764818182, -0.495519099054546, -0.495172433018182, -0.494805767018182,
+                    -0.494415767727273,
+                    -0.494025768436364, -0.493632435818182, -0.493242436527273, -0.492849103909091, -0.492459104618182, \
+                    -0.492069105327273, -0.491675772709091, -0.491285773418182, -0.490895774127273, -0.490502441509091, \
+                    -0.490112442218182, -0.4897191096, -0.489019110872727, -0.488305778836364, -0.486892448072727,
+                    -0.484649118818182, \
+                    -0.483319121236364, -0.482209123254545, -0.481082458636364, -0.479925794072728, -0.478769129509091, \
+                    -0.477339132109091, -0.475872468109091, -0.474259137709091, -0.472369141145455, -0.470479144581819, \
+                    -0.468349148454545, -0.466192485709091, -0.464115822818182, -0.462229159581819, -0.460339163018182, \
+                    -0.454292507345454, -0.447609186163636, -0.440245866218182, -0.431825881527273, -0.423405896836363, \
+                    -0.414762579218182, -0.406092594981819, -0.397252611054545, -0.388229294127273, -0.3792793104,
+                    -0.370325993345454, \
+                    -0.3612760098, -0.352226026254545, -0.343139376109091, -0.334029392672727, -0.324919409236364,
+                    -0.315866092363636, \
+                    -0.306812775490909, -0.297802791872727, -0.288816141545455, -0.279822824563636, -0.270769507690909, \
+                    -0.261716190818182, -0.252662873945454, -0.243609557072727, -0.234559573527273, -0.225506256654546, \
+                    -0.216452939781818, -0.207356289654546, -0.198249639545454, -0.189166322727272, -0.180113005854546, \
+                    -0.171059688981818, -0.162009705436364, -0.152956388563637, -0.143873071745455, -0.134766421636363, \
+                    -0.125666438181818, -0.116606454654546, -0.1075431378, -0.0984864876000002, -0.089433170727273, \
+                    -0.0803731872000003, -0.071266537090909, -0.0621598869818185, -0.0530565701999996,
+                    -0.0439499200909091, \
+                    -0.0348632699454547, -0.0258099530727275, -0.0167566362000002, -0.00765665274545442,
+                    0.00144999736363616, \
+                    0.0105599808000004, 0.0196699642363634, 0.0287799476727276, 0.0378865977818182, 0.0469932478909088, \
+                    0.0560998979999994, 0.0652032147818182, 0.0743098648909088, 0.0834231816545454, 0.092533165090909,
+                    0.1016398152, \
+                    0.110746465309091, 0.119853115418182, 0.128959765527273, 0.138063082309091, 0.147203065690908,
+                    0.156349715727273, \
+                    0.165483032454545, 0.174589682563636, 0.183696332672728, 0.192802982781818, 0.201906299563636,
+                    0.211016283, \
+                    0.220126266436364, 0.2292395832, 0.238346233309091, 0.247449550090909, 0.2565562002,
+                    0.265662850309091, \
+                    0.274769500418181, 0.283916150454546, 0.293059467163636, 0.302179450581818, 0.311282767363637,
+                    0.320376084163636, \
+                    0.329429401036364, 0.338482717909091, 0.3475260348, 0.356569351690909, 0.365582668636363,
+                    0.374569318963636, \
+                    0.383545969309091, 0.39217262029091, 0.4008026046, 0.409409255618182, 0.418005906654546,
+                    0.427052556872727, \
+                    0.436102540418182, 0.444965857636364, 0.453829174854546, 0.456929169218182, 0.458639166109091,
+                    0.463822490018182, \
+                    0.466689151472727, 0.468895814127273, 0.471102476781819, 0.473309139436364, 0.475515802090909,
+                    0.477079132581818, \
+                    0.478509129981818, 0.479835794236363, 0.480909125618182, 0.481982457, 0.483055788381818,
+                    0.484129119763636, \
+                    0.485215784454545, 0.486335782418182, 0.487455780381818, 0.488535778418181, 0.489609109800001,
+                    0.490682441181818, \
+                    0.491759105890909, 0.492832437272727, 0.493905768654545, 0.494979100036364]
+    qblade_ax = [0.34304, 0.33077, 0.31833, 0.30586, 0.2934, 0.28094, 0.26848, 0.25602, 0.24356, 0.2311, 0.21863,
+                 0.20617, 0.19371, \
+                 0.18125, 0.16879, 0.15633, 0.14387, 0.13141, 0.11897, 0.10654, 0.10536, 0.11746, 0.12979, 0.14218,
+                 0.15457, \
+                 0.16694, 0.17932, 0.19165, 0.20397, 0.21625, 0.22847, 0.24068, 0.25282, 0.26496, 0.27711, 0.28933,
+                 0.30154, 0.3106, \
+                 0.31917, 0.32634, 0.33133, 0.33631, 0.34052, 0.34463, 0.34599, 0.34506, 0.34784, 0.35061, 0.35269,
+                 0.35475, \
+                 0.35651, 0.35801, 0.35952, 0.36158, 0.36364, 0.366, 0.36855, 0.37104, 0.3731, 0.37516, 0.37722,
+                 0.37929, 0.38135, \
+                 0.38341, 0.38547, 0.38711, 0.38867, 0.39044, 0.3925, 0.39457, 0.39663, 0.39869, 0.40047, 0.40203,
+                 0.40365, 0.40563, \
+                 0.40761, 0.40964, 0.4117, 0.41368, 0.41524, 0.4168, 0.41835, 0.41991, 0.42164, 0.4237, 0.42576,
+                 0.42737, 0.42893, \
+                 0.43046, 0.43196, 0.43346, 0.43501, 0.43657, 0.43813, 0.43969, 0.44124, 0.44274, 0.44423, 0.44577,
+                 0.44733, \
+                 0.44889, 0.45044, 0.452, 0.45313, 0.45414, 0.45529, 0.45685, 0.45841, 0.45997, 0.46153, 0.46306,
+                 0.46456, 0.46605, \
+                 0.46761, 0.46917, 0.47072, 0.47228, 0.47381, 0.47485, 0.4759, 0.47729, 0.47884, 0.48053, 0.48259,
+                 0.48465, 0.48678, \
+                 0.48893, 0.49127, 0.49383, 0.49643, 0.5007, 0.50498, 0.50933, 0.51372, 0.51194, 0.51028, 0.51353,
+                 0.51678, 0.51607, \
+                 0.50649, 0.49621, 0.48452, 0.47242, 0.46032, 0.44823, 0.43613, 0.42385, 0.41153, 0.3992, 0.38681,
+                 0.37443, 0.36205, \
+                 0.34966, 0.33728, 0.3249, 0.31253, 0.30014, 0.28776, 0.27538, 0.26299, 0.25061, 0.23823, 0.22584]
     qblade_ax_interpolated = np.interp(all_xi, qblade_xi_ax, qblade_ax, left=np.nan, right=np.nan)
     ax_interpolations[qblade_name] = {'vals': qblade_ax_interpolated}
 
@@ -790,9 +839,7 @@ def get_trevisi_induction_factor_distributions(all_xi):
     return ax_interpolations, ar_interpolations, other_trevisi_dict
 
 
-
 def get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval):
-
     search_name = 'interpolation_si'
     parent = plot_dict['architecture'].parent_map[kite]
     x_vals = plot_dict[search_name]['x']
@@ -802,15 +849,16 @@ def get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval):
     ehat_2 = []
     for j in range(3):
         q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][idx_at_eval])
-        ehat_2 = cas.vertcat(ehat_2, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][idx_at_eval])
+        ehat_2 = cas.vertcat(ehat_2,
+                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][idx_at_eval])
 
     b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
     vec_offset = xi_sym * b_ref * ehat_2
     x_obs = q_kite + vec_offset
     return x_obs, vec_offset
 
-def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval):
 
+def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetics, kite, idx_at_eval):
     xi_sym = cas.SX.sym('xi_sym', (1, 1))
 
     search_name = 'interpolation_si'
@@ -833,18 +881,23 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
         q_kite = cas.vertcat(q_kite, x_vals['q' + str(kite) + str(parent)][j][idx_at_eval])
         dq_kite = cas.vertcat(dq_kite, x_vals['dq' + str(kite) + str(parent)][j][idx_at_eval])
         ehat_1 = cas.vertcat(ehat_1,
-                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][idx_at_eval])
+                             plot_dict[search_name]['outputs']['aerodynamics']['ehat_chord' + str(kite)][j][
+                                 idx_at_eval])
         ehat_2 = cas.vertcat(ehat_2,
                              plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][j][idx_at_eval])
         ehat_3 = cas.vertcat(ehat_3,
                              plot_dict[search_name]['outputs']['aerodynamics']['ehat_up' + str(kite)][j][idx_at_eval])
-        x_center = cas.vertcat(x_center, plot_dict[search_name]['outputs']['geometry']['x_center' + str(parent)][j][idx_at_eval])
+        x_center = cas.vertcat(x_center,
+                               plot_dict[search_name]['outputs']['geometry']['x_center' + str(parent)][j][idx_at_eval])
         ehat_radial = cas.vertcat(ehat_radial,
-                               plot_dict[search_name]['outputs']['rotation']['ehat_radial' + str(kite)][j][idx_at_eval])
+                                  plot_dict[search_name]['outputs']['rotation']['ehat_radial' + str(kite)][j][
+                                      idx_at_eval])
         ehat_tangential = cas.vertcat(ehat_tangential,
-                               plot_dict[search_name]['outputs']['rotation']['ehat_tangential' + str(kite)][j][idx_at_eval])
+                                      plot_dict[search_name]['outputs']['rotation']['ehat_tangential' + str(kite)][j][
+                                          idx_at_eval])
         ehat_normal = cas.vertcat(ehat_normal,
-                               plot_dict[search_name]['outputs']['rotation']['ehat_normal' + str(parent)][j][idx_at_eval])
+                                  plot_dict[search_name]['outputs']['rotation']['ehat_normal' + str(parent)][j][
+                                      idx_at_eval])
 
     x_obs, vec_offset = get_x_obs_for_spanwise_distribution(xi_sym, plot_dict, kite, idx_at_eval)
     vec_to_center = x_obs - x_center
@@ -877,7 +930,8 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
     beta_app = aero_indicators.get_beta(vec_u_app, kite_dcm) * 180. / np.pi
 
     u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
-    if ('wake' in plot_dict.keys()) and ('interpolation_scaled' in plot_dict.keys()) and ('parameters_plot' in plot_dict.keys()):
+    if ('wake' in plot_dict.keys()) and ('interpolation_scaled' in plot_dict.keys()) and (
+            'parameters_plot' in plot_dict.keys()):
         variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
         parameters = plot_dict['parameters_plot']
         wake = plot_dict['wake']
@@ -918,7 +972,7 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
         'alpha_eff': alpha_eff,
         'd_alpha': delta_alpha,
         'd_beta': delta_beta
-        }
+    }
     outputs['norm_minus'] = outputs['eff'] - outputs['app']
 
     fun_dict = {}
@@ -928,8 +982,8 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
 
     return fun_dict
 
-def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
 
+def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
     variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
     parameters = plot_dict['parameters_plot']
     wake = plot_dict['wake']
@@ -941,8 +995,8 @@ def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval
 
     return u_ind_fun
 
-def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
 
+def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
     variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
     parameters = plot_dict['parameters_plot']
     wake = plot_dict['wake']
@@ -958,8 +1012,10 @@ def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_e
 
     return a_fun
 
+
 def get_induction_factor_normalizing_speed(plot_dict, idx_at_eval):
-    induction_factor_normalizing_speed = plot_dict['options']['model']['aero']['vortex']['induction_factor_normalizing_speed']
+    induction_factor_normalizing_speed = plot_dict['options']['model']['aero']['vortex'][
+        'induction_factor_normalizing_speed']
     if induction_factor_normalizing_speed == 'u_zero':
         kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
         u_normalizing = kite_plane_induction_params['u_zero']
@@ -979,9 +1035,13 @@ def get_induction_factor_normalizing_speed(plot_dict, idx_at_eval):
     return u_normalizing
 
 
-def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial', plane='yz', idx_at_eval=0):
-
-    dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict, kdx, orientation, plane, idx_at_eval)
+def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmetics, kdx, orientation='radial',
+                                                               plane='yz', idx_at_eval=0):
+    dimensionless_coordinates, dimensioned_coordinates = get_distributed_coordinates_about_actuator_center(plot_dict,
+                                                                                                           kdx,
+                                                                                                           orientation,
+                                                                                                           plane,
+                                                                                                           idx_at_eval)
 
     a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
 
@@ -1013,11 +1073,16 @@ def compute_induction_factor_at_specified_observer_coordinates(plot_dict, cosmet
 
 
 def compute_the_scaled_haas_error(plot_dict, cosmetics):
-
     # reference points digitized from haas 2017
-    data02 = [(0, -1.13084, -0.28134), (0, -0.89466, -0.55261), (0, -0.79354, -0.41195), (0, -0.79127, 0.02826), (0, -0.04449, 1.01208), (0, 0.22119, 0.83066), (0, 0.71947, -0.96407), (0, 0.52187, -0.66125), (0, 0.45227, 1.09891), (0, 0.92121, -0.46219), (0, 0.95625, -0.62566), (0, 0.19546, 1.12782)]
-    data00 = [(0, -0.69372, 1.24284), (0, -0.5894, -0.17062), (0, -0.83795, -1.18138), (0, 0.27077, 1.35428), (0, -1.20982, -0.71437), (0, -0.10682, 0.54558), (0, -0.3789, -0.3959), (0, 0.5081, -0.34622), (0, 0.23767, 0.61635), (0, 0.57386, -0.09835), (0, 1.10956, -0.867), (0, 1.4683, -0.06319)]
-    datan005 = [(0, -1.27365, 0.33177), (0, -1.21638, 0.65872), (0, -0.64295, 0.15234), (0, -0.50651, 0.31282), (0, -0.01271, -1.39519), (0, 0.03669, -0.60921), (0, 0.20264, -0.63812), (0, 0.38143, -1.27208), (0, 0.49584, 0.49075), (0, 0.52938, 0.32778), (0, 0.96982, 0.94579), (0, 1.3061, 0.48278)]
+    data02 = [(0, -1.13084, -0.28134), (0, -0.89466, -0.55261), (0, -0.79354, -0.41195), (0, -0.79127, 0.02826),
+              (0, -0.04449, 1.01208), (0, 0.22119, 0.83066), (0, 0.71947, -0.96407), (0, 0.52187, -0.66125),
+              (0, 0.45227, 1.09891), (0, 0.92121, -0.46219), (0, 0.95625, -0.62566), (0, 0.19546, 1.12782)]
+    data00 = [(0, -0.69372, 1.24284), (0, -0.5894, -0.17062), (0, -0.83795, -1.18138), (0, 0.27077, 1.35428),
+              (0, -1.20982, -0.71437), (0, -0.10682, 0.54558), (0, -0.3789, -0.3959), (0, 0.5081, -0.34622),
+              (0, 0.23767, 0.61635), (0, 0.57386, -0.09835), (0, 1.10956, -0.867), (0, 1.4683, -0.06319)]
+    datan005 = [(0, -1.27365, 0.33177), (0, -1.21638, 0.65872), (0, -0.64295, 0.15234), (0, -0.50651, 0.31282),
+                (0, -0.01271, -1.39519), (0, 0.03669, -0.60921), (0, 0.20264, -0.63812), (0, 0.38143, -1.27208),
+                (0, 0.49584, 0.49075), (0, 0.52938, 0.32778), (0, 0.96982, 0.94579), (0, 1.3061, 0.48278)]
 
     data = {-0.05: datan005, 0.0: data00, 0.2: data02}
 
@@ -1049,16 +1114,16 @@ def compute_the_scaled_haas_error(plot_dict, cosmetics):
     scaled_squared_error = total_squared_error / baseline_squared_error
     return scaled_squared_error
 
-def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
+def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     kite_plane_induction_params = {}
 
     interpolated_outputs_si = plot_dict['interpolation_si']['outputs']
 
     layer_nodes = plot_dict['architecture'].layer_nodes
-    layer = int( np.min(np.array(layer_nodes)) )
+    layer = int(np.min(np.array(layer_nodes)))
     kite_plane_induction_params['layer'] = layer
-    
+
     b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
     average_radius = interpolated_outputs_si['geometry']['average_radius' + str(layer)][0][idx_at_eval]
     kite_plane_induction_params['average_radius'] = average_radius
@@ -1111,7 +1176,6 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
 
 
 def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
-
     vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
 
@@ -1121,18 +1185,14 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             n_points_contour = 300
 
             n_points_interpolation = plot_dict['cosmetics']['interpolation']['n_points']
-            idx_at_eval = int(np.floor((float(n_points_interpolation) -1.)  * tau_at_eval))
+            idx_at_eval = int(np.floor((float(n_points_interpolation) - 1.) * tau_at_eval))
 
             kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
             radius = kite_plane_induction_params['average_radius']
             x_center = kite_plane_induction_params['center']
 
-            variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
-            parameters = plot_dict['parameters_plot']
-            wake = plot_dict['wake']
-            a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
-
             ### compute the induction factors
+            a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
             plot_radius_scaled = 1.6
             plot_radius = plot_radius_scaled * radius
             sym_start_plot = -1. * plot_radius
@@ -1146,6 +1206,8 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             print_op.base_print('making induction contour plot...')
             total_progress = yy.shape[0] * yy.shape[1]
             progress_index = 0
+            print_op.warn_about_temporary_functionality_alteration()
+            # todo: this currently only works for nhat = xhat orientation.
             for idx in range(yy.shape[0]):
                 for jdx in range(yy.shape[1]):
                     print_op.print_progress(progress_index, total_progress)
@@ -1166,6 +1228,8 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             draw_swept_background(ax, plot_dict)
 
             ### draw the contour
+            print_op.warn_about_temporary_functionality_alteration()
+            # todo: are these levels generalizable or only for the haas plot?
             levels = [-0.05, 0., 0.2]
             linestyles = ['dashdot', 'solid', 'dashed']
             colors = ['k', 'k', 'k']
@@ -1178,23 +1242,16 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
                 cs = ax.contour(yy_scaled, zz_scaled, aa, levels, colors=colors, linestyles=linestyles)
             else:
                 cs = ax.contour(yy_scaled, zz_scaled, aa, emergency_levels, colors=emergency_colors,
-                            linestyles=emergency_linestyles)
+                                linestyles=emergency_linestyles)
             ax.clabel(cs, cs.levels, inline=True)
 
             ### draw the vortex positions
-            if vortex_info_exists:
-                for elem in wake.get_substructure('bound').get_list('finite_filament').list:
-                    unpacked = elem.unpack_info(elem.evaluate_info(variables_scaled, parameters))
-                    x_start = unpacked['x_start']
-                    x_end = unpacked['x_end']
-
-                    x_start_shifted = (x_start - x_center) / radius
-                    x_end_shifted = (x_end - x_center) / radius
-
-                    y_over_r_vals = [float(x_start_shifted[1]), float(x_end_shifted[1])]
-                    z_over_r_vals = [float(x_start_shifted[2]), float(x_end_shifted[2])]
-
-                    ax.plot(y_over_r_vals, z_over_r_vals)
+            variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+            parameters = plot_dict['parameters_plot']
+            wake = plot_dict['wake']
+            bound_wake = wake.get_substructure('bound')
+            side = get_induction_contour_side(plot_dict, idx_at_eval)
+            bound_wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
             scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
 
@@ -1206,25 +1263,22 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             ax.set_ylabel("z/r [-]")
             ax.set_aspect(1.)
 
-            ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
-            ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
-            ax.set_xticks(ticks_points)
-            ax.set_yticks(ticks_points)
-            plt.xticks(rotation=60)
-            plt.tight_layout()
+            print_op.warn_about_temporary_functionality_alteration()
+            # todo: this needs to be turned on automatically when we make the haas plots
+            # ticks_points = [-1.6, -1.5, -1., -0.8, -0.5, 0., 0.5, 0.8, 1.0, 1.5, 1.6]
+            # ax.set_xlim([-1. * plot_radius_scaled, plot_radius_scaled])
+            # ax.set_ylim([-1. * plot_radius_scaled, plot_radius_scaled])
+            # ax.set_xticks(ticks_points)
+            # ax.set_yticks(ticks_points)
+            # plt.xticks(rotation=60)
+            # plt.tight_layout()
 
             fig.savefig(plot_dict['name'] + '_induction_contour_on_kmp_tau' + str(tau_rounded) + '.pdf')
 
-        return None
+    return None
 
 
-
-
-
-def draw_swept_background(ax, plot_dict):
-    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-
+def get_induction_contour_side(plot_dict, idx_at_eval):
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     radius = kite_plane_induction_params['average_radius']
@@ -1232,24 +1286,15 @@ def draw_swept_background(ax, plot_dict):
     n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
 
     side = (x_center, a_hat, b_hat, radius)
+    return side
+
+
+def draw_swept_background(ax, plot_dict):
+    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
+    side = get_induction_contour_side(plot_dict, idx_at_eval)
 
     for kite in plot_dict['architecture'].kite_nodes:
-        for zeta in np.arange(-0.5, 0.5, 1./100.):
+        for zeta in np.arange(-0.5, 0.5, 1. / 100.):
             tools.plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, color='gray', alpha=0.2)
 
     return None
-
-def add_annulus_background(ax, mu_min_by_path, mu_max_by_path):
-    n, radii = 50, [mu_min_by_path, mu_max_by_path]
-    theta = np.linspace(0, 2 * np.pi, n, endpoint=True)
-    xs = np.outer(radii, np.cos(theta))
-    ys = np.outer(radii, np.sin(theta))
-
-    # in order to have a closed area, the circles
-    # should be traversed in opposite directions
-    xs[1, :] = xs[1, ::-1]
-    ys[1, :] = ys[1, ::-1]
-
-    color = (0.83,0.83,0.83,0.5)
-
-    ax.fill(np.ravel(xs), np.ravel(ys), color=color)

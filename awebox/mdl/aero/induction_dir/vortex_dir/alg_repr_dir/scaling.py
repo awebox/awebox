@@ -104,12 +104,6 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
     wg_scale = filament_strength
     wh_scale = winding_period * u_ref
 
-    # print_op.warn_about_temporary_functionality_alteration(reason='theres something in the way scaling enters biot-savart that does not work correctly yet.')
-    # wx_scale = cas.DM(1.)
-    # wx_center_scale = cas.DM(1.)
-    # wg_scale = cas.DM(1.)
-    # wh_scale = cas.DM(1.)
-
     options_tree.append(('model', 'aero', 'vortex', 'varrho_ref', varrho_ref, ('descript', None), 'x'))
 
     for kite_shed in architecture.kite_nodes:

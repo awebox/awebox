@@ -40,6 +40,7 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.viz.tools as viz_tools
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -298,23 +299,12 @@ class Element():
             cosmetics = self.construct_fake_cosmetics()
 
         color = self.get_strength_color(strength, cosmetics)
-        x = [float(x_start[0]), float(x_end[0])]
-        y = [float(x_start[1]), float(x_end[1])]
-        z = [float(x_start[2]), float(x_end[2])]
-
         marker = None
         linestyle = '-'
 
-        if side == 'xy':
-            ax.plot(x, y, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'xz':
-            ax.plot(x, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'yz':
-            ax.plot(y, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'isometric':
-            ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle)
-
+        viz_tools.basic_draw(ax, side=side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle)
         return None
+
 
 
     def get_repeated_info(self, period, wind, optimization_period):
