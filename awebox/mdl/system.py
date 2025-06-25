@@ -187,12 +187,13 @@ def generate_structure(options, architecture):
     system_lifted, system_states = extend_aerodynamics(options, system_lifted, system_states, architecture)
 
     if options['trajectory']['type'] == 'aaa':
-        for k in range(options['aero']['vortex_rings']['N_rings']):
-            for j in [2,3]:
-                system_states.extend([('p_ring_{}_{}'.format(j, k), (3, 1))])
-                system_states.extend([('dp_ring_{}_{}'.format(j, k), (1, 1))])
-                system_states.extend([('gamma_ring_{}_{}'.format(j, k), (1, 1))])
-                system_states.extend([('n_ring_{}_{}'.format(j, k), (3, 1))])
+        for k in range(options['aero']['vortex_rings']['N']):
+            for i in range(options['aero']['vortex_rings']['N_rings']):
+                for j in [2,3]:
+                    system_states.extend([('p_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
+                    system_states.extend([('dp_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
+                    system_states.extend([('gamma_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
+                    system_states.extend([('n_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
 
     # system state derivatives
     system_derivatives = []
@@ -440,7 +441,7 @@ def generate_system_parameters(options, architecture):
         p_near_entries = []
         p_far_entries = []
         for j in [2, 3]:
-            for k in range(options['aero']['vortex_rings']['N_rings']):
+            for k in range(options['aero']['vortex_rings']['N']):
                 p_near_entries.append(
                     cas.entry('p_near_{}_{}'.format(j, k))
                 )

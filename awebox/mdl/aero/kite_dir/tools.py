@@ -212,7 +212,7 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind
 
     uw_infty = wind.get_velocity(q[2])
 
-    if 'dp_ring_2_0' in variables['x'].keys() and kite in [2,3]:
+    if 'dp_ring_2_0_0' in variables['x'].keys() and kite in [2,3]:
         u_induced = u_induced_vortex_rings(variables, parameters, kite, architecture, options)
     else:
         u_induced = np.array([0,0,0])
@@ -229,20 +229,22 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
     u_induced = np.zeros((3,1))
     initial_guess =  np.array([[-1],[0],[0]])
     params = 'p_near_{}'.format(kite)
-    for k in range(options['aero']['vortex_rings']['N_rings']):
-        for j in [2, 3]:
-            w_ind_f = 0
-            p_r = variables['x']['p_ring_{}_{}'.format(j, k)]
-            dp_r = variables['x']['dp_ring_{}_{}'.format(j, k)]
-            gamma_r = variables['x']['gamma_ring_{}_{}'.format(j, k)]
-            n_r = variables['x']['n_ring_{}_{}'.format(j, k)]
-            R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
-            param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)] * parameters[params, 'p_near_{}_{}'.format(j, k)]
-            w_ind_f += - param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
-            for d in range(options['aero']['vortex_rings']['N_duplicates']):
-                param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)]
-                p_r_dup = p_r + np.array([[dp_r*(d+1)*t_f], [0], [0]])
-                w_ind_f += - param * vortex_rings.far_wake_ring_induction(q, p_r_dup, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+    h = t_f / options['aero']['vortex_rings']['N'] / options['aero']['vortex_rings']['N_rings']
+    for k in range(options['aero']['vortex_rings']['N']):
+        for i in range(options['aero']['vortex_rings']['N_rings']):
+            for j in [2, 3]:
+                w_ind_f = 0
+                p_r = variables['x']['p_ring_{}_{}_{}'.format(j, k, i)]
+                dp_r = variables['x']['dp_ring_{}_{}_{}'.format(j, k, i)]
+                gamma_r = variables['x']['gamma_ring_{}_{}_{}'.format(j, k, i)]
+                n_r = variables['x']['n_ring_{}_{}_{}'.format(j, k, i)]
+                R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
+                param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)] * parameters[params, 'p_near_{}_{}'.format(j, k)]
+                w_ind_f += - h * param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+                for d in range(options['aero']['vortex_rings']['N_duplicates']):
+                    param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)]
+                    p_r_dup = p_r + cas.vertcat(dp_r*(d+1)*t_f, 0, 0)
+                    w_ind_f += - h * param * vortex_rings.far_wake_ring_induction(q, p_r_dup, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
 
             u_induced = u_induced  + w_ind_f * n_r
 

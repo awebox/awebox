@@ -222,18 +222,18 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
         force_scaling = model_options['scaling']['z']['lambda10']
         derivative_dict = {'f10': (tether_force_si, force_scaling)}
 
-        if model_options['aero']['vortex_rings']['N_rings'] != 0:
-            bref = parameters['theta0', 'geometry', 'b_ref']
-            ar = parameters['theta0', 'geometry', 'ar']
-            for j in [2,3]:
-                va = outputs['aerodynamics']['airspeed{}'.format(j)]
-                CL = system_variables['SI']['x']['coeff{}1'.format(j)][0]
-                gamma = 2 * bref / (np.pi * ar) * va * CL
-                derivative_dict['gamma_ring_{}'.format(j)] = (gamma, 1)
+        # if model_options['aero']['vortex_rings']['N_rings'] != 0:
+        #     bref = parameters['theta0', 'geometry', 'b_ref']
+        #     ar = parameters['theta0', 'geometry', 'ar']
+        #     for j in [2,3]:
+        #         va = outputs['aerodynamics']['airspeed{}'.format(j)]
+        #         CL = system_variables['SI']['x']['coeff{}1'.format(j)][0]
+        #         gamma = 2 * bref / (np.pi * ar) * va * CL
+        #         derivative_dict['gamma_ring_{}'.format(j)] = (gamma, 1)
 
-                lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
-                for i in range(3):
-                    derivative_dict['n_ring_{}_{}'.format(j, i)] = (- lift_vec[i], 1)
+        #         lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
+        #         for i in range(3):
+        #             derivative_dict['n_ring_{}_{}'.format(j, i)] = (- lift_vec[i], 1)
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.

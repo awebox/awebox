@@ -229,6 +229,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
 
     if user_options['trajectory']['type'] == 'aaa':
         options_tree.append(('nlp', None, None, 'N_far', options['model']['aero']['vortex_rings']['N_far'],  ('number of far-wake vortex rings to be taken into account before and after', None),'x'))
+        options_tree.append(('model', 'aero', 'vortex_rings', 'N', options['nlp']['n_k'],  ('...', None),'x'))
 
     if options['nlp']['compile_subfunctions']:
 

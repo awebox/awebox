@@ -223,7 +223,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['mach' + str(kite)] = get_mach(options, atmos, air_velocity, q)
     outputs['aerodynamics']['reynolds' + str(kite)] = get_reynolds(options, atmos, air_velocity, q, parameters)
 
-    if 'dp_ring_2_0' in variables['x'].keys():
+    if 'dp_ring_2_0_0' in variables['x'].keys():
         outputs['aerodynamics']['u_induced_far_wake' + str(kite)] = tools.u_induced_vortex_rings(variables, parameters, kite, architecture, options)
 
     return outputs
