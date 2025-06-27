@@ -350,6 +350,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'homotopy_method',None, 'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'psi',        'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'advance_despite_max_iter', True, ('should homotopy proceed to next step if the last step exceeds the maximum number of Newton steps?', [True, False]), 's'),
+        ('solver',  'homotopy_method',None, 'advance_despite_max_cpu_time', True, ('should homotopy proceed to next step if the last step exceeds the maximum CPU time?', [True, False]), 's'),
         ('solver',  'homotopy_method', None, 'advance_despite_ill_health', True, ('should homotopy proceed to next step if the debug health-checker says that the problem is unhealthy/ill-posed', [True, False]), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),
