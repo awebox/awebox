@@ -357,98 +357,157 @@ class Collocation(object):
         if nlp_options['type'] == 'aaa':
 
             t_f = model.scaling['theta', 't_f'] * V['theta', 't_f']
+            params = struct_op.get_parameters_at_time(V, P, model.parameters, model.parameters_dict, kdx, model.options['aero']['vortex_rings']['N_far'])
 
-            # evaluate derivative functions
-            derivative_list = []
-            for i in range(self.__d):
-                derivative_list += [model.integral_outputs(integral_outputs_deriv[:,i])]
+            # # evaluate derivative functions
+            # derivative_list = []
+            # for i in range(self.__d):
+            #     derivative_list += [model.integral_outputs(integral_outputs_deriv[:,i])]
 
-            integral_output = OrderedDict()
-            # integrate using collocation
-            for name in list(model.integral_outputs.keys()):
+            # integral_output = OrderedDict()
+            # # integrate using collocation
+            # for name in list(model.integral_outputs.keys()):
 
-                # get derivatives
-                derivatives = []
-                for i in range(len(derivative_list)):
-                    derivatives.append(derivative_list[i][name])
+            #     # get derivatives
+            #     derivatives = []
+            #     for i in range(len(derivative_list)):
+            #         derivatives.append(derivative_list[i][name])
 
-                # compute state values at collocation nodes
-                integral_output_coll = cas.mtimes(self.__Lambda.T, cas.vertcat(*derivatives))
+            #     # compute state values at collocation nodes
+            #     integral_output_coll = cas.mtimes(self.__Lambda.T, cas.vertcat(*derivatives))
 
-                # compute state value at end of collocation interval
-                integral_output_continuity = 0.0
+            #     # compute state value at end of collocation interval
+            #     integral_output_continuity = 0.0
 
-                for j in range(self.__d):
-                    integral_output_continuity += self.__coeff_continuity[j+1] * integral_output_coll[j]
+            #     for j in range(self.__d):
+            #         integral_output_continuity += self.__coeff_continuity[j+1] * integral_output_coll[j]
 
-                integral_output[name] = integral_output_continuity
+            #     integral_output[name] = integral_output_continuity
 
             # pin the end of the control interval to the start of the new control interval
             g_continuity = []
-            time_transformation = []
+            lfcns = self.__coeff_fun
+            N_rings = nlp_options['N_rings']
+            tgrid = [k/N_rings + 1/(2*N_rings) for k in range(N_rings)]
+            convection_times = [t_f / nlp_options['n_k'] * (1 - tau) for tau in tgrid]
+            x_list = [model.variables_dict['x'](lfcns(tau)[0]*V['x', kdx] + sum([lfcns(tau)[ddx+1]*V['coll_var', kdx, ddx, 'x'] for ddx in range(self.__d)])) for tau in tgrid]
+            outputs_list = []
+            for idx in range(N_rings):
+                var_list = []
+                for key in model.variables.keys():
+                    if key != 'x':
+                        var_list.append(model.variables_dict[key](0.0).cat)
+                    else:
+                        var_list.append(x_list[idx].cat)
+                variables = cas.vertcat(*var_list)
+                outputs_list.append(model.outputs(model.outputs_fun(variables, params)))
+
             for state in model.variables_dict['x'].keys():
 
-                v_conv = 10.0
-                if state == 'p_ring_2_{}'.format(kdx):
-                    q_avg = np.zeros((3,1))
-                    for ddx in range(self.__d):
-                        convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1])
-                        q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q21'] * model.scaling['x', 'q21'] + convection_time * cas.vertcat(v_conv, 0, 0)
-                        q_avg += self.__quad_weights[ddx] * q_convected_ddx 
-                    q_convected = model.scaling['x', 'q21'] * V['x', kdx, 'q21'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
-                    q_next = model.scaling['x', 'q21'] * xnext['q21']
-                    delta_q = q_next - q_convected
+                if struct_op.is_state_for_kdx(state, kdx, 'p', 'ring', '2'):
+                    idx = struct_op.get_idx_from_state(state)
+                    p_ring_2_next = x_list[idx]['q21'] * model.scaling['x', 'q21'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed2'], 0, 0)
                     g_continuity.append(
-                        V['x', kdx + 1, state] -  q_avg
-                    )
-                    dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_2', kdx]
-                    time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
-
-                elif state == 'p_ring_3_{}'.format(kdx):
-                    q_avg = np.zeros((3,1))
-                    for ddx in range(self.__d):
-                        convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1]) 
-                        q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q31'] * model.scaling['x', 'q31'] + convection_time * cas.vertcat(v_conv,0, 0)
-                        q_avg += self.__quad_weights[ddx] * q_convected_ddx
-                    q_convected = model.scaling['x', 'q31'] * V['x', kdx, 'q31'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
-                    q_next = model.scaling['x', 'q31'] * xnext['q31']
-                    delta_q = q_next - q_convected
-                    g_continuity.append(
-                        V['x', kdx + 1, state] -  q_avg
-                    )
-                    dist = 2*P['theta0', 'aero', 'vortex_rings', 'R_ring'] * V['d_ring_3', kdx]
-                    time_transformation.append(dist**2 - cas.mtimes(delta_q.T, delta_q))
-
-                elif state in ['dp_ring_2_{}'.format(kdx), 'dp_ring_3_{}'.format(kdx)]:
-                    g_continuity.append(
-                        V['x', kdx + 1, state] -  v_conv
-                    )
-                elif state in ['gamma_ring_2_{}'.format(kdx), 'gamma_ring_3_{}'.format(kdx)]:
-                    kite = state[11]
-                    gamma_avg = V['d_ring_{}'.format(kite), kdx] * integral_output[state[:12]]
-                    g_continuity.append(
-                        V['x', kdx + 1, state] -  gamma_avg
+                        V['x', kdx + 1, state] -  p_ring_2_next
                     )
 
-                elif state in ['n_ring_2_{}'.format(kdx), 'n_ring_3_{}'.format(kdx)]:
-                    n_ring_avg = cas.vertcat(*[integral_output[state[:8] + '_{}'.format(i)] for i in [0,1,2]])
-                    n_ring_avg = n_ring_avg / cas.norm_2(n_ring_avg)
-                    for i in [0,1,2]:
-                        g_continuity.append(V['x', kdx + 1, state, i] -  n_ring_avg[i])
+                elif struct_op.is_state_for_kdx(state, kdx, 'p', 'ring', '3'):
+                    idx = struct_op.get_idx_from_state(state)
+                    p_ring_3_next = x_list[idx]['q31'] * model.scaling['x', 'q31'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed3'], 0, 0)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  p_ring_3_next
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '2'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed2']
+                    )
+                elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '3'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed3']
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '2'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','gamma_dipole2']
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '3'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] -  outputs_list[idx]['aerodynamics','gamma_dipole3']
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'n', 'ring', '2'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','n_dipole2']
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'n', 'ring', '3'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','n_dipole3']
+                    )
 
                 else:
                     g_continuity.append(
                         V['x', kdx + 1, state] -  xnext[state]
                     )
+                # v_conv = 10.0
+                # if state == 'p_ring_2_{}'.format(kdx):
+                #     q_avg = np.zeros((3,1))
+                #     for ddx in range(self.__d):
+                #         convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1])
+                #         q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q21'] * model.scaling['x', 'q21'] + convection_time * cas.vertcat(v_conv, 0, 0)
+                #         q_avg += self.__quad_weights[ddx] * q_convected_ddx 
+                #     q_convected = model.scaling['x', 'q21'] * V['x', kdx, 'q21'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
+                #     q_next = model.scaling['x', 'q21'] * xnext['q21']
+                #     delta_q = q_next - q_convected
+                #     g_continuity.append(
+                #         V['x', kdx + 1, state] -  q_avg
+                #     )
+
+                # elif state == 'p_ring_3_{}'.format(kdx):
+                #     q_avg = np.zeros((3,1))
+                #     for ddx in range(self.__d):
+                #         convection_time = t_f / nlp_options['n_k'] * (1.0 - self.__tau_root[ddx+1]) 
+                #         q_convected_ddx = V['coll_var', kdx, ddx, 'x', 'q31'] * model.scaling['x', 'q31'] + convection_time * cas.vertcat(v_conv,0, 0)
+                #         q_avg += self.__quad_weights[ddx] * q_convected_ddx
+                #     q_convected = model.scaling['x', 'q31'] * V['x', kdx, 'q31'] + t_f / nlp_options['n_k'] * cas.vertcat(v_conv,0, 0) #+ w_ind_n_avg)
+                #     q_next = model.scaling['x', 'q31'] * xnext['q31']
+                #     delta_q = q_next - q_convected
+                #     g_continuity.append(
+                #         V['x', kdx + 1, state] -  q_avg
+                #     )
+
+                # elif state in ['dp_ring_2_{}'.format(kdx), 'dp_ring_3_{}'.format(kdx)]:
+                #     g_continuity.append(
+                #         V['x', kdx + 1, state] -  v_conv
+                #     )
+                # elif state in ['gamma_ring_2_{}'.format(kdx), 'gamma_ring_3_{}'.format(kdx)]:
+                #     kite = state[11]
+                #     gamma_avg = V['d_ring_{}'.format(kite), kdx] * integral_output[state[:12]]
+                #     g_continuity.append(
+                #         V['x', kdx + 1, state] -  gamma_avg
+                #     )
+
+                # elif state in ['n_ring_2_{}'.format(kdx), 'n_ring_3_{}'.format(kdx)]:
+                #     n_ring_avg = cas.vertcat(*[integral_output[state[:8] + '_{}'.format(i)] for i in [0,1,2]])
+                #     n_ring_avg = n_ring_avg / cas.norm_2(n_ring_avg)
+                #     for i in [0,1,2]:
+                #         g_continuity.append(V['x', kdx + 1, state, i] -  n_ring_avg[i])
+
+
 
             g_continuity = cas.vertcat(*g_continuity)
 
         else:
 
             g_continuity = V['x', kdx + 1] - xnext
-
-        if nlp_options['type'] == 'aaa':
-            g_continuity = cas.vertcat(g_continuity, *time_transformation)
 
         cstr = cstr_op.Constraint(expr=g_continuity,
                                   name='continuity_{}'.format(kdx),

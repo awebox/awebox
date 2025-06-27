@@ -87,12 +87,6 @@ def setup_nlp_v(nlp_options, model, Collocation=None):
         cas.entry('phi',   struct = model.parameters_dict['phi'])
     ]
 
-    if nlp_options['type'] == 'aaa':
-        entry_list += [
-            cas.entry('d_ring_2', shape = (nk,1)),
-            cas.entry('d_ring_3', shape = (nk,1)),
-        ]
-
     entry_list += [entry_tuple]
 
     # generate structure

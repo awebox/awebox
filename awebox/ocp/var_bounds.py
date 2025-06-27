@@ -103,17 +103,6 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         elif var_type == 'phi':
             vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
             vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
-        
-    
-    if nlp_options['type'] == 'aaa':
-        vars_lb['d_ring_2'] = 0.01
-        vars_lb['d_ring_3'] = 0.01
-        vars_ub['d_ring_2'] = 5
-        vars_ub['d_ring_3'] = 5
-        # vars_lb['d_ring_2'] = 1.
-        # vars_lb['d_ring_3'] = 1.
-        # vars_ub['d_ring_2'] = 1.
-        # vars_ub['d_ring_3'] = 1.
 
     return [vars_lb, vars_ub]
 

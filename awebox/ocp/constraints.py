@@ -382,11 +382,6 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation, Integra
         cas.entry('continuity',     repeat = [n_k],     struct = model.variables_dict['x']),
     )
 
-    if nlp_options['type'] == 'aaa' and 'p_ring_2_0' in model.variables_dict['x'].keys():
-        entry_tuple += (
-            cas.entry('time_transformation', repeat = [n_k], shape = 2), # one for each kite
-        )
-
     return cstr_list, entry_tuple
 
 def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params):
