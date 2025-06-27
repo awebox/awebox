@@ -246,7 +246,7 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
                     p_r_dup = p_r + cas.vertcat(dp_r*(d+1)*t_f, 0, 0)
                     w_ind_f += - h * param * vortex_rings.far_wake_ring_induction(q, p_r_dup, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
 
-            u_induced = u_induced  + w_ind_f * n_r
+                u_induced = u_induced  + w_ind_f
 
     u_induced_homotopy = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * u_induced
 

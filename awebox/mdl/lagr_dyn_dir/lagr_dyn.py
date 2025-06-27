@@ -176,31 +176,32 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # -----------------------------------
     if options['trajectory']['type'] == 'aaa':
         
-        for k in range(options['aero']['vortex_rings']['N_rings']):
-            for j in [2, 3]:
+        for k in range(options['aero']['vortex_rings']['N']):
+            for i in range(options['aero']['vortex_rings']['N_rings']):
+                for j in [2, 3]:
                 
-                name = 'dp_ring_{}_{}'.format(j, k)
-                cstr = system_variables['SI']['xdot'][name] - cas.vertcat(
-                    system_variables['SI']['x'][name], 0, 0, 
-                )
-                vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,
-                                            cstr_type='eq',
-                                            name='vortex_ring_' + name)
-
-                cstr_list.append(vortex_rings_dyn_cstr)
-
-                names = [
-                    'ddp_ring_{}_{}'.format(j, k),
-                    'dgamma_ring_{}_{}'.format(j, k),
-                    'dn_ring_{}_{}'.format(j, k)
-                ]
-                for name in names:
-                    cstr = system_variables['scaled']['xdot', name]
+                    name = 'dp_ring_{}_{}_{}'.format(j, k, i)
+                    cstr = system_variables['SI']['xdot'][name] - cas.vertcat(
+                        system_variables['SI']['x'][name], 0, 0,
+                    )
                     vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,
                                                 cstr_type='eq',
                                                 name='vortex_ring_' + name)
 
                     cstr_list.append(vortex_rings_dyn_cstr)
+
+                    names = [
+                        'ddp_ring_{}_{}_{}'.format(j, k, i),
+                        'dgamma_ring_{}_{}_{}'.format(j, k, i),
+                        'dn_ring_{}_{}_{}'.format(j, k, i)
+                    ]
+                    for name in names:
+                        cstr = system_variables['scaled']['xdot', name]
+                        vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,
+                                                    cstr_type='eq',
+                                                    name='vortex_ring_' + name)
+
+                        cstr_list.append(vortex_rings_dyn_cstr)
 
     return cstr_list, outputs
 

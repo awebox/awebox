@@ -225,6 +225,9 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
     if 'dp_ring_2_0_0' in variables['x'].keys():
         outputs['aerodynamics']['u_induced_far_wake' + str(kite)] = tools.u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+        gamma_dipole = 2 * 0.8 * parameters['theta0', 'geometry', 'b_ref']**2 * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar']) * outputs['aerodynamics']['airspeed' + str(kite)]**2 / 100**3
+        outputs['aerodynamics']['gamma_dipole' + str(kite)] = gamma_dipole
+        outputs['aerodynamics']['n_dipole' + str(kite)] = - outputs['aerodynamics']['ehat_up{}'.format(kite)]
 
     return outputs
 
@@ -361,7 +364,7 @@ def collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outp
     if 'environment' not in list(outputs.keys()):
         outputs['environment'] = {}
 
-    outputs['environment']['windspeed' + str(kite)] = vect_op.norm(wind.get_velocity(q[2]))
+    outputs['environment']['windspeed' + str(kite)] = wind.get_velocity(q[2])[0]
     outputs['environment']['pressure' + str(kite)] = atmos.get_pressure(q[2])
     outputs['environment']['temperature' + str(kite)] = atmos.get_temperature(q[2])
     outputs['environment']['density' + str(kite)] = atmos.get_density(q[2])

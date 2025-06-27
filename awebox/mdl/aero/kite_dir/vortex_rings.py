@@ -31,6 +31,33 @@ import casadi as ca
 from awebox.mdl.aero.kite_dir.elliptic_integrals_functions import *
 import awebox.tools.cached_functions as cf
 
+
+def vortex_ring_dipole_approx(q, q_v, n, Gamma):
+    """
+    Approximate the induced velocity at point q from a vortex ring,
+    using a far-field potential dipole aligned with the ring's normal vector.
+
+    Parameters:
+        q      : np.ndarray, shape (3,)
+        q_v    : np.ndarray, shape (3,)
+        n      : np.ndarray, shape (3,), unit vector normal to the ring
+        Gamma  : float, vortex strength
+        r_f    : float, ring radius
+
+    Returns:
+        u_ind : np.ndarray, shape (3,)
+    """
+    r = q - q_v
+    r_norm = ca.sqrt(ca.mtimes(r.T, r))
+    
+    m = Gamma * n * 100**3 # Dipole moment (scalar * direction)
+    dot = ca.mtimes(r.T, m)
+    
+    u_ind = (1 / (4 * np.pi)) * (3 * dot * r - r_norm**2 * m) / r_norm**5
+    
+    # u_ind = np.zeros((3,1))
+    return u_ind
+
 def far_wake_ring_induction(p_k, p_r, n_ring, gamma_ring, R_ring, data):
 
     """ Model for the induced axial speed due to a vortex ring in the far wake.
@@ -47,12 +74,16 @@ def far_wake_ring_induction_function(data):
     p_r = ca.SX.sym('p_r', 3, 1)
     n_ring = ca.SX.sym('n_ring', 3, 1)
     gamma_ring = ca.SX.sym('gamma_ring', 3, 1)
-    R_ring = ca.SX.sym('n_ring', 1, 1)
+    R_ring = ca.SX.sym('R_ring', 1, 1)
 
-    h = ca.mtimes((p_r - p_k).T, n_ring)
-    vec = (p_r - p_k) - h * n_ring
-    R_j = ca.sqrt(ca.mtimes(vec.T, vec))
-    w_f = - gamma_ring / (4 * np.pi) * (elliptic_integrand_series_axial(R_j, R_ring, h, data['N_elliptic_int'], method = data['elliptic_method']))
+    # FAR WAKE INDUCTION OF VORTEX RING
+    # h = ca.mtimes((p_r - p_k).T, n_ring)
+    # vec = (p_r - p_k) - h * n_ring
+    # R_j = ca.sqrt(ca.mtimes(vec.T, vec))
+    # w_f = - gamma_ring / (4 * np.pi) * (elliptic_integrand_series_axial(R_j, R_ring, h, data['N_elliptic_int'], method = data['elliptic_method']))
+
+    # FAR WAKE INDUCTION OF VORTEX DIPOLE!!!!
+    w_f = - vortex_ring_dipole_approx(p_k, p_r, n_ring, gamma_ring)
 
     far_wake_axial_induction_fun = ca.Function('far_wake_axial_induction_fun', [p_k, p_r, n_ring, gamma_ring, R_ring], [w_f])
     # compilation_file_name = 'far_wake_axial_induction_fun_'
