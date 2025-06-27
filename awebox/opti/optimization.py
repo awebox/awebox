@@ -575,8 +575,11 @@ class Optimization(object):
 
         previous_step_failed = (return_status_number > 3)
         failure_due_to_max_iter = (return_status_number == 8)
+        failure_due_to_max_cpu_time = (return_status_number == 9)
         advance_despite_max_iter = self.__options['homotopy_method']['advance_despite_max_iter']
-        excuse_failure_due_to_max_iter = failure_due_to_max_iter and advance_despite_max_iter
+        advance_despite_max_cpu_time = self.__options['homotopy_method']['advance_despite_max_cpu_time']
+
+        excuse_failure_due_to_max_iter = (failure_due_to_max_iter and advance_despite_max_iter) or (failure_due_to_max_cpu_time and advance_despite_max_cpu_time)
 
         should_not_advance = previous_step_failed and not excuse_failure_due_to_max_iter
         if should_not_advance:

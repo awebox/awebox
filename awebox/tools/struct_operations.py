@@ -73,10 +73,10 @@ def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
     return shooting_vars
 
-def get_p_near(kite, kdx, N_rings, p_near_struct):
+def get_p_near(kite, kdx, N_intervals, p_near_struct):
 
     p_near = p_near_struct(0.)
-    for k in range(N_rings):
+    for k in range(N_intervals):
         for j in [2, 3]:
             if j == kite and k >= kdx:
                 p_near['p_near_{}_{}'.format(j, k)] = 1.
@@ -85,14 +85,14 @@ def get_p_near(kite, kdx, N_rings, p_near_struct):
 
     return p_near.cat
 
-def get_p_far(kite, kdx, N_rings, p_far_struct, N_far):
+def get_p_far(kite, kdx, N_intervals, p_far_struct, N_far):
 
     k_range = list(range(kdx - N_far, kdx + N_far+1))
-    k_kite = list(filter(lambda x: x >= 0 and x < N_rings, k_range))
-    k_other = list(filter(lambda x: x < 0 or x >= N_rings, k_range))
-    k_other = [k%N_rings for k in k_other]
+    k_kite = list(filter(lambda x: x >= 0 and x < N_intervals, k_range))
+    k_other = list(filter(lambda x: x < 0 or x >= N_intervals, k_range))
+    k_other = [k%N_intervals for k in k_other]
     p_far = p_far_struct(0.)
-    for k in range(N_rings):
+    for k in range(N_intervals):
         for j in [2, 3]:
             if j == kite and k in k_kite:
                 p_far['p_far_{}_{}'.format(j, k)] = 1.
@@ -111,16 +111,16 @@ def get_shooting_params(nlp_options, V, P, model):
     if model.options['trajectory']['type'] == 'aaa':
         p_list = []
         N_far = nlp_options['N_far']
-        N_rings = model.options['aero']['vortex_rings']['N_rings']
+        N_intervals = nlp_options['n_k']
         p_near_struct = model.parameters_dict['p_near_2']
         p_far_struct = model.parameters_dict['p_far_2']
 
         for kdx in range(shooting_nodes):
             p_list.append(cas.vertcat(
-                get_p_near(2, kdx, N_rings, p_near_struct),
-                get_p_near(3, kdx, N_rings, p_near_struct),
-                get_p_far(2, kdx, N_rings, p_far_struct, N_far),
-                get_p_far(3, kdx, N_rings, p_far_struct, N_far)
+                get_p_near(2, kdx, N_intervals, p_near_struct),
+                get_p_near(3, kdx, N_intervals, p_near_struct),
+                get_p_far(2, kdx, N_intervals, p_far_struct, N_far),
+                get_p_far(3, kdx, N_intervals, p_far_struct, N_far)
             ))
 
         p_repeated = cas.horzcat(*p_list)
@@ -158,16 +158,16 @@ def get_coll_params(nlp_options, V, P, model):
             N_far = nlp_options['N_far']
             p_list = []
             shooting_nodes = count_shooting_nodes(nlp_options)
-            N_rings = model.options['aero']['vortex_rings']['N_rings']
+            N_intervals = nlp_options['n_k']
             p_near_struct = model.parameters_dict['p_near_2']
             p_far_struct = model.parameters_dict['p_far_2']
             for kdx in range(shooting_nodes):
                 p_list.append(cas.repmat(
                     cas.vertcat(
-                        get_p_near(2, kdx, N_rings, p_near_struct),
-                        get_p_near(3, kdx, N_rings, p_near_struct),
-                        get_p_far(2, kdx, N_rings, p_far_struct, N_far),
-                        get_p_far(3, kdx, N_rings, p_far_struct, N_far)
+                        get_p_near(2, kdx, N_intervals, p_near_struct),
+                        get_p_near(3, kdx, N_intervals, p_near_struct),
+                        get_p_far(2, kdx, N_intervals, p_far_struct, N_far),
+                        get_p_far(3, kdx, N_intervals, p_far_struct, N_far)
                     ), 1, d)
                 )
 
@@ -479,13 +479,13 @@ def get_parameters_at_time(V, P, model_parameters, model_parameters_dict, kdx, N
             param_list.append(P[var_type])
 
     if 'p_near_2' in model_parameters.keys():
-        N_rings = int(model_parameters['p_near_2'].shape[0]/2)
+        N_intervals = int(model_parameters['p_near_2'].shape[0]/2)
         p_near_struct = model_parameters_dict['p_near_2']
         p_far_struct = model_parameters_dict['p_far_2']
-        param_list.append(get_p_near(2, kdx, N_rings, p_near_struct))
-        param_list.append(get_p_near(3, kdx, N_rings, p_near_struct))
-        param_list.append(get_p_far(2, kdx, N_rings, p_far_struct, N_far))
-        param_list.append(get_p_far(3, kdx, N_rings, p_far_struct, N_far))
+        param_list.append(get_p_near(2, kdx, N_intervals, p_near_struct))
+        param_list.append(get_p_near(3, kdx, N_intervals, p_near_struct))
+        param_list.append(get_p_far(2, kdx, N_intervals, p_far_struct, N_far))
+        param_list.append(get_p_far(3, kdx, N_intervals, p_far_struct, N_far))
     param_at_time = model_parameters(cas.vertcat(*param_list))
 
     return param_at_time
@@ -718,7 +718,7 @@ def si_to_scaled(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['d_ring']:
+        if local_canonical[0] != 'phi':
 
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
@@ -753,7 +753,7 @@ def scaled_to_si(V_ori, scaling):
 
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
-        if local_canonical[0] != 'phi' and local_canonical[0][:6] not in ['d_ring']:
+        if local_canonical[0] != 'phi':
             if len(local_canonical) == 2:
                 var_type = local_canonical[0]
                 var_name = local_canonical[1]
@@ -1512,3 +1512,22 @@ def test():
     # todo
     awelogger.logger.warning('no tests currently defined for struct_operations')
     return None
+
+def is_state_for_kdx(state, target_kdx, p1, p2, p3):
+    """Check if the state string matches the target kdx."""
+    parts = state.split('_')
+    if len(parts) == 5 and parts[0] == p1 and parts[1] == p2 and parts[2] == p3:
+        try:
+            kdx = int(parts[3])
+            return kdx == target_kdx
+        except ValueError:
+            return False
+    return False
+
+def get_idx_from_state(state):
+    """Extract idx from a valid state string."""
+    parts = state.split('_')
+    try:
+        return int(parts[4])
+    except (IndexError, ValueError):
+        return None
