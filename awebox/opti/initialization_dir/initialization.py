@@ -183,31 +183,30 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                             V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
 
 
-    if 'p_ring_2_0' in model.variables_dict['x'].keys():
+    if 'p_ring_2_0_0' in model.variables_dict['x'].keys():
         tf_guess = tf_guess.full()[0][0]
+        N = nlp.n_k
         N_rings = model.options['aero']['vortex_rings']['N_rings']
-        for k in range(N_rings):
-            for j in [2, 3]:
-                v_init = 10
-                V_init_si['x', :, 'gamma_ring_{}_{}'.format(j, k)] = 20
-                V_init_si['coll_var', :, :, 'x', 'gamma_ring_{}_{}'.format(j, k)] = 20
-                V_init_si['x', :, 'n_ring_{}_{}'.format(j, k)] = np.array([-1,0,0])
-                V_init_si['coll_var', :, :, 'x', 'n_ring_{}_{}'.format(j, k)] = np.array([-1,0,0])
-                V_init_si['x', :, 'dp_ring_{}_{}'.format(j, k)] = v_init
-                V_init_si['coll_var', :, :, 'x', 'dp_ring_{}_{}'.format(j, k)] = v_init
-                q0 = V_init_si['x', k, 'q{}1'.format(j)]
-                q1 = V_init_si['x', (k+1)%N_rings, 'q{}1'.format(j)]
-                V_init_si['x', :, 'p_ring_{}_{}'.format(j, k)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
-                V_init_si['coll_var', :, :, 'x', 'p_ring_{}_{}'.format(j, k)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
+        for k in range(N):
+            for i in range(N_rings):
+                for j in [2, 3]:
+                    v_init = 10
+                    V_init_si['x', :, 'gamma_ring_{}_{}_{}'.format(j, k, i)] = 20
+                    V_init_si['coll_var', :, :, 'x', 'gamma_ring_{}_{}_{}'.format(j, k, i)] = 20
+                    V_init_si['x', :, 'n_ring_{}_{}_{}'.format(j, k, i)] = np.array([-1,0,0])
+                    V_init_si['coll_var', :, :, 'x', 'n_ring_{}_{}_{}'.format(j, k, i)] = np.array([-1,0,0])
+                    V_init_si['x', :, 'dp_ring_{}_{}_{}'.format(j, k, i)] = v_init
+                    V_init_si['coll_var', :, :, 'x', 'dp_ring_{}_{}_{}'.format(j, k, i)] = v_init
+                    q0 = V_init_si['x', k, 'q{}1'.format(j)]
+                    q1 = V_init_si['x', (k+1)%N_rings, 'q{}1'.format(j)]
+                    V_init_si['x', :, 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
+                    V_init_si['coll_var', :, :, 'x', 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
 
-                for i in range(N_rings):
-                    q_0_convected = tf_guess * i / n_k * v_init
-                    V_init_si['x', (k+i)%(n_k), 'p_ring_{}_{}'.format(j, k), 0] += q_0_convected
-                    for ddx in range(d):
-                        V_init_si['coll_var', (k+i)%(n_k), ddx, 'x', 'p_ring_{}_{}'.format(j, k), 0] += q_0_convected
-
-        V_init_si['d_ring_2'] = 1.
-        V_init_si['d_ring_3'] = 1.
+                    for i in range(N_rings):
+                        q_0_convected = tf_guess * i / n_k * v_init
+                        V_init_si['x', (k+i)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                        for ddx in range(d):
+                            V_init_si['coll_var', (k+i)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
 
     return V_init_si
 
