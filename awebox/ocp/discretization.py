@@ -112,10 +112,11 @@ def construct_time_grids(nlp_options) -> dict:
     tx.append(tcurrent)
     tu = cas.vertcat(*tu)
     tx = cas.vertcat(*tx)
-    tcoll = cas.vertcat(*tcoll)
 
     if direct_collocation:
+
         # reshape tcoll
+        tcoll = cas.vertcat(*tcoll)
         tcoll = tcoll.reshape((d,nk)).T
         tx_coll = cas.vertcat(cas.horzcat(tu, tcoll).T.reshape((nk*(d+1),1)),tx[-1])
 

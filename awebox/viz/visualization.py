@@ -269,6 +269,10 @@ class Visualization(object):
     def plot_dict(self):
         return self._plot_dict
 
+    @plot_dict.setter
+    def plot_dict(self, value):
+        self._plot_dict = value
+
     @property
     def options(self):
         return self._options
