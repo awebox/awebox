@@ -117,7 +117,7 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.grid(True)
 
     # a block=False argument will automatically close the figures after they've been created
-    # plt.show(block=plot_show_block)
+    plt.show(block=plot_show_block)
 
     return trial
 

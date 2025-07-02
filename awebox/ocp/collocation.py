@@ -451,7 +451,7 @@ class Collocation(object):
         awelogger.logger.info('Constructing symbolic linear interpolator functions')
 
         # single symbolic time where the interpolation is evaluated
-        t = cas.SX.sym('t')
+        t = cas.MX.sym('t')
 
         t_x_coll = time_grids_opt['coll'](T_opt)
         t_x_coll = [0.0] + cas.reshape(t_x_coll.T, t_x_coll.numel(), 1).full().squeeze().tolist()
