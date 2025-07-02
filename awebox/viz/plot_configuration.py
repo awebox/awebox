@@ -25,4 +25,4 @@
 
 # Set the default matplot backend, for more details see: https://matplotlib.org/stable/users/explain/figure/backends.html
 # DEFAULT_MPL_BACKEND = 'module://backend_interagg'
-DEFAULT_MPL_BACKEND = 'macosx'
+DEFAULT_MPL_BACKEND = 'TkAgg'
