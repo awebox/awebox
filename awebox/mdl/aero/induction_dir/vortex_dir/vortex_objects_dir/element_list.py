@@ -443,8 +443,15 @@ class ElementList():
         if cosmetics is None:
             cosmetics = self.construct_fake_cosmetics()
 
+        progress_total = len(self.__list)
+        print_op.base_print('drawing the ' + str(progress_total) + ' ' + self.__element_type + 's in this element_list...')
+        edx = 0
         for elem in self.__list:
             elem.draw(ax, side, variables_scaled, parameters, cosmetics)
+            print_op.print_progress(edx, progress_total)
+            edx += 1
+        print_op.close_progress()
+
         return None
 
     def abs_strength_max(self, variables_scaled, parameters):
@@ -1109,8 +1116,7 @@ def test_that_a_construct_made_of_filaments_behaves_like_haas_2017():
 
     baseline_scaled_haas_error = 1.
     if scaled_haas_error > baseline_scaled_haas_error:
-        print(scaled_haas_error)
-        message = 'haas construction does not work as intended'
+        message = 'haas construction does not work as intended. scaled haas error is: ' + str(scaled_haas_error)
         print_op.log_and_raise_error(message)
 
     return None

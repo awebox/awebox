@@ -27,6 +27,8 @@ constructs the far-wake filament list
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, alu-fr 2022
 '''
+from platform import architecture
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -119,11 +121,11 @@ def build_closing_per_kite_per_ring(options, kite, ring, variables_si, parameter
     NE_wingtip = vortex_tools.get_NE_wingtip_name()
     PE_wingtip = vortex_tools.get_PE_wingtip_name()
 
-    LENE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, NE_wingtip, wake_node+1)
-    LEPE = vortex_tools.get_wake_node_position_si(options, variables_si, kite, PE_wingtip, wake_node+1)
+    LENE = vortex_tools.get_wake_node_position_si(options, kite, NE_wingtip, wake_node + 1, variables_si=variables_si)
+    LEPE = vortex_tools.get_wake_node_position_si(options, kite, PE_wingtip, wake_node + 1, variables_si=variables_si)
 
-    strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring+1)
-    strength_prev = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
+    strength = vortex_tools.get_vortex_ring_strength_si(kite, ring+1, variables_si=variables_si)
+    strength_prev = vortex_tools.get_vortex_ring_strength_si(kite, ring, variables_si=variables_si)
 
     r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
@@ -141,15 +143,15 @@ def build_single_trailing_per_kite_per_ring(options, kite, ring, variables_si, p
 
     wake_node = ring
 
-    strength = vortex_tools.get_vortex_ring_strength_si(variables_si, kite, ring)
+    strength = vortex_tools.get_vortex_ring_strength_si(kite, ring, variables_si=variables_si)
     r_core = vortex_tools.get_r_core(options, parameters=parameters)
 
     filament_list = obj_element_list.ElementList(expected_number_of_elements=1)
 
     wingtips_and_strength_directions = vortex_tools.get_wingtip_name_and_strength_direction_dict()
     tip_directionality = wingtips_and_strength_directions[tip]
-    x_start = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node)
-    x_end = vortex_tools.get_wake_node_position_si(options, variables_si, kite, tip, wake_node + 1)
+    x_start = vortex_tools.get_wake_node_position_si(options, kite, tip, wake_node, variables_si=variables_si)
+    x_end = vortex_tools.get_wake_node_position_si(options, kite, tip, wake_node + 1, variables_si=variables_si)
 
     dict_info = {'x_start': x_start,
                  'x_end': x_end,

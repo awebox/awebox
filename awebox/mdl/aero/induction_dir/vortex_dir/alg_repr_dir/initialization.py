@@ -70,7 +70,9 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
     check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, model.architecture)
     check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
-    check_that_wake_node_0_always_lays_on_wingtips(init_options, V_init_si, Outputs_init, model.architecture)
+
+    if model.options['aero']['vortex']['double_check_wingtip_fixing']:
+        vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(init_options, p_fix_num, Outputs_init, model, V_si=V_init_si)
 
     return V_init_si
 
@@ -572,44 +574,6 @@ def append_specific_initialization(abbreviated_var_name, init_options, V_init_sc
     print_op.close_progress()
 
     return V_init_scaled
-
-def check_that_wake_node_0_always_lays_on_wingtips(init_options, V_init_si, Outputs_init, architecture):
-
-    n_k = init_options['n_k']
-    d = init_options['collocation']['d']
-
-    wake_node = 0
-    for kite in architecture.kite_nodes:
-        for tip in ['int', 'ext']:
-            var_name = vortex_tools.get_var_name('wx',
-                                                 kite_shed_or_parent_shed=kite, tip=tip, wake_node_or_ring=wake_node)
-
-            tolerance = 1.e-4
-            b_ref = init_options['sys_params_num']['geometry']['b_ref']
-
-            for ndx in range(n_k):
-                node_position = V_init_si['z', ndx, var_name]
-                wingtip_position = Outputs_init[
-                    'coll_outputs', ndx-1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-                error = vect_op.norm(node_position - wingtip_position) / b_ref
-
-                if error > tolerance:
-                    message = 'wake node 0 (kite ' + str(
-                        kite) + ' and tip ' + tip + ') seems to be misplaced during initialization at control ndx = ' + str(
-                        ndx)
-                    print_op.log_and_raise_error(message)
-
-            for ndx in range(n_k):
-                for ddx in range(d):
-                    node_position = V_init_si['coll_var', ndx, ddx, 'z', var_name]
-                    wingtip_position = Outputs_init['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite)]
-                    error = vect_op.norm(node_position - wingtip_position) / b_ref
-
-                    if error > tolerance:
-                        message = 'wake node 0 (kite ' + str(kite) + ' and tip ' + tip + ') seems to be misplaced during initialization at ndx = ' + str(ndx) + ', ddx = ' + str(ddx)
-                        print_op.log_and_raise_error(message)
-
-
 
 
 def check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, architecture):

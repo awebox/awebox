@@ -31,7 +31,6 @@ import matplotlib.pyplot as plt
 
 import casadi.tools as cas
 import numpy as np
-# import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.tools.struct_operations as struct_op
 from itertools import chain
 import matplotlib.colors as colors
@@ -367,7 +366,7 @@ def test_basic_draw_offside():
     # Figure 2 should give a single line from (y=-1, z=0) to (y=-0.42, z=0.5774)
 
     fig, ax = plt.subplots()
-    scale = 10.
+    scale = 0.1
     side = (x_center, a_hat, b_hat, scale)
     basic_draw(ax, side, data=data)
     plt.axis('equal')
@@ -391,6 +390,42 @@ def test_basic_draw_offside():
     basic_draw(ax, side, data=cas.DM(data))
     plt.axis('equal')
     # Figure 5 should give the same as Figure 4
+
+    fig, ax = plt.subplots()
+    x_center = vect_op.xhat_dm()
+    data = []
+    radius = 1
+    max_idx = 40
+    a_hat = vect_op.xhat_dm()
+    b_hat = vect_op.yhat_dm()
+    for idx in range(max_idx + 1):
+        psi = 2. * np.pi * float(idx) /float(max_idx)
+        local_data = x_center + radius * (cas.cos(psi) * a_hat + cas.sin(psi) * b_hat)
+        data = cas.horzcat(data, local_data)
+    x_origin = 0. * x_center
+    scale = 1.
+    side = (x_origin, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=cas.DM(data))
+    plt.axis('equal')
+    # Figure 6 should give a circle of radius 1, centered at (1, 0)
+
+    fig, ax = plt.subplots()
+    x_center = vect_op.xhat_dm()
+    data = []
+    radius = 1
+    max_idx = 40
+    a_hat = vect_op.xhat_dm()
+    b_hat = vect_op.yhat_dm()
+    for idx in range(max_idx + 1):
+        psi = 2. * np.pi * float(idx) / float(max_idx)
+        local_data = x_center + radius * (cas.cos(psi) * a_hat + cas.sin(psi) * b_hat)
+        data = cas.horzcat(data, local_data)
+    x_origin = x_center
+    scale = 0.5
+    side = (x_origin, a_hat, b_hat, scale)
+    basic_draw(ax, side, data=cas.DM(data))
+    plt.axis('equal')
+    # Figure 7 should give a circle of radius 0.5, centered at (0, 0)
 
     plt.show()
     return None
@@ -478,7 +513,7 @@ def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=
                 local_data_shifted = (local_data - center)
                 local_data_projected = []
                 for fhat in [ahat, bhat]:
-                    local_projection = cas.mtimes(local_data_shifted.T, fhat) / scale
+                    local_projection = cas.mtimes(local_data_shifted.T, fhat) * scale
                     local_data_projected = cas.vertcat(local_data_projected, local_projection)
                 shifted_data = cas.horzcat(shifted_data, local_data_projected)
 
@@ -542,14 +577,16 @@ def get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict):
 
     temporal_epigraph_length = get_trajectory_temporal_epigraph_length(plot_dict)
 
-    basedash = temporal_epigraph_length / 4.
+    basedash = float(temporal_epigraph_length / 4.)
     style_dict = {}
     for tau in tau_list:
-        dash_length = int(np.round(basedash * tau))
+        dash_length = float(basedash * tau)
         break_length = basedash - dash_length
         tol = 1.e-2
         if tau < tol or tau > (1. - tol):
             linestyle = '-'
+        elif len(tau_list) == 1 or temporal_epigraph_length < tol:
+            linestyle = '--'
         else:
             linestyle = (0, (dash_length, break_length))
         style_dict[float(tau)] = linestyle
@@ -621,6 +658,13 @@ def draw_single_trajectory_time_orientation_epigraph(ax, side, plot_dict, kite, 
         ehat_cross = vect_op.xhat()
     elif side == 'isometric':
         ehat_cross = ehat_3
+    elif (isinstance(side, tuple)) and (len(side) == 4):
+        ehat_a = side[1]
+        ehat_b = side[2]
+        ehat_cross = vect_op.normed_cross(ehat_a, ehat_b)
+    else:
+        ehat_cross = vect_op.norm(local_pos)
+
     ehat_epi = vect_op.normed_cross(tangent, ehat_cross)
 
     # epi_direction = ehat_2
@@ -672,28 +716,35 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
         local_dim = x_vals['q' + str(node) + str(parent)][dim]
         data = cas.horzcat(data, local_dim)
 
-    reel_out_threshold = -1e-2
-    sub_data = data[0, :]
-    current_reel_out = (x_vals['dl_t'][0][0] > reel_out_threshold)
+    linestyle_reel_out = linestyle
+    label_reel_out = ' (out)'
+    linestyle_reel_in = plot_dict['cosmetics']['trajectory']['reel_in_linestyle']
+    label_reel_in = ' (in)'
 
-    for tdx in range(1, data.shape[0]):
-        if current_reel_out:
-            local_linestyle = linestyle
-            reel_label = ' (out)'
-        else:
-            local_linestyle = plot_dict['cosmetics']['trajectory']['reel_in_linestyle']
-            reel_label = ' (in)'
+    phase_fix = plot_dict['options']['user_options']['trajectory']['lift_mode']['phase_fix']
+    n_points_interpolation = plot_dict['cosmetics']['interpolation']['n_points']
+    if phase_fix == 'single_reelout' and data.shape[0] == n_points_interpolation:
+        _, tau_switch = get_nondim_time_and_switch(plot_dict)
+        idx_switch = int(np.floor((float(n_points_interpolation) - 1.) * tau_switch))
 
-        loc_reel_out = x_vals['dl_t'][0][tdx] > reel_out_threshold
-        if loc_reel_out != current_reel_out:
-            basic_draw(ax, side, data=sub_data, color=color, marker=marker, linestyle=local_linestyle, alpha=alpha, label=label + reel_label)
+        data_reel_out = data[0:idx_switch+1, :]
+        data_reel_in = data[idx_switch:, :]
 
-            sub_data = cas.vertcat(sub_data[-1, :], data[tdx, :])
-            current_reel_out = loc_reel_out
-        else:
-            sub_data = cas.vertcat(sub_data, data[tdx, :])
+        basic_draw(ax, side, data=data_reel_out, color=color, marker=marker, linestyle=linestyle_reel_out, alpha=alpha,
+                   label=label + label_reel_out)
+        basic_draw(ax, side, data=data_reel_in, color=color, marker=marker, linestyle=linestyle_reel_in, alpha=alpha,
+                   label=label + label_reel_in)
 
-    basic_draw(ax, side, data=sub_data, color=color, marker=marker, linestyle=local_linestyle, alpha=alpha, label=label + reel_label)
+    else:
+
+        if linestyle_reel_in != linestyle_reel_out:
+            message = 'sorry, but the ability to plot different path linestyles during reel-out '
+            message += 'and -in is currently only supported with single-reelout trajectories where '
+            message += 'the interpolation is done via cosmetics.interpolation.n_points. so, we will '
+            message += 'skip that part of your request!'
+            print_op.base_print(message, level='warning')
+
+        basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
 
     return None
 
@@ -715,16 +766,19 @@ def plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, ref=False, color='k', 
     geometry_params = plot_dict['options']['model']['params']['geometry']
     wingspan = geometry_params['b_ref']
 
+
     data = []
     for idx in range(x_vals['l_t'][0].shape[0]):
 
-        local_q = []
-        local_ehat = []
-        for dim in range(3):
-            local_q = cas.vertcat(local_q, x_vals['q' + str(kite) + str(parent)][dim][idx])
-            local_ehat = cas.vertcat(local_ehat, plot_dict[search_name]['outputs']['aerodynamics']['ehat_span' + str(kite)][dim][idx])
 
-        local_pos = local_q + wingspan * zeta * local_ehat
+        local_pos = []
+        for dim in range(3):
+
+            q_start = plot_dict[search_name]['outputs']['aerodynamics']['wingtip_int' + str(kite)][dim][idx]
+            q_end = plot_dict[search_name]['outputs']['aerodynamics']['wingtip_ext' + str(kite)][dim][idx]
+            local_q = q_start + (zeta + 0.5) * (q_end - q_start)
+            local_pos = cas.vertcat(local_pos, local_q)
+
         data = cas.horzcat(data, local_pos)
 
     basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
@@ -1048,6 +1102,7 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
 
     # interpolate data
     plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt')
+
     # backwards-compatibility with previous plot_dict's variable access
     for keys, values in plot_dict['interpolation_si'].items():
         plot_dict[keys] = values
@@ -1262,9 +1317,8 @@ def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
 
 
 def add_single_block_temporal_orientation_epigraph(ax, plot_dict, tau, linestyle='--'):
-    time_dim = np.array(plot_dict['time_grids']['ip'])
-    t_f = time_dim[-1]
-    ax.axvline(x=tau * t_f, color='gray', linestyle=linestyle)
+    t_f = float(plot_dict['time_grids']['ip'][-1])
+    ax.axvline(x=float(tau * t_f), color='gray', linestyle=linestyle)
     return None
 
 def add_block_plot_temporal_orientation_epigraphs(ax, plot_dict):

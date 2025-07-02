@@ -120,7 +120,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'actuator',   'wake_skew',            'coleman',  ('which wake-skew angle approximation to apply', ['not_in_use', 'jimenez', 'coleman', 'equal']), 'x'),
         ('model', 'aero', 'actuator',   'asym_radial_linearity', False,     ('if true, computes the Fourier coefficients to vary linearly with flight radius; if false, fourier coefficients are explicitly a_cos and a_sin', [True, False]), 'x'),
         ('model', 'aero', 'actuator',   'gamma_range',  [-80. * np.pi / 180., 80. * np.pi / 180.],  ('range of skew angles [rad] allowed in skew correction', None), 'x'),
-        ('model', 'aero', 'actuator',   'normal_vector_model',  'tether_parallel',  ('selection of estimation method for normal vector', ['least_squares', 'tether_parallel', 'binormal', 'xhat']), 'x'),
+        ('model', 'aero', 'actuator',   'normal_vector_model',  'tether_parallel',  ('selection of estimation method for normal vector', ['least_squares', 'tether_parallel', 'dual', 'binormal', 'xhat']), 'x'),
 
         ('model', 'aero', 'vortex',     'representation',       'alg',      ('are the wake node positions included as states or algebraic variables', ['alg', 'state']), 'x'),
         ('model', 'aero', 'vortex',     'convection_type',      'rigid',    ('are the wake nodes convected rigidly or freely?', ['rigid', 'free']), 'x'),
@@ -134,13 +134,13 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'filament_strength_from_circulation',   'averaged',     ('whether the shed filament strength reflects the instantaneous or averaged circulation on the shedding kite at the time of shedding', ['averaged', 'instantaneous']), 'x'),
         ('model', 'aero', 'vortex',     'use_circulation_equality_pattern',     True,           ('take advantage of the fact that the strength of an already shed vortex must have been computed in the OCP equalities when the vorticity was being shed', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',        0.01,           ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),
-        ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance', ['b_ref', 'c_ref', 'radius', 'q10', 'convection']), 'x'),
+        ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance, average convection distance', ['b_ref', 'c_ref', 'radius', 'q10', 'convection', 'average']), 'x'),
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor.', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'degree_of_induced_velocity_lifting',   1,              ('how best to embed the biot-savart induced velocity variables where 1: only the induced velocity at each kite is lifted; 2: the induced velocities from all of the elements at each kite are lifted; 3: the numerator and denominator components of the induced velocity, from all elements on all kites, are lifted', [1, 2, 3]), 'x'),
         ('model', 'aero', 'vortex',     'verification_points',                  50,             ('the number of observation points to distribute evenly radially, as well as azimuthally', [True, False]), 'x'),
-        ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'additional_induction_observation_points', [],          ('a list of additional points (spanwise, nondimensional aka "xi") where the induced velocity should be observed', None), 'x'),
+        ('model', 'aero', 'vortex',     'double_check_wingtip_fixing',          False,          ('check during testing and between homotopy steps that the bound wake nodes are actually bound to the wingtips', [True, False]), 'x'),
 
         ('model', 'aero', 'overwrite',  'f_aero_rot',           None,       ('3-component [radial, tangential, normal] lift force in the rotating frame, to over-write stability-derivative forces in case of vortex verification/validation tests', None), 'x'),
 
@@ -542,6 +542,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'diagnostics', 'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'ylabelsize', 15,             ('???', None), 'x'),
         ('visualization', 'cosmetics', 'induction',   'comparison_data_for_velocity_distribution', 'not_in_use', ('whether to add comparison data from Rancourt2018 or Trevisi2023 to plot of spanwise velocity distribution', ['not_in_use', 'rancourt', 'trevisi']), 'x'),
+        ('visualization', 'cosmetics', 'induction',   'n_points_contour', 300,      ('number of observation points per-side of induction contour plot', None), 'x'),
         ('visualization', 'cosmetics', 'animation',   'snapshot_index', 0,          ('???', None), 'x'),
         ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
         ('visualization', 'cosmetics', None,          'temporal_epigraph_locations',    ['switch', 1.0], ('draw temporal-orientation lines/gates into the plots at certain fractions of the optimizaton_period. switch includes the phase switching time; decimal values between 0. and 1. indicate fractions of period', None), 'x'),

@@ -23,8 +23,8 @@ import awebox.tools.struct_operations as struct_op
 import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
+
 import matplotlib.pyplot as plt
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 awelogger.logger.setLevel(10)
 
 
@@ -225,7 +225,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.hippo_strategy'] = False
 
     basic_health_options['solver.health_check.when'] = 'success'
-    basic_health_options['nlp.collocation.name_constraints'] = False
+    basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.help_with_debugging'] = False
 
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
@@ -237,9 +237,11 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.ipopt.autoscale'] = False
     basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['quality.when'] = 'never'
-    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
+    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'si' #'scaled'
     basic_health_options['solver.health_check.save_health_indicators'] = True
     basic_health_options['solver.health_check.thresh.condition_number'] = 1e10
+
+    basic_health_options['model.aero.vortex.double_check_wingtip_fixing'] = True
 
     return basic_health_options
 
@@ -263,6 +265,8 @@ def generate_options_dict():
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
+    single_kite_options['visualization.cosmetics.plot_eq_constraints'] = True
+    single_kite_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
@@ -361,6 +365,8 @@ def generate_options_dict():
     vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
     vortex_options['visualization.cosmetics.save_figs'] = True
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
+    vortex_options['visualization.cosmetics.induction.n_points_contour'] = 5
+
     wake_nodes = 2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
@@ -482,38 +488,82 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     return None
 
 
+def this_test_is_intended_to_fail():
+    raise ValueError("This test has correctly failed")
+
 
 if __name__ == "__main__":
-    #
-    # test_single_kite_basic_health()
-    # test_single_kite()
-    # test_single_kite_6_dof_basic_health()
-    # test_single_kite_6_dof()
-    # test_segmented_tether()
-    # test_poly()
-    # test_drag_mode()
-    # test_save_trial()
-    # test_dual_kite_basic_health()
-    # test_dual_kite()
-    # test_dual_kite_6_dof_basic_health()
-    # test_dual_kite_6_dof()
-    #
-    # # # # test_small_dual_kite()
-    # # # # test_small_dual_kite_basic_health()
-    # # # # test_large_dual_kite()
-    # # # # test_large_dual_kite_basic_health()
-    # #
-    # test_dual_kite_tracking()
-    # test_dual_kite_tracking_winch()
 
-    # test_vortex_force_zero_basic_health()
-    # test_vortex_force_zero()
-    test_vortex_basic_health()
-    test_vortex()
+    parallel_or_serial = 'serial'
 
-    # test_actuator_qaxi_basic_health()
-    # test_actuator_qaxi()
-    # test_actuator_qasym()
-    # test_actuator_uaxi()
-    # test_actuator_uasym()
-    # test_actuator_comparison()
+    if parallel_or_serial == 'parallel':
+
+        list_functions = [] #this_test_is_intended_to_fail]
+        list_functions += [test_single_kite_basic_health, test_single_kite, test_single_kite_6_dof_basic_health, test_single_kite_6_dof]
+        list_functions += [test_segmented_tether, test_poly, test_drag_mode, test_save_trial]
+        list_functions += [test_dual_kite_basic_health, test_dual_kite, test_dual_kite_6_dof_basic_health, test_dual_kite_6_dof]
+        list_functions += [test_dual_kite_tracking, test_dual_kite_tracking_winch]
+        # list_functions += [test_small_dual_kite, test_small_dual_kite_basic_health, test_large_dual_kite, test_large_dual_kite_basic_health]
+        list_functions += [test_vortex_force_zero_basic_health, test_vortex_force_zero, test_vortex_basic_health, test_vortex]
+        # list_functions += [test_actuator_qaxi_basic_health, test_actuator_qaxi, test_actuator_qasym, test_actuator_uaxi, test_actuator_uasym, test_actuator_comparison]
+
+        from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
+        import multiprocessing
+
+        max_workers = multiprocessing.cpu_count() - 1
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(f) for f in list_functions]
+
+            done, not_done = wait(futures, return_when=FIRST_EXCEPTION)
+
+            for future in done:
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"A function failed: {e}")
+                    # Cancel the rest (they may not actually stop if already running)
+                    for f in not_done:
+                        f.cancel()
+                    raise RuntimeError("At least one function failed") from e
+
+
+    elif parallel_or_serial == 'serial':
+
+        # test_single_kite_basic_health()
+        # test_single_kite()
+        # test_single_kite_6_dof_basic_health()
+        # test_single_kite_6_dof()
+        # test_segmented_tether()
+        # test_poly()
+        # test_drag_mode()
+        # test_save_trial()
+        # test_dual_kite_basic_health()
+        # test_dual_kite()
+        # test_dual_kite_6_dof_basic_health()
+        # test_dual_kite_6_dof()
+        #
+        # # # # # test_small_dual_kite()
+        # # # # # test_small_dual_kite_basic_health()
+        # # # # # test_large_dual_kite()
+        # # # # # test_large_dual_kite_basic_health()
+        # # #
+        # test_dual_kite_tracking()
+        # test_dual_kite_tracking_winch()
+        #
+        # test_vortex_force_zero_basic_health()
+        # test_vortex_force_zero()
+        # test_vortex_basic_health()
+        test_vortex()
+
+        # test_actuator_qaxi_basic_health()
+        # test_actuator_qaxi()
+        # test_actuator_qasym()
+        # test_actuator_uaxi()
+        # test_actuator_uasym()
+        # test_actuator_comparison()
+
+    else:
+        message = 'unexpected method of running test_trials trials'
+        print_op.log_and_raise_error(message)
+
+    print('done')

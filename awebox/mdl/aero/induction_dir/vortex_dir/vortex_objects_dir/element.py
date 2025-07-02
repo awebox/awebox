@@ -299,12 +299,12 @@ class Element():
             cosmetics = self.construct_fake_cosmetics()
 
         color = self.get_strength_color(strength, cosmetics)
+
         marker = None
         linestyle = '-'
 
         viz_tools.basic_draw(ax, side=side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle)
         return None
-
 
 
     def get_repeated_info(self, period, wind, optimization_period):

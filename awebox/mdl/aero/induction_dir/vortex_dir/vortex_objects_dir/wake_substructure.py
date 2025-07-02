@@ -185,13 +185,16 @@ class WakeSubstructure():
             local_den = cas.DM.ones((1, 1)) * 777.
 
             if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
-                local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
+                local_var = vortex_tools.get_element_induced_velocity_si(self.substructure_type, element_type, edx,
+                                                                         kite_obs, variables_si=variables_si)
 
                 if degree_of_induced_velocity_lifting == 3:
-                    local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
-                                                                             element_type, edx, kite_obs)
-                    local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
-                                                                             element_type, edx, kite_obs)
+                    local_num = vortex_tools.get_element_induced_velocity_numerator_si(self.substructure_type,
+                                                                                       element_type, edx, kite_obs,
+                                                                                       variables_si=variables_si)
+                    local_den = vortex_tools.get_element_induced_velocity_denominator_si(self.substructure_type,
+                                                                                         element_type, edx, kite_obs,
+                                                                                         variables_si=variables_si)
 
             vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
             vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)

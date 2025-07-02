@@ -59,6 +59,9 @@ def get_n_vec(options, parent, variables, architecture):
     elif model == 'least_squares' and number_kite_children > 3:
         n_vec = get_least_squares_n_vec(parent, variables, architecture)
 
+    elif model == 'dual' and number_kite_children == 2:
+        n_vec = get_dual_n_vec(parent, variables, architecture)
+
     elif model == 'binormal':
         n_vec = get_binormal_n_vec(parent, variables, architecture)
 
@@ -155,6 +158,29 @@ def get_tether_parallel_multi_n_vec(parent, variables_si, architecture):
 
 def get_tether_parallel_single_n_vec(variables_si, architecture):
     return get_tether_parallel_multi_n_vec(1, variables_si, architecture)
+
+
+def get_dual_n_vec(parent, variables_si, architecture):
+
+    children = sorted(architecture.kites_map[parent])
+
+    kite0 = children[0]
+    kite1 = children[1]
+    if len(children) != 2:
+        message = 'specified architecture does not allow dual normal-vector model'
+        print_op.log_and_raise_error(message)
+
+    qkite0 = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
+                                                                 'q' + str(kite0) + str(parent))
+    qkite1 = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x',
+                                                                 'q' + str(kite1) + str(parent))
+    vec_diff = qkite1 - qkite0
+
+    ehat_tether = get_tether_parallel_multi_n_vec(parent, variables_si, architecture)
+
+    vec_out = vect_op.cross(vec_diff, ehat_tether)
+    n_hat = vect_op.normed_cross(vec_out, vec_diff)
+    return n_hat
 
 
 def get_binormal_n_vec(parent, variables, architecture):

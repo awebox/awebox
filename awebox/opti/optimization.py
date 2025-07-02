@@ -39,6 +39,7 @@ import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 import awebox.tools.callback as callback
 
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 from numpy import linspace
 
 from sys import platform
@@ -372,6 +373,11 @@ class Optimization(object):
             problem_is_healthy_or_unchecked = diagnostics.health_check(trial_name, step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, solver_options, self.__stats, self.__iterations, self.__cumulative_max_memory)
             if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
                 self.__solve_succeeded = False
+
+            if self.__solve_succeeded and hasattr(model, 'wake') and (model.wake is not None) and model.options['aero']['vortex']['double_check_wingtip_fixing'] and (nlp.Outputs_struct is not None):
+                vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(nlp.options, self.__p_fix_num,
+                                                                            nlp.Outputs_struct(vect_op.columnize(self.__outputs_opt)), model,
+                                                                            V_scaled=nlp.V(self.__solution['x']))
 
             self.allow_next_homotopy_step()
 

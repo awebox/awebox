@@ -81,7 +81,7 @@ def get_model_constraints(model_options, wake, system_variables, parameters, out
 
     cstr_list = cstr_op.ConstraintList()
 
-    wingtip_position_cstr = get_wingtip_position_cstr(system_variables['SI'], outputs, architecture, scaling)
+    wingtip_position_cstr = get_wingtip_position_cstr(model_options, system_variables['SI'], outputs, architecture, scaling)
     cstr_list.append(wingtip_position_cstr)
 
     if degree_of_induced_velocity_lifting == 1:
@@ -98,7 +98,7 @@ def get_model_constraints(model_options, wake, system_variables, parameters, out
 
     return cstr_list
 
-def get_wingtip_position_cstr(variables_si, outputs, architecture, scaling):
+def get_wingtip_position_cstr(model_options, variables_si, outputs, architecture, scaling):
 
     message = 'adding shedding position constraints'
     print_op.base_print(message, level='info')
@@ -110,7 +110,9 @@ def get_wingtip_position_cstr(variables_si, outputs, architecture, scaling):
 
             fixing_name = vortex_tools.get_wake_node_position_name(kite_shed=kite_shed, tip=tip,
                                                                    wake_node=wake_node)
-            node_position_si = variables_si['z'][fixing_name]
+
+            node_position_si = vortex_tools.get_wake_node_position_si(model_options, kite_shed, tip, wake_node,
+                                      variables_si=variables_si, scaling=scaling)
             wingtip_position_si = outputs['aerodynamics']['wingtip_' + tip + str(kite_shed)]
             local_resi_si = wingtip_position_si - node_position_si
             local_resi_scaled = struct_op.var_si_to_scaled('z', fixing_name, local_resi_si, scaling)
@@ -155,7 +157,7 @@ def get_unlifted_cstr(wake, system_variables, parameters, architecture, scaling)
         resi_scaled = resi_si / scaling_val
 
         local_cstr = cstr_op.Constraint(expr=resi_scaled,
-                                        name='induced_velocity' + str(kite_obs),
+                                        name='wu_ind_induced_velocity' + str(kite_obs),
                                         cstr_type='eq')
         cstr_list.append(local_cstr)
 
@@ -195,7 +197,7 @@ def get_superposition_cstr(model_options, wake, system_variables, architecture, 
         resi_scaled = resi_si / scaling_val
 
         local_cstr = cstr_op.Constraint(expr=resi_scaled,
-                                        name='superposition_' + str(kite_obs),
+                                        name='wu_ind_superposition_' + str(kite_obs),
                                         cstr_type='eq')
         cstr_list.append(local_cstr)
 
@@ -268,7 +270,7 @@ def get_biot_savart_cstr(wake, model_options, system_variables, parameters, arch
                     if vortex_tools.not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number,
                                                               kite_obs, architecture):
 
-                        cstr_name = 'biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
+                        cstr_name = 'wu_ind_biot_savart_' + str(substructure_type) + '_' + str(element_type) + '_' + str(element_number) + '_' + str(kite_obs)
 
                         local_resi_si = resi_si[:, element_number]
 
@@ -322,7 +324,7 @@ def get_initialization(nlp_options, V_init_si, p_fix_num, nlp, model):
 
 
 def get_induced_velocity_at_kite_si(variables_si, kite_obs):
-    return vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
+    return vortex_tools.get_induced_velocity_at_kite_si(kite_obs, variables_si=variables_si)
 
 
 def model_is_included_in_comparison(options):
@@ -345,7 +347,7 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
         parent_obs = architecture.parent_map[kite_obs]
         q_kite = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
 
-        vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(variables_si, kite_obs)
+        vec_u_ind = vortex_tools.get_induced_velocity_at_kite_si(kite_obs, variables_si=variables_si)
         n_hat = unit_normal.get_n_hat(model_options, parent_obs, variables_si, architecture)
         u_normalizing = vortex_tools.get_induction_factor_normalizing_speed(model_options, wind, kite_obs, parent_obs, variables_si, architecture)
         u_ind_norm = vect_op.norm(vec_u_ind)
@@ -414,6 +416,36 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
     outputs['vortex']['est_truncation_error'] = est_truncation_error
 
     return outputs
+
+def test_that_wake_related_ocp_variables_are_all_constrained_using_cstr_names(nlp_options, V, ocp_cstr_list):
+
+    if nlp_options['collocation']['name_constraints']:
+
+        message = 'double-checking that all vortex variables are constrained...'
+        print_op.base_print(message, level='info')
+
+        identifying_strings = ['wx', 'wg', 'wu']
+
+        count_variable = 0
+        for label in V.labels():
+            for local_str in identifying_strings:
+                if (',' + local_str + '_') in label:
+                    count_variable += 1
+
+        count_cstr = 0
+        eq_name_list = ocp_cstr_list.get_name_list('eq')
+        for eq_name in eq_name_list:
+            for local_str in identifying_strings:
+                if local_str in eq_name:
+                    count_cstr += 1
+
+        if count_variable != count_cstr:
+            message = 'something went wrong with the wake portion of the ocp generation. the number of associated variables is ' + str(count_variable)
+            message += ', while the number of associated constraints is ' + str(count_cstr)
+            print_op.log_and_raise_error(message)
+
+    return None
+
 
 
 def get_dictionary_of_derivatives(outputs, architecture):
