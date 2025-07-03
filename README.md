@@ -50,7 +50,7 @@ python3 examples/ampyx_ap2_trajectory.py
 
 This software has been developed in collaboration with the company Kiteswarms Ltd. The company has also supported the project through research funding.
 
-This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_)
+This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_), as well as by the German DFG via Grant No 525018088 (_MAWERO_).
 
 ## Citing `awebox`
 Please use the following citation: 
