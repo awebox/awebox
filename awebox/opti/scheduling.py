@@ -56,6 +56,8 @@ def define_homotopy_schedule(formulation):
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
+    if formulation.system_type == 'lift_mode' and formulation.phase_fix == 'single_reelout':
+        power_schedule += ('relax_power_reelout',)
     transition_schedule = ('transition',)
     nominal_landing_schedule = ('nominal_landing',)
     compromised_landing_schedule = ('compromised_landing',)
@@ -124,6 +126,9 @@ def define_costs_to_update(P, formulation):
     power_updates[0] = ['power', 'psi', 'power_derivative', 'fictitious']
     power_updates[1] = ['tracking', 'psi']
 
+    relax_power_updates = {}
+    relax_power_updates[0] = []
+
     nominal_landing_updates = {}
     nominal_landing_updates[0] = ['nominal_landing', 'eta']
     nominal_landing_updates[1] = []
@@ -145,6 +150,7 @@ def define_costs_to_update(P, formulation):
     updates['induction'] = induction_updates
     updates['tether_release'] = tether_release_updates
     updates['power'] = power_updates
+    updates['relax_power_reelout'] = relax_power_updates
     updates['transition'] = transition_updates
     updates['nominal_landing'] = nominal_landing_updates
     updates['compromised_landing'] = compromised_landing_updates
@@ -198,6 +204,10 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
 
     power_updates[1] = ['psi']
 
+
+    relax_power_reelout_updates = {}
+    relax_power_reelout_updates[0] = ['dl_t']
+
     nominal_landing_updates = {}
     # check which tether length variable is a control variable
     if 'ddl_t' in list(model.variables_dict['u'].keys()):
@@ -235,6 +245,7 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
     updates['induction'] = induction_updates
     updates['tether_release'] = tether_release_updates
     updates['power'] = power_updates
+    updates['relax_power_reelout'] = relax_power_reelout_updates
     updates['transition'] = transition_updates
     updates['nominal_landing'] = nominal_landing_updates
     updates['compromised_landing'] = compromised_landing_updates
@@ -268,6 +279,9 @@ def define_step_labels(formulation):
     power_updates[0] = 'Switch to power problem...'
     power_updates[1] = 'Maximize average power...'
 
+    relax_power_reelout_updates = {}
+    relax_power_reelout_updates[0] = 'Relax average power...'
+
     transition_updates = {}
     transition_updates[0] = 'Switch to transition problem...'
     transition_updates[1] = 'Regularize transition trajectory...'
@@ -293,6 +307,7 @@ def define_step_labels(formulation):
     updates['induction'] = induction_updates
     updates['tether_release'] = tether_release_updates
     updates['power'] = power_updates
+    updates['relax_power_reelout'] = relax_power_reelout_updates
     updates['transition'] = transition_updates
     updates['nominal_landing'] = nominal_landing_updates
     updates['compromised_landing'] = compromised_landing_updates
@@ -353,7 +368,6 @@ def update_final_bounds(bound_name, V_bounds, nlp, update):
             V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = nlp.V_bounds[bound_type]['coll_var', :, :, var_type, bound_name]
 
     if var_type in {'z', 'x'}:
-
         if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
             V_bounds[bound_type][var_type, :, bound_name] = nlp.V_bounds[bound_type][var_type, :, bound_name]
 
@@ -371,7 +385,7 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
         V_bounds[bound_type][var_type, bound_name] = new_value
     else:
 
-        scaled_value = new_value / model.scaling[var_type][bound_name]
+        scaled_value = new_value / model.scaling[var_type, bound_name]
 
         if var_type == 'theta':
             V_bounds[bound_type][var_type, bound_name] = scaled_value
@@ -383,11 +397,21 @@ def update_nonfinal_bounds(bound_name, V_bounds, model, nlp, update):
                 V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
 
         if var_type in {'z', 'x'}:
-            if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
-                V_bounds[bound_type][var_type, :, bound_name] = scaled_value
 
-            if 'coll_var' in list(nlp.V.keys()): # not the case for multiple shooting
-                V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
+            if bound_name == 'dl_t':
+                if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
+                    for k in range(nlp.n_k+1):
+                        V_bounds[bound_type][var_type, k, bound_name] = nlp.V_bounds[bound_type][var_type, k, bound_name]
+                        switch_kdx = round(nlp.n_k * nlp.options['phase_fix_reelout'])
+                        if k in range(1, switch_kdx):
+                            V_bounds[bound_type][var_type, k, bound_name] = scaled_value
+
+            else:
+                if var_type in list(nlp.V.keys()): # not the case for z and z in radau collocation
+                    V_bounds[bound_type][var_type, :, bound_name] = scaled_value
+
+                if 'coll_var' in list(nlp.V.keys()): # not the case for multiple shooting
+                    V_bounds[bound_type]['coll_var', :, :, var_type, bound_name] = scaled_value
 
     return V_bounds
 
@@ -447,8 +471,13 @@ def define_bound_update_schedule(model, nlp, formulation):
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):
-            bound_schedule['dl_t'][1] = ['lb', 'x', 'final']
-            bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
+            if traj_type == 'power_cycle' and model.options['trajectory']['system_type'] == 'lift_mode' and formulation.phase_fix == 'single_reelout':
+                bound_schedule['dl_t'][1] = ['lb', 'x', 0]
+                bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
+                bound_schedule['dl_t'][3] = ['lb', 'x', 'final']
+            else:
+                bound_schedule['dl_t'][1] = ['lb', 'x', 'final']
+                bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
         if 'l_t' in list(bound_schedule.keys()):
             bound_schedule['l_t'][1] = ['lb', 'x', 'final']
             bound_schedule['l_t'][2] = ['ub', 'x', 'final']

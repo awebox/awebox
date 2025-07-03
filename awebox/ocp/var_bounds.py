@@ -215,7 +215,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_collocation_node_with_control_freedom:
                     max = given_max_value
-                    min = 0.
+                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
 
                 elif at_reelin_collocation_node_with_control_freedom:
                     max = 0.
@@ -223,7 +223,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_control_node:
                     max = given_max_value
-                    min = 0.
+                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
 
                 elif at_reelin_control_node:
                     max = 0.
