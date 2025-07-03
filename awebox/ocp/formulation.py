@@ -81,6 +81,7 @@ class Formulation(object):
 
         self.__induction_model = options['induction']['induction_model']
         self.__traj_type = options['trajectory']['type']
+        self.__system_type = options['system_type']
         self.__tether_drag_model = options['tether_drag_model']
         self.__fix_tether_length = options['trajectory']['tracking']['fix_tether_length']
         self.__phase_fix = options['phase_fix']
@@ -238,3 +239,11 @@ class Formulation(object):
     @phase_fix.setter
     def phase_fix(self):
         awelogger.logger.warning('Cannot set phase_fix object.')
+
+    @property
+    def system_type(self):
+        return self.__system_type
+
+    @system_type.setter
+    def system_type(self):
+        awelogger.logger.warning('Cannot set system_type object.')

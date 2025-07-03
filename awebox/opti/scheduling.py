@@ -56,7 +56,7 @@ def define_homotopy_schedule(formulation):
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
-    if formulation.phase_fix == 'single_reelout':
+    if formulation.system_type == 'lift_mode' and formulation.phase_fix == 'single_reelout':
         power_schedule += ('relax_power_reelout',)
     transition_schedule = ('transition',)
     nominal_landing_schedule = ('nominal_landing',)
