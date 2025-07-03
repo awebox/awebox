@@ -287,7 +287,7 @@ class Trial(object):
 
         return None
 
-    def save(self, saving_method='reloadable_seed', filename=None, frequency=30., rotation_representation='euler'):
+    def save(self, saving_method='reloadable_seed', filename=None, frequency=30., rotation_representation='dcm'):
 
         object_to_save, file_extension = save_op.get_object_and_extension(saving_method=saving_method, trial_or_sweep=self.__type)
 
@@ -327,7 +327,7 @@ class Trial(object):
         # pickle data
         save_op.save(data_to_save, filename, file_extension)
 
-    def write_to_csv(self, filename=None, frequency=None, rotation_representation='euler'):
+    def write_to_csv(self, filename=None, frequency=None, rotation_representation='dcm'):
         if filename is None:
             filename = self.name
         if frequency is None:
