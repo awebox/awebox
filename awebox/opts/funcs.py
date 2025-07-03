@@ -31,6 +31,21 @@ import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
 
 
+def enforce_and_check_SAM_options(options, user_options):
+    # SAM requires some settings, here we enforce them
+
+    assert options['nlp']['SAM']['N'] >= options['nlp']['SAM']['d'], 'SAM requires N >= d'
+    assert options['nlp']['SAM']['d'] >= 2, 'SAM requires atleast two microintegration >= 2'
+    assert options['nlp']['collocation']['u_param'] == 'zoh', 'SAM currently only support zoh control parameterization'
+
+    assert options['user_options']['trajectory']['type'] == 'power_cycle', 'SAM is only supported for power_cycle trajectory'
+    assert options['user_options']['trajectory']['system_type'] == 'lift_mode', 'SAM is only supported for lift_mode system type'
+
+    # set the number of windings for the initialization
+    user_options['trajectory']['lift_mode']['windings'] = options['nlp']['SAM']['d'] + 1
+
+    return options, user_options
+
 def build_options_dict(options, help_options, architecture):
 
     # single out user options
@@ -41,6 +56,9 @@ def build_options_dict(options, help_options, architecture):
         message = user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.'
         print_op.log_and_raise_error(message)
 
+    # enforce SAM options
+    if options['nlp']['SAM']['use']:
+        options, user_options = enforce_and_check_SAM_options(options,user_options)
     # initialize additional options tree
     options_tree = []
 

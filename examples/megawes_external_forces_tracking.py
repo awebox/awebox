@@ -25,7 +25,8 @@ import os
 import pickle
 import copy
 import matplotlib
-matplotlib.use('Qt5Agg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
@@ -235,7 +236,7 @@ F_aero = ca.Function('F_aero', [x0_init, u0_init], [F_ext_evaluated, M_ext_evalu
 # F_tgrids: Returns time grid of simulation horizon from collocation grid
 
 # time grid in symbolic form
-t0 = ca.SX.sym('t0')
+t0 = ca.MX.sym('t0')
 
 # reference interpolation time grid in symbolic form
 t_grid = ca.MX.sym('t_grid', mpc.t_grid_coll.shape[0])

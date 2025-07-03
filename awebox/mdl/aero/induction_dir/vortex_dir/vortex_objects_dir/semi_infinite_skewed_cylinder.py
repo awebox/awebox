@@ -42,7 +42,8 @@ from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
 import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 class SemiInfiniteRightCylinder(obj_element.Element):
     def __init__(self, info_dict, approximation_order_for_elliptic_integrals=6):

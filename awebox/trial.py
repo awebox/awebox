@@ -83,7 +83,8 @@ class Trial(object):
         self.__solution_dict = seed['solution_dict']
         self.__options = seed['solution_dict']['options']
 
-        self.__visualization = visualization.Visualization()
+        self.__visualization = visualization.VisualizationSAM() if self.__options['nlp']['SAM'][
+            'use'] else visualization.Visualization()
         self.__visualization.options = seed['solution_dict']['options']['visualization']
 
         self.__visualization.plot_dict = seed['plot_dict']
@@ -98,7 +99,8 @@ class Trial(object):
         self.__formulation    = formulation.Formulation()
         self.__nlp            = nlp.NLP()
         self.__optimization   = optimization.Optimization()
-        self.__visualization  = visualization.Visualization()
+        self.__visualization  = visualization.VisualizationSAM() if self.__options['nlp']['SAM'][
+            'use'] else visualization.Visualization()
         self.__quality        = quality.Quality()
         self.__name           = name    #todo: names used as unique identifiers in sweep. smart?
         self.__type           = 'Trial'

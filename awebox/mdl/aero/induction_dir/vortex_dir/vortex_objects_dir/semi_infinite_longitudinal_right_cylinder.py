@@ -43,7 +43,8 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 
 class SemiInfiniteLongitudinalRightCylinder(obj_semi_infinite_right_cylinder.SemiInfiniteRightCylinder):

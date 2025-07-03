@@ -4,7 +4,8 @@
 @author: Thilo Bronnenmeyer
 """
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 import numpy as np
 

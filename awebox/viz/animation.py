@@ -28,7 +28,8 @@ python-3.5 / casadi 3.0.0
 - authors: jochem de schutter, rachel leuthold alu-fr 2018-2020
 """
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 
