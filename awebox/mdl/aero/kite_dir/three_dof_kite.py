@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -23,103 +23,173 @@
 #
 #
 '''
-roll_control aerodynamics modelling file
-calculates aerodynamic outputs for roll-control model
+specific aerodynamics for a 3dof kite with roll_control
 _python-3.5 / casadi-3.4.5
 - author: elena malz, chalmers 2016
-- edited: jochem de schutter, rachel leuthold, alu-fr 2017-18
+- edited: jochem de schutter, rachel leuthold, alu-fr 2017-20
 '''
 
 import casadi.tools as cas
-import numpy as np
 
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
+import awebox.mdl.aero.kite_dir.frames as frames
+import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.indicators as indicators
+import numpy as np
 
-import awebox.mdl.aero.actuator_disk_dir.flow as actuator_disk_flow
 
-def get_outputs(options, atmos, wind, variables, outputs, parameters, architecture):
+from awebox.logger.logger import Logger as awelogger
+
+
+def get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs):
+    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+
+    vec_u = tools.get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture,
+                                                        parameters, outputs)
+
+    force_found_frame = 'earth'
+    force_found_vector = get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture,
+                                                             parameters)
+
+    return force_found_vector, force_found_frame, vec_u, kite_dcm
+
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
+
+    cstr_list = cstr_op.MdlConstraintList()
+
+    for kite in architecture.kite_nodes:
+        parent = architecture.parent_map[kite]
+
+        force_found_vector, force_found_frame, vec_u, kite_dcm = get_force_vector(options, variables, atmos, wind, architecture, parameters, kite, outputs)
+
+        forces_dict = tools.get_framed_forces(vec_u, kite_dcm, variables, kite, architecture)
+        force_framed_variable = forces_dict[force_found_frame]
+
+        f_scale = tools.get_f_scale(parameters, options)
+
+        resi_f_kite = (force_framed_variable - force_found_vector) / f_scale
+
+        f_kite_cstr = cstr_op.Constraint(expr=resi_f_kite,
+                                        name='f_aero' + str(kite) + str(parent),
+                                        cstr_type='eq')
+        cstr_list.append(f_kite_cstr)
+
+    return cstr_list
+
+
+
+
+def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, wind, architecture, parameters):
+
+    parent = architecture.parent_map[kite]
+
+    # get relevant variables for kite n
+    q = variables['x']['q' + str(kite) + str(parent)]
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
+
+    # wind parameters
+    rho_infty = atmos.get_density(q[2])
+
+    kite_dcm = get_kite_dcm(options, variables, wind, kite, architecture)
+    Lhat = kite_dcm[:,2]
+
+    # lift and drag coefficients
+    CL = coeff[0]
+
+    CD0 = 0.
+    poss_drag_labels_in_order_of_increasing_preference = ['CX', 'CA', 'CD']
+    for poss_drag_label in poss_drag_labels_in_order_of_increasing_preference:
+        local_parameter_label = '[theta0,aero,' + poss_drag_label + ',0,0]'
+        if local_parameter_label in parameters.labels():
+            CD0 = vect_op.abs(parameters['theta0', 'aero', poss_drag_label, '0'][0])
+
+    CD = CD0 + CL ** 2 / (np.pi * parameters['theta0', 'geometry', 'ar'])
+
+    s_ref = parameters['theta0', 'geometry', 's_ref']
+
+    # lift and drag force
+    f_lift = CL * 1. / 2. * rho_infty * cas.mtimes(vec_u.T, vec_u) * s_ref * Lhat
+    f_drag = CD * 1. / 2. * rho_infty * vect_op.norm(vec_u) * s_ref * vec_u
+
+    f_aero = f_lift + f_drag
+
+    return f_aero
+
+
+
+
+
+
+
+
+
+def tether_vector(variables, architecture, node):
+
     parent_map = architecture.parent_map
-    kite_nodes = architecture.kite_nodes
+    parent = parent_map[node]
 
-    xd = variables['xd']
+    q_node = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(node) + str(parent))
 
-    elevation_angle = indicators.get_elevation_angle(xd)
+    if parent in parent_map.keys():
+        grandparent = parent_map[parent]
+        q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
+    else:
+        q_parent = np.zeros((3, 1))
 
-    for n in kite_nodes:
+    tether = q_node - q_parent
 
-        parent = parent_map[n]
+    return tether
 
-        # get relevant variables for kite n
-        q = xd['q' + str(n) + str(parent)]
-        dq = xd['dq' + str(n) + str(parent)]
-        coeff = xd['coeff' + str(n) + str(parent)]
 
-        # wind parameters
-        rho_infty = atmos.get_density(q[2])
-        uw_infty = wind.get_velocity(q[2])
+def get_planar_dcm(vec_u_eff, variables, kite, architecture):
 
-        # apparent air velocity
-        if options['induction_model'] == 'actuator':
-            ua = actuator_disk_flow.get_kite_effective_velocity(options, variables, wind, n, parent, architecture)
-        else:
-            ua = uw_infty - dq
+    # get relevant variables for kite n
+    vec_t = tether_vector(variables, architecture, kite) # should be roughly "up-wards", ie, act like vec_w
 
-        # relative air speed
-        ua_norm = vect_op.smooth_norm(ua, epsilon=1e-8)
-        # ua_norm = mtimes(ua.T, ua) ** 0.5
+    vec_v = vect_op.cross(vec_t, vec_u_eff)
+    vec_w = vect_op.cross(vec_u_eff, vec_v)
 
-        # in kite body:
-        if parent > 0:
-            grandparent = parent_map[parent]
-            qparent = xd['q' + str(parent) + str(grandparent)]
-        else:
-            qparent = np.array([0., 0., 0.])
+    uhat = vect_op.smooth_normalize(vec_u_eff)
+    vhat = vect_op.smooth_normalize(vec_v)
+    what = vect_op.smooth_normalize(vec_w)
 
-        ehat_r = (q - qparent) / vect_op.norm(q - qparent)
-        ehat_t = vect_op.normed_cross(ua, ehat_r)
-        ehat_s = vect_op.normed_cross(ehat_t, ua)
+    planar_dcm = cas.horzcat(uhat, vhat, what)
 
-        # roll angle
-        psi = coeff[1]
+    return planar_dcm
 
-        ehat_l = cas.cos(psi) * ehat_s + cas.sin(psi) * ehat_t
-        ehat_span = cas.cos(psi) * ehat_t - cas.sin(psi) * ehat_s
-        ehat_chord = ua/ua_norm
 
-        # implicit direct cosine matrix (for plotting only)
-        r = cas.horzcat(ehat_chord, ehat_span, ehat_l)
+def get_kite_dcm(options, variables, wind, kite, architecture):
 
-        # lift and drag coefficients
-        CL = coeff[0]
-        CD = parameters['theta0','aero','CD0'] + 0.02 * CL ** 2
+    parent = architecture.parent_map[kite]
 
-        # lift and drag force
-        f_lift = CL * 1. / 2. * rho_infty * cas.mtimes(ua.T, ua) * parameters['theta0','geometry','s_ref'] * ehat_l
-        f_drag = CD * 1. / 2. * rho_infty * ua_norm * parameters['theta0','geometry','s_ref'] * ua
-        f_side = cas.DM(np.zeros((3, 1)))
+    vec_u_eff = tools.get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
 
-        f_aero = f_lift + f_drag
-        m_aero = cas.DM(np.zeros((3, 1)))
+    # roll angle
+    coeff = variables['x']['coeff' + str(kite) + str(parent)]
+    psi = coeff[1]
 
-        CA = CD
-        CN = CL
-        CY = cas.DM(0.)
+    planar_dcm = get_planar_dcm(vec_u_eff, variables, kite, architecture)
+    uhat = planar_dcm[:, 0]
+    vhat = planar_dcm[:, 1]
+    what = planar_dcm[:, 2]
 
-        aero_coefficients = {}
-        aero_coefficients['CD'] = CD
-        aero_coefficients['CL'] = CL
-        aero_coefficients['CA'] = CA
-        aero_coefficients['CN'] = CN
-        aero_coefficients['CY'] = CY
+    ehat1 = uhat
+    ehat2 = cas.cos(psi) * vhat + cas.sin(psi) * what
+    ehat3 = cas.cos(psi) * what - cas.sin(psi) * vhat
 
-        outputs = indicators.collect_kite_aerodynamics_outputs(options, atmos, ua, ua_norm, aero_coefficients, f_aero,
-                                                               f_lift, f_drag, f_side, m_aero, ehat_chord, ehat_span, r, q, n, outputs,parameters)
-        outputs = indicators.collect_environmental_outputs(atmos, wind, q, n, outputs)
-        outputs = indicators.collect_aero_validity_outputs(options, xd, ua, n, parent, outputs,parameters)
-        outputs = indicators.collect_local_performance_outputs(options, atmos, wind, variables, CL, CD, elevation_angle, ua, n, parent,
-                                          outputs, parameters)
-        outputs = indicators.collect_power_balance_outputs(variables, n, outputs, architecture)
+    kite_dcm = cas.horzcat(ehat1, ehat2, ehat3)
 
-    return outputs
+    return kite_dcm
+
+
+def get_wingtip_position(kite, options, wind, architecture, variables_si, parameters, tip):
+    parent = architecture.parent_map[kite]
+    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+    dcm_kite = get_kite_dcm(options, variables_si, wind, kite, architecture)
+    wingtip_position = tools.construct_wingtip_position(q_kite, dcm_kite, parameters, tip)
+
+    return wingtip_position

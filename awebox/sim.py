@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -22,230 +22,308 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-###################################
-# Class Simulation runs a forward in time simulation of the multi-kite system from an initial position
-###################################
+"""
+Simulation class for open-loop and closed-loop simulations based on awebox reference trajectories
+and related models.
+:author: Jochem De Schutter - ALU Freiburg 2019
+"""
 
-import awebox.tools.struct_operations as struct_op
-import casadi.tools as cas
+
+import casadi.tools as ct
+import awebox.pmpc as pmpc
+import awebox.tools.integrator_routines as awe_integrators
+import awebox.viz.visualization as visualization
+import awebox.viz.tools as viz_tools
+import awebox.opts.options
+import awebox.mdl.architecture as archi
+import copy
+import numpy as np
+import awebox.tools.print_operations as print_op
+from progress.bar import ChargingBar
+from awebox.logger.logger import Logger as awelogger
+
 
 class Simulation:
-    def __init__(self, options):
-        self.__status = 'Simulation not yet solved.'
-        self.__N_sim = options['Nsim']
-        self.__integrator_type = options['integrator']['type']
+    def __init__(self, trial, sim_type, ts, options_seed, additional_mpc_options = {}):
+        """ Constructor.
+        """
 
-        self.__outputs = None
+        if sim_type not in ['closed_loop', 'open_loop']:
+            raise ValueError('Chosen simulation type not valid: {}'.format(sim_type))
 
-    def build_integrator(self, options, model):
-        print('Building integrator...')
+        self.__sim_type = sim_type
+        self.__trial = trial
+        self.__ts = ts
+        options = awebox.opts.options.Options()
+        options.fill_in_seed(options_seed)
+        self.__sim_options = options['sim']
+        self.__mpc_options: dict = options['mpc']
+        self.__mpc_options.update(additional_mpc_options)
+        self.__build()
 
-        # get model variables
-        variables = model.variables
-        # construct the DAE variables
-        x = cas.struct_SX([cas.entry('xd', expr = variables['xd'])]) # differential states
-        z = cas.struct_SX([cas.entry('xddot', expr = variables['xddot']), # state derivatives
-                       cas.entry('xa', expr = variables['xa']), # algebraic variables
-                       cas.entry('xl', expr = variables['xl']), # lifted variables
-                      ])
-        p = cas.struct_SX([cas.entry('u', expr = variables['u']), # dae parameters
-                       cas.entry('theta', expr = variables['theta']),
-                       cas.entry('phi', expr = model.parameters)])
+        return None
 
-        # scale xddot with t_f
-        time_scaled_variables = scale_xddot(variables)
+    def __build(self):
+        """ Build simulation
+        """
 
-        # model equations
-        alg = model.dynamics(time_scaled_variables, model.parameters)
-        ode = variables['xddot']
+        # generate plant model
+        sys_params = self.__sim_options['sys_params']
+        if sys_params is None:
+            sys_params = self.__trial.options['solver']['initialization']['sys_params_num']
+        model = self.__trial.generate_optimal_model(sys_params)
+        self.__F = awe_integrators.rk4root(
+            'F',
+            model['dae'],
+            model['rootfinder'],
+            {'tf': self.__ts / model['t_f'],
+            'number_of_finite_elements':self.__sim_options['number_of_finite_elements']}
+            )
+        self.__dae = self.__trial.model.get_dae()
+        self.__dae.build_rootfinder()
 
-        # create dae
-        dae = {'x': x.cat, 'z': z.cat, 'p': p.cat, 'alg': alg,'ode': ode}
-        # system dynamics
-        f = cas.Function('f', [x, z, p], [ode, alg], ['x', 'z', 'p'], ['ode', 'alg'])
+        # generate mpc controller
+        if self.__sim_type == 'closed_loop':
 
-        # create integrator and rootfinder
-        if cas.sprank(cas.jacobian(alg,z)) < z.cat.size()[0]:  # check dae index
-            raise ValueError('jacobian of dynamics is structurally rank-deficient: DAE is not of index 1!')
-        else:
-            # create integrator
-            I = cas.integrator('I', options['integrator']['type'], dae, {'tf': 1.0 / self.__N_sim})
-            # create rootfinder
-            g = cas.Function('g',[z.cat,x.cat,p.cat],[alg])
-            G = cas.rootfinder('G', 'newton', g, {'linear_solver': 'csparse'})
-            self.__integrator = I
-            self.__rootfinder = G
-            self.__variables_dict = model.variables_dict
-            self.__phi = model.parameters
-            self.__dae = dae
-            self.__f = f
-            self.__x = x
-            self.__z = z
-            self.__p = p
-
-    def run(self, x0, u_sim, theta_sim, phi_sim):
-        # check consistency of initial conditions:
-        # to do: check values of g, gdot...
-        consistency = True
-        if consistency == False:
-            raise ValueError('provided initial conditions are not consistent!')
-        else:
-            # horizon length
-            N = len(u_sim)
-
-            # V_sim / simulation output structure
-            V_sim = cas.struct_symMX([
-            (
-                cas.entry('xd', repeat=[N, self.__N_sim],   struct=self.__variables_dict['xd']),
-                cas.entry('xa', repeat=[N, self.__N_sim-1], struct=self.__variables_dict['xa']),
-                cas.entry('xl', repeat=[N, self.__N_sim-1], struct=self.__variables_dict['xl']),
-                cas.entry('u', repeat=[N], struct=self.__variables_dict['u']),
-            ),
-            cas.entry('theta', struct=self.__variables_dict['theta']),
-            cas.entry('phi', struct=self.__phi)
-            ])
-
-            # initialize solution vector
-            V0 = V_sim(0.)
-
-            # fill in controls and parameters
-            for i in range(N):
-                for name in list(self.__variables_dict['u'].keys()):
-                    V0['u',i,name] = self.__variables_dict['u'](u_sim[i])[name]
-            V0['theta'] = theta_sim
-            # adjust time-scaling factor for integrator step size
-            V0['theta','t_f'] = V0['theta','t_f'] / N
-            V0['phi'] = phi_sim
-
-            # integrate / fill in states and alg vars
-
-            # initial state
-            x_sim = self.__x(x0)['xd']
-            z_sim = self.__z(0.0)
-            for i in range(N):
-
-                # dae parameters for this time step
-                p_sim = self.__p(0.)
-                p_sim['u'] = u_sim[i]
-                p_sim['theta'] = V0['theta']
-                p_sim['phi'] = V0['phi']
-
-                # state on initial time of shooting node
-                for name in list(self.__variables_dict['xd'].keys()):
-                    V0['xd',i,0,name] = self.__variables_dict['xd'](x_sim)[name]
-
-                # integrate up to (including) the final time of the shooting node
-                for j in range(self.__N_sim-1):
-                    print(j)
-                    ### TESTING
-                    # [ode_test, alg_test] = self.__f(x_sim,0.,p_sim.cat)
-                    # z_test = self.__rootfinder(0.,x_sim,p_sim.cat)
-                    # xddot_test = self.__variables_dict['xddot'](self.__z(z_test)['xddot'])
-
-                    # perform integration
-                    res = self.__integrator(x0= x_sim, p = p_sim.cat, z0 = z_sim.cat)
-
-                    # set new initial guess for algebraic variable
-                    z_sim = self.__z(res['zf'])
-
-                    # set algebraic variables
-                    for name in list(self.__variables_dict['xa'].keys()):
-                        V0['xa',i,j,name] = self.__variables_dict['xa'](z_sim['xa'])[name]
-                    # set lifted variables
-                    for name in list(self.__variables_dict['xl'].keys()):
-                        V0['xl',i,j,name] = self.__variables_dict['xl'](z_sim['xl'])[name]
-
-                    # set-up next state
-                    x_sim = self.__x(res['xf'])['xd']
-
-                    # set differential states
-                    for name in list(self.__variables_dict['xd'].keys()):
-                        V0['xd',i,j+1,name] = self.__variables_dict['xd'](x_sim)[name]
+            self.__mpc = pmpc.Pmpc(self.__mpc_options, self.__ts, self.__trial)
 
 
-            self.__status = 'I am a simulation.'
-            self.__V0 = V0
-            print('Simulation solved.')
+        #  initialize and build visualization
+        self.__visualization = visualization.Visualization()
+        self.__visualization.build(self.__trial.model, self.__trial.nlp, 'simulation', self.__trial.options)
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+            self.__visualization.plot_dict[var_type] = {}
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                self.__visualization.plot_dict[var_type][name] = []
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    self.__visualization.plot_dict[var_type][name].append([])
 
-            return None
+        self.__visualization.plot_dict['outputs'] = {}
+        for output_type in list(self.__trial.model.outputs.keys()):
+            self.__visualization.plot_dict['outputs'][output_type] = {}
+            for name in list(self.__trial.model.outputs_dict[output_type].keys()):
+                self.__visualization.plot_dict['outputs'][output_type][name] = []
+                for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
+                    self.__visualization.plot_dict['outputs'][output_type][name].append([])
 
+        self.__visualization.plot_dict['integral_outputs'] = {}
+        for name in self.__trial.model.integral_outputs.keys():
+            self.__visualization.plot_dict['integral_outputs'][name] = [[]]
+
+        self.__visualization.plot_dict['V_plot_scaled'] = None
+
+        return None
+
+    def run(self, n_sim, x0 = None, u_sim = None, startTime:float = 0):
+        """ Run simulation
+        """
+
+        assert n_sim > 0, 'Number of simulation steps must be greater than 0.'
+        awelogger.logger.info('Start {} simulation...'.format(self.__sim_type))
+
+        # TODO: check consistency of initial conditions and give warning
+
+        x0 = self.__initialize_sim(n_sim, x0, u_sim, startTime)
+
+        with ChargingBar('Simulating...', max = n_sim, fill='#', suffix = '%(percent).1f%% - ETA: %(eta)ds') as bar:
+            for i in range(n_sim):
+
+                # get (open/closed-loop) controls
+                if self.__sim_type == 'closed_loop':
+                    u0 = self.__mpc.step(x0, self.__mpc_options['plot_flag'])
+
+                elif self.__sim_type == 'open_loop':
+                    u0 = self.__u_sim[:, i]
+
+                # simulate
+                var_next = self.__F(x0=x0, p=u0, z0=self.__mpc.z0)
+                self.__store_results(x0, u0, var_next['qf'])
+
+                # shift initial state
+                x0 = var_next['xf']
+
+                # update progress bar
+                bar.next()
+
+        bar.finish()
+
+        self.__postprocess_sim()
+
+        awelogger.logger.info('Finished {} simulation.'.format(self.__sim_type))
+
+        return None
+
+    def __initialize_sim(self, n_sim, x0, u_sim, startTime:float):
+        """ Initialize simulation.
+        """
+
+        # update the start time so that it matches the time of the nearest shooting node of the reference trajectory
+        t_grid_x_node = self.trial.visualization.plot_dict['time_grids']['x'].full().squeeze()
+        startTime = startTime % t_grid_x_node[-1]  # make sure startTime is within the reference trajectory
+        startIndex_node = np.argmin(np.abs(t_grid_x_node - startTime)) # find the nearest element
+        startTime = t_grid_x_node[startIndex_node] # update the start time
+
+        # get the start state if needed
+        if x0 is None:
+            x0 = self.trial.optimization.V_opt['x',startIndex_node]
+
+        # set-up open loop controls
+        if self.__sim_type == 'open_loop':
+            if u_sim is None: # get the controls from the trial
+                values_ip_u = []
+                interpolator = self.__trial.nlp.Collocastion.build_interpolator(
+                    self.__trial.options['nlp'],
+                    self.__trial.optimization.V_opt)
+                T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+                t_grid = np.linspace(startTime, startTime+ n_sim * self.__ts, n_sim, endpoint=False)
+                self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
+                for name in list(self.__trial.model.variables_dict['u'].keys()):
+                    for j in range(self.__trial.variables_dict['u'][name].shape[0]):
+                        values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
+                self.__u_sim = ct.horzcat(*values_ip_u)
+            else: # use the provided controls
+                self.__u_sim = u_sim
+
+        else: # MPC closed loop sim
+            self.mpc.initialize(startTime)
+
+
+        # initialize algebraic variables for integrator
+        self.__z0 = 0.1
+
+        # initialize numerical parameters
+        self.__theta = self.__trial.model.variables_dict['theta'](0.0)
+        for name in self.__trial.model.variables_dict['theta'].keys():
+            if name != 't_f':
+                self.__theta[name] = self.__trial.optimization.V_opt['theta',name]
+        self.__theta['t_f'] = self.__ts
+        self.__parameters_num = self.__trial.model.parameters(0.0)
+        self.__parameters_num['theta0'] = self.__trial.optimization.p_fix_num['theta0']
+
+        # time grids
+        self.__visualization.plot_dict['time_grids'] = {}
+        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(startTime, startTime + n_sim * self.__ts, n_sim, endpoint=False)
+        self.__visualization.plot_dict['time_grids']['u']  = np.linspace(startTime, startTime + n_sim * self.__ts, n_sim, endpoint=False)
+
+        # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
+        original_plot_dict = self.__trial.visualization.plot_dict
+        trial_plot_dict = {}
+        for name, val in original_plot_dict.items():
+            trial_plot_dict[name] = copy.deepcopy(val)
+
+        # create reference
+        T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+        tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
+        trial_plot_dict['time_grids']['ip'] = np.mod(tgrid_ip, T_ref)
+        trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
+        self.__visualization.plot_dict['ref_si'] = trial_plot_dict['ref_si']
+        self.__visualization.plot_dict['time_grids']['ref'] = {'ip': tgrid_ip}
+        return x0
+
+    def __store_results(self, x0, u0, qf):
+
+        x = self.__trial.model.variables_dict['x'](x0)
+        variables = self.__trial.model.variables(0.1)
+        variables['x'] = x0
+        variables['u']  = u0
+        variables['theta'] = self.__theta
+        x, z, p = self.__dae.fill_in_dae_variables(variables, self.__parameters_num)
+        z0 = self.__dae.dae['z'](self.__dae.rootfinder(z, x, p))
+
+        variables['z'] = self.__trial.model.variables_dict['z'](z0['z'])
+        variables['xdot'] = self.__trial.model.variables_dict['xdot'](z0['xdot'])
+
+        # evaluate system outputs
+        outputs = self.__trial.model.outputs(self.__trial.model.outputs_fun(variables, self.__parameters_num))
+        qf = self.__trial.model.integral_outputs(qf)
+
+        # store results
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    self.__visualization.plot_dict[var_type][name][dim].append(variables[var_type,name,dim].full()[0][0]*self.__trial.model.scaling[var_type, name, dim].full()[0][0])
+
+        for output_type in list(self.__trial.model.outputs.keys()):
+            for name in list(self.__trial.model.outputs_dict[output_type].keys()):
+                for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
+                    self.__visualization.plot_dict['outputs'][output_type][name][dim].append(outputs[output_type,name,dim].full()[0][0])
+
+        for name in self.__trial.model.integral_outputs.keys():
+            self.__visualization.plot_dict['integral_outputs'][name][0].append(qf[name].full()[0][0])
+
+        return None
+
+    def plot(self, flags):
+        """ plot visualization
+        """
+
+        self.__trial.options['visualization']['cosmetics']['plot_ref'] = True
+        self.__visualization.plot_dict['interpolation_si'] = self.__visualization.plot_dict
+        plot_dict = self.__visualization.plot_dict
+        self.__visualization.plot(None, None, self.__trial.options, None, None, flags, None, None, 'simulation', False, None, 'plot', recalibrate = False)
+
+        return None
+
+    def __postprocess_sim(self):
+        """ Postprocess simulation results.
+        """
+
+        # vectorize result lists for plotting
+        for var_type in set(self.__trial.model.variables_dict.keys()) - set(['theta','xdot']):
+            for name in list(self.__trial.model.variables_dict[var_type].keys()):
+                for dim in range(self.__trial.model.variables_dict[var_type][name].shape[0]):
+                    self.__visualization.plot_dict[var_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict[var_type][name][dim]).full().squeeze()
+
+        for output_type in list(self.__trial.model.outputs.keys()):
+            for name in list(self.__trial.model.outputs_dict[output_type].keys()):
+                for dim in range(self.__trial.model.outputs_dict[output_type][name].shape[0]):
+                    self.__visualization.plot_dict['outputs'][output_type][name][dim] = ct.vertcat(*self.__visualization.plot_dict['outputs'][output_type][name][dim]).full()
+
+        for name in self.__trial.model.integral_outputs.keys():
+            self.__visualization.plot_dict['integral_outputs'][name][0] = ct.vertcat(*self.__visualization.plot_dict['integral_outputs'][name][0])
 
     @property
-    def status(self):
-        return self.__status
+    def trial(self):
+        """ awebox.Trial attribute containing model and OCP info.
+        """
+        return self.__trial
 
-    @status.setter
-    def status(self, value):
-        print('Cannot set status object.')
-
-    @property
-    def V0(self):
-        return self.__V0
-
-    @V0.setter
-    def V0(self, value):
-        print('Cannot set V0 object')
+    @trial.setter
+    def trial(self, value):
+        print_op.log_and_raise_error('Cannot set trial object.')
 
     @property
-    def f(self):
-        return self.__f
+    def mpc(self):
+        """ awebox.pmpc.Pmpc attribute containing MPC info.
+        """
+        return self.__mpc
 
-    @f.setter
-    def f(self, value):
-        print('Cannot set f object')
-
-    @property
-    def x(self):
-        return self.__x
-
-    @x.setter
-    def x(self, value):
-        print('Cannot set x object')
+    @mpc.setter
+    def mpc(self, value):
+        print_op.log_and_raise_error('Cannot set mpc object.')
 
     @property
-    def p(self):
-        return self.__p
+    def F(self):
+        """ integrator attribute containing simulation info.
+        """
+        return self.__F
 
-    @p.setter
-    def p(self, value):
-        print('Cannot set p object')
-
-    @property
-    def z(self):
-        return self.__z
-
-    @z.setter
-    def z(self, value):
-        print('Cannot set z object')
+    @F.setter
+    def F(self, value):
+        print_op.log_and_raise_error('Cannot set F object.')
 
     @property
-    def dae(self):
-        return self.__dae
+    def visualization(self):
+        """ awebox.pmpc.Visualization attribute containing MPC info.
+        """
+        return self.__visualization
 
-    @dae.setter
-    def dae(self, value):
-        print('Cannot set dae object')
-
-    @property
-    def rootfinder(self):
-        return self.__rootfinder
-
-    @rootfinder.setter
-    def rootfinder(self, value):
-        print('Cannot set rootfinder object')
+    @visualization.setter
+    def visualization(self, value):
+        print_op.log_and_raise_error('Cannot set visualization object.')
 
     @property
-    def outputs(self):
-        return self.__outputs
-
-    @outputs.setter
-    def outputs(self, value):
-        print('Cannot set outputs object.')
-
-def scale_xddot(variables):
-
-    time_scaled_variables = variables(variables.cat)
-    for name in struct_op.subkeys(variables, 'xddot'):
-        time_scaled_variables['xddot',name] = variables['xddot',name]/variables['theta','t_f']
-
-    return time_scaled_variables
+    def trial(self):
+        """ awebox.Trial attribute containing reference trial info.
+        """
+        return self.__trial

@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -23,12 +23,10 @@
 #
 #
 # Import main interface classes
-from .trial import Trial
 from .sweep import Sweep
+from .trial import Trial
 from .opts.options import Options
-from .opts.kite_data import ampyx_data, boeing747_data, bubbledancer_data, flatplate_data
-
-# Import logging functionality
+from .opts.kite_data import ampyx_data, megawes_data, boeing747_data, bubbledancer_data
 
 # Visualization classes
 from .viz.visualization import Visualization

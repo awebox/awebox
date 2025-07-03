@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -47,9 +47,9 @@ class Atmosphere:
         elif options['model'] == 'windshear':
             t = params['t_ref'] - params['gamma_air'] * zz
         elif options['model'] == 'log_wind':
-            t = cas.DM(params['t_ref'])
+            t = params['t_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            t = cas.DM(params['t_ref'])
+            t = params['t_ref']
         elif options['model'] == 'datafile':
             t = params['t_ref'] - params['gamma_air'] * zz
         else:
@@ -65,9 +65,9 @@ class Atmosphere:
             rho = params['rho_ref'] * (t / params['t_ref']) ** (
                 params['g'] / params['gamma_air'] / params['r'] - 1.0)
         elif options['model'] == 'log_wind':
-            rho = cas.DM(params['rho_ref'])
+            rho = params['rho_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            rho = cas.DM(1.)
+            rho = params['rho_ref']
         elif options['model'] == 'datafile':
             rho = self.get_pressure(zz) / \
                 params['r'] / self.get_temperature(zz)
@@ -91,11 +91,11 @@ class Atmosphere:
             p = self.get_density(zz) * \
                 params['r'] * self.get_temperature(zz)
         elif options['model'] == 'log_wind':
-            p = cas.DM(params['p_ref'])
+            p = params['p_ref'] * cas.DM.ones((1, 1))
         elif options['model'] == 'uniform':
-            p = cas.DM(params['p_ref'])
+            p = params['p_ref']
         elif options['model'] == 'datafile':
-            p = cas.DM(params['p_ref']) # constant value for now, could be computed with the files..
+            p = params['p_ref'] * cas.DM.ones((1, 1)) # constant value for now, could be computed with the files..
             # raise ValueError('failure: unsupported atmospheric option chosen: %s', options['model'])
         else:
             raise ValueError('failure: unsupported atmospheric option chosen: %s', options['model'])
@@ -110,9 +110,9 @@ class Atmosphere:
             mu = params['mu_ref'] * (params['t_ref'] + params['c_sutherland']) / (self.get_temperature(zz) +
                  params['c_sutherland']) * (self.get_temperature(zz) / params['t_ref']) ** (3.0 / 2.0)
         elif options['model'] == 'log_wind':
-            mu = cas.DM(params['mu_ref'])
+            mu = params['mu_ref']
         elif options['model'] == 'uniform':
-            mu = cas.DM(params['mu_ref'])
+            mu = params['mu_ref']
         elif options['model'] == 'datafile':
             mu = params['mu_ref'] * (params['t_ref'] + params['c_sutherland']) / (self.get_temperature(zz) +
                  params['c_sutherland']) * (self.get_temperature(zz) / params['t_ref']) ** (3.0 / 2.0)

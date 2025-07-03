@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -22,17 +22,26 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+
+
+import matplotlib
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
+
 import awebox.viz.tools as tools
 from mpl_toolkits.axes_grid1 import make_axes_locatable, axes_size
 from mpl_toolkits.mplot3d import axes3d
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-import time
+import awebox.viz.tools as tools
+import awebox.viz.wake as wake
+import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
+import casadi.tools as cas
 
 
 import matplotlib.animation as manimation
-
 
 def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, label = []):
 
@@ -73,6 +82,8 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax_xy.xaxis.set_label_position('top')
         ax_xy.set_xlabel(r'x [m]')
         ax_xy.set_ylabel(r'y [m]')
+        xlim = ax_xy.get_xlim()
+        ax_xy.set_xlim([0, xlim[1]])
 
         ax_xz.xaxis.tick_top()
         ax_xz.yaxis.tick_right()
@@ -80,14 +91,21 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax_xz.yaxis.set_label_position('right')
         ax_xz.set_xlabel(r'x [m]')
         ax_xz.set_ylabel(r'z [m]')
+        xlim = ax_xz.get_xlim()
+        ax_xz.set_xlim([0, xlim[1]])
 
         ax_yz.set_xlabel(r'y [m]')
         ax_yz.set_ylabel(r'z [m]')
+        ylim = ax_yz.get_ylim()
+        ax_yz.set_ylim([0, ylim[1]])
 
         ax_iso.set_xlabel(r'x [m]')
         ax_iso.set_ylabel(r'y [m]')
         ax_iso.set_zlabel(r'z [m]')
-
+        xlim = ax_iso.get_xlim()
+        zlim = ax_iso.get_zlim()
+        ax_iso.set_xlim([0, xlim[1]])
+        ax_iso.set_zlim([0, zlim[1]])
     else:
         ax.set_xlabel(side[0] + ' [m]', **cosmetics['trajectory']['axisfont'])
         ax.set_ylabel(side[1] + ' [m]', **cosmetics['trajectory']['axisfont'])
@@ -99,10 +117,14 @@ def plot_trajectory(plot_dict, cosmetics, fig_name, side, init_colors=False, lab
         ax.yaxis.set_major_locator(MaxNLocator(4))
         ax.legend(loc = 'upper right')
     plt.suptitle(fig_name)
-    
+
     # set equal aspect ratio for a trajectory plots
-    for ax in fig.axes:
-        ax.set_aspect('equal')
+    if side not in ['isometric', 'quad']:
+        for ax in fig.axes[:-1]:
+            ax.set_aspect('equal')
+    if side == 'quad':
+        for ax in fig.axes[:-1]:
+            ax.set_aspect('equal')
 
 def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, reload_dict):
 
@@ -123,7 +145,6 @@ def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, rel
               for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, trial, vars_init, 'xz', bool(True), bool(False))
 
     ax.set_xlim([0, maxlim])
     ax.set_ylim([0, maxlim])
@@ -163,7 +184,6 @@ def plot_trajectory_against_wind_shear(solution_dict, cosmetics, fig_num, reload
     ax2.plot([float(wind.get_velocity(zz)[1]) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'yz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, trial, vars_init, 'yz', bool(True), bool(False))
 
     ax.set_xlim([- maxlim/2., maxlim/2.])
     ax.set_ylim([0, maxlim])
@@ -203,7 +223,6 @@ def plot_trajectory_against_wind_power(solution_dict, cosmetics, fig_num, reload
     ax2.plot([float(atmos.get_density(zz)) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
-    # tools.plot_trajectory_contents(ax, params, vars_init, 'xz', bool(True), bool(False))
 
     ax.set_xlim([0, maxlim])
     ax.set_ylim([0, maxlim])
@@ -254,3 +273,26 @@ def plot_trajectory_along_elevation(solution_dict, cosmetics, fig_num):
     ax.zaxis._axinfo['label']['space_factor'] = 2.8
 
     plt.draw()
+
+
+def plot_trajectory_instant(ax, plot_dict, index, cosmetics, side, init_colors=bool(False), plot_kites=bool(True)):
+
+    tools.plot_all_tethers(ax, side, plot_dict, index=index)
+
+    if cosmetics['trajectory']['kite_bodies'] and plot_kites:
+        tools.draw_all_kites(ax, plot_dict, index, cosmetics, side, init_colors)
+
+    if cosmetics['trajectory']['kite_aero_dcm']:
+        tools.draw_kite_aero_dcm(ax, side, plot_dict, cosmetics, index)
+    if cosmetics['trajectory']['trajectory_rotation_dcm']:
+        tools.draw_trajectory_rotation_dcm(ax, side, plot_dict, cosmetics, index)
+
+    if cosmetics['trajectory']['wake_nodes']:
+        wake.draw_wake_nodes(ax, side, plot_dict, cosmetics, index)
+
+    if cosmetics['trajectory']['actuator']:
+        wake.draw_actuator(ax, side, plot_dict, cosmetics, index)
+
+    ax.get_figure().canvas.draw()
+
+    return None

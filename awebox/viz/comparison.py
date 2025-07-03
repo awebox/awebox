@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -22,11 +22,19 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
+
+import matplotlib
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
+
+
 from . import trajectory
 import numpy as np
 from . import tools
-import logging
+from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
 
@@ -44,16 +52,30 @@ def comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats):
     plot_table_r = 2
     plot_table_c = 2
 
+    local_print_dict = {}
+
     for stat_name in interesting_stats:
+
+        if stat_name not in local_print_dict.keys():
+            local_print_dict[stat_name] = {}
+
         counter += 1
         ax = plt.subplot(plot_table_r, plot_table_c, counter)
 
         values, labels = get_stats_values_over_sweep(plot_dict, stat_name)
-        print((values, labels))
         plot_bar_x(ax, values, labels, stat_name, rgb_tuple_colors)
 
+        for idx in range(len(labels)):
+            local_label = labels[idx]
+            local_value = values[idx]
+            local_print_dict[stat_name][local_label] = local_value
+
+    print_op.print_dict_as_table(local_print_dict)
+
+    return None
+
 def compare_tracking_cost(plot_dict, cosmetics, fig_name):
-    
+
     interesting_stats = ['tracking_cost']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_stats)
 
@@ -69,17 +91,17 @@ def compare_convergence(plot_dict, cosmetics, fig_name):
 
 def compare_stats(sweep_dict, cosmetics, fig_name):
 
-    interesting_stats = ['power_output', 'zeta', 'power_per_surface_area', 'loyd_factor']
+    interesting_stats = ['power_output_kw', 'zeta', 'power_per_surface_area', 'loyd_factor']
     comparison_plot(sweep_dict, cosmetics, fig_name, interesting_stats)
 
 def compare_parameters(plot_dict, cosmetics, fig_name):
 
-    interesting_params = ['l_s', 't_f','l_t_max','cmax']
+    interesting_params = ['l_s', 't_f', 'l_t_max', 'cmax']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_params)
 
 def compare_efficiency(plot_dict, cosmetics, fig_name):
 
-    interesting_params = ['dq10_av', 'l_s','elevation','z_av']
+    interesting_params = ['dq10_av', 'l_s', 'elevation', 'z_av']
     comparison_plot(plot_dict, cosmetics, fig_name, interesting_params)
 
 def plot_bar_x(ax, values, trial_labels, comparison_label, rgb_tuple_colors):
@@ -120,10 +142,14 @@ def get_stats_values_over_sweep(plot_dict, stat_name):
 
     return value_list, labels
 
+
 def get_stats_values_from_trial(plot_dict, stat_name):
 
     if stat_name == 'timings_construction':
         return plot_dict['timings']['construction']
+
+    elif stat_name == 'timings_setup':
+        return plot_dict['timings']['setup']
 
     elif stat_name == 'timings_optimization':
         return plot_dict['timings']['optimization']
@@ -135,31 +161,35 @@ def get_stats_values_from_trial(plot_dict, stat_name):
         return plot_dict['return_status_numeric']['optimization']
 
     elif stat_name == 'loyd_factor':
-        return np.mean(plot_dict['outputs']['performance']['loyd_factor'][0])
-        logging.warning('loyd factor calculation should be revisited!')
+        return np.mean(plot_dict['interpolation_si']['outputs']['performance']['loyd_factor'][0])
+        awelogger.logger.warning('loyd factor calculation should be revisited!')
         #todo: loyd power factor calculation?
 
     elif stat_name == 'zeta':
         return float(plot_dict['power_and_performance']['zeta'])
 
-    elif stat_name == 'power_output':
+    elif stat_name == 'power_output_kw':
         return plot_dict['power_and_performance']['avg_power'].full()*1e-3
 
     elif stat_name == 'power_per_surface_area':
         return plot_dict['power_and_performance']['power_per_surface_area'].full()*1e-3
 
     elif stat_name == 't_f':
-        return plot_dict['power_and_performance']['time_period'].full()
+        local_value = plot_dict['power_and_performance']['time_period']
+        if hasattr(local_value, 'shape') and (local_value.shape == ()):
+            return local_value
+        else:
+            return local_value.full()
 
     elif stat_name == 'l_s':
         no_kites = len(plot_dict['architecture'].kite_nodes)
         if no_kites > 1:
-            return float(plot_dict['V_plot']['theta', 'l_s'])
+            return float(plot_dict['V_plot_si']['theta', 'l_s'])
         else:
             return 0.
 
     elif stat_name == 'diam_t':
-        return float(plot_dict['V_final']['theta', 'diam_t'])
+        return float(plot_dict['V_plot_si']['theta', 'diam_t'])
 
     elif stat_name == 'z_av':
         return float(plot_dict['power_and_performance']['z_av'])
@@ -202,5 +232,5 @@ def plot_family_of_trajectories(sweep_dict, cosmetics, fig_num, side):
             color = rgb_tuple_colors[i]
             label = sweep_dict[trial][param]['name'] + '_' + param
             local_trial = sweep_dict[trial][param]
-            trajectory.plot_trajectory(local_trial['V_plot'], cosmetics, fig_num, side, init_colors=color, label=label)
+            trajectory.plot_trajectory(local_trial['V_plot_si'], cosmetics, fig_num, side, init_colors=color, label=label)
             i += 1

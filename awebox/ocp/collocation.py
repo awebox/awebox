@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -31,11 +31,15 @@ python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import logging
+from awebox.logger.logger import Logger as awelogger
 import numpy as np
-import awebox.tools.struct_operations as struct_op
+
 from collections import OrderedDict
-from . import constraints
+
+import awebox.tools.struct_operations as struct_op
+import awebox.tools.constraint_operations as cstr_op
+import awebox.tools.cached_functions as cf
+
 
 class Collocation(object):
     """Collocation class with methods for optimal control
@@ -73,6 +77,7 @@ class Collocation(object):
 
         # coefficients of the collocation equation
         coeff_collocation = np.zeros((d + 1, d + 1))
+        coeff_collocation_u = np.zeros((d, d))
 
         # coefficients of the continuity equation
         coeff_continuity = np.zeros(d + 1)
@@ -87,7 +92,9 @@ class Collocation(object):
                 t[k, j] = (k + tau_root[j])
 
         # for all collocation points
+        dls = []
         ls = []
+        ls_u = []
         for j in range(d + 1):
             # construct lagrange polynomials to get the polynomial basis at the
             # collocation point
@@ -105,19 +112,38 @@ class Collocation(object):
             # evaluate the time derivative of the polynomial at all collocation
             # points to get the coefficients of the continuity equation
             tfcn = cas.Function('lfcntan',[tau],[cas.jacobian(l,tau)])
+            dls = cas.vertcat(dls, cas.jacobian(l,tau))
             for r in range(d + 1):
                 coeff_collocation[j][r] = tfcn(tau_root[r])
 
+            # construct lagrange polynomials to get the polynomial basis
+            # for the controls and algebraic variables
+            if j > 0:
+                l = 1
+                for r in range(1,d+1):
+                    if r != j:
+                        l *= (tau - tau_root[r]) / (tau_root[j] - tau_root[r])
+                lfcn = cas.Function('lfcn', [tau], [l])
+                ls_u = cas.vertcat(ls_u, l)
+                tfcn = cas.Function('lfcntan',[tau],[cas.jacobian(l,tau)])
+                for r in range(1,d+1):
+                    coeff_collocation_u[j-1][r-1] = tfcn(tau_root[r])
+
         # interpolating function for all polynomials
+        tfcns = cas.Function('tfcns', [tau], [dls])
         lfcns = cas.Function('lfcns',[tau],[ls])
+        lfcns_u = cas.Function('lfcns_u',[tau],[ls_u])
 
         self.__coeff_continuity = coeff_continuity
         self.__coeff_collocation = coeff_collocation
+        self.__coeff_collocation_u = coeff_collocation_u
+        self.__dcoeff_fun = tfcns
         self.__coeff_fun = lfcns
+        self.__coeff_fun_u = lfcns_u
 
         return None
 
-    def build_interpolator(self, nlp_params, V):
+    def build_interpolator(self, nlp_params, V, integral_outputs = None, time_grids_opt = None, T_opt = None, symbolic_interpolator = False, time_grids = None,  ip_type = 'collocation'):
         """Build interpolating function over the interval
         using lagrange polynomials
 
@@ -126,23 +152,66 @@ class Collocation(object):
         @return interpolation function
         """
 
-        def coll_interpolator(time_grid, name, dim):
-            """Interpolating function
+        if not symbolic_interpolator: 
 
-            @param time_grid list with time points
-            @param name xd variable name
-            @param dim xd variable dimension index
-            """
+            def coll_interpolator(time_grid, var_type):
+                """Interpolating function
 
-            vals = []
-            for t in time_grid:
-                kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
-                poly_vars = cas.vertcat(V['xd',kdx, name, dim], *V['coll_var',kdx, :,'xd', name, dim])
-                vals = cas.vertcat(vals, cas.mtimes(poly_vars.T, self.__coeff_fun(tau)))
+                @param time_grid list with time points
+                @param var_type variable type: state, control or algebraic
+                @return vector_series interpolated variable time series
+                """
 
-            return vals
+                vector_series = []
+                for t in time_grid:
+                    kdx, tau = struct_op.calculate_kdx(nlp_params, V, t)
+                    if var_type == 'x':
+                        poly_vars = cas.horzcat(V['x', kdx], *V['coll_var', kdx, :, 'x'])
+                        vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun(tau)))
+                    elif var_type in ['u', 'z']:
+                        poly_vars = cas.horzcat(*V['coll_var', kdx, :, var_type])
+                        vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun_u(tau)))
+                    elif var_type in ['int_out']:
+                        poly_vars = cas.horzcat(integral_outputs['int_out', kdx], *integral_outputs['coll_int_out', kdx, :])
+                        vector_series = cas.horzcat(vector_series, cas.mtimes(poly_vars, self.__coeff_fun(tau)))
+                    elif var_type in ['xdot']:
+                        h = 1 / self.__n_k
+                        tf = struct_op.calculate_tf(nlp_params, V, kdx)
+                        poly_vars = cas.horzcat(V['x', kdx], *V['coll_var', kdx, :, 'x'])
+                        vector_series = cas.horzcat(vector_series, cas.mtimes((poly_vars) / h / tf, self.__dcoeff_fun(tau)))
 
-        return coll_interpolator
+                return vector_series
+
+            return coll_interpolator
+        
+        else:
+
+            # depending on the interpolation type, construct symbolic interpolator functions
+            if ip_type == 'collocation':
+                fun_x, fun_u, fun_z = self.__construct_symbolic_collocation_interpolator_funs(nlp_params, V)
+            elif ip_type == 'linear':
+                fun_x, fun_u, fun_z = self.__construct_symbolic_linear_interpolator_funs(nlp_params, V, time_grids, time_grids_opt, T_opt)
+            else:
+                raise NotImplementedError("Interpolation type {} not implemented".format(ip_type))
+
+            def coll_interpolator(time_grid, var_type):
+                """Interpolating function
+
+                @param time_grid list with time points
+                @param var_type variable type: state, control or algebraic
+                @return vector_series interpolated variable time series
+                """
+
+                if var_type == 'x':
+                    vector_series = fun_x.map(time_grid.shape[0])(time_grid)
+                elif var_type == 'u':
+                    vector_series = fun_u.map(time_grid.shape[0])(time_grid)
+                elif var_type == 'z':
+                    vector_series = fun_z.map(time_grid.shape[0])(time_grid)
+
+                return vector_series
+
+            return coll_interpolator
 
     def __quadrature_weights(self):
         """ Compute quadrature weights for integration
@@ -153,7 +222,7 @@ class Collocation(object):
 
         # compute quadrature weights
         Lambda = np.linalg.solve(coeff_collocation[1:,1:], np.eye(len(coeff_collocation)-1))
-        quad_weights_1 = np.matmul(Lambda,coeff_continuity[1:])
+        quad_weights_1 = np.matmul(Lambda, coeff_continuity[1:])
         quad_weights = np.linalg.solve(coeff_collocation[1:,1:], coeff_continuity[1:])
 
         self.__quad_weights = quad_weights
@@ -167,7 +236,7 @@ class Collocation(object):
 
         scheme = nlp_numerics_options['collocation']['scheme']
 
-        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model)
+        Vdot = struct_op.construct_Xdot_struct(nlp_numerics_options, model.variables_dict)
 
         # size of the finite elements
         h = 1. / self.__n_k
@@ -187,6 +256,12 @@ class Collocation(object):
                 xdot = xp_jk / h / tf
                 store_derivatives = cas.vertcat(store_derivatives, xdot)
 
+            for j in range(1,self.__d+1):
+                if j > 0:
+                    zp_jk = self.__calculate_collocation_deriv_u(V, k, j, 'z')
+                    zdot = zp_jk / h / tf
+                    store_derivatives = cas.vertcat(store_derivatives, zdot)
+
         Xdot = Vdot(store_derivatives)
 
         return Xdot
@@ -199,36 +274,41 @@ class Collocation(object):
         xp_jk = 0
         for r in range(self.__d + 1):
             if r == 0:
-                xp_jk += self.__coeff_collocation[r, j] * V['xd', k]
+                xp_jk += self.__coeff_collocation[r, j] * V['x', k]
             else:
-                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'xd']
+                xp_jk += self.__coeff_collocation[r, j] * V['coll_var', k, r-1,'x']
 
         return xp_jk
 
-    def get_collocation_variables_struct(self, variables_dict):
+    def __calculate_collocation_deriv_u(self, V, k, j, var_type):
 
-        if 'xl' in list(variables_dict.keys()):
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-                cas.entry('xl', struct = variables_dict['xl'])
-            ])
-        else:
-            coll_var = cas.struct_symSX([
-                cas.entry('xd', struct = variables_dict['xd']),
-                cas.entry('xa', struct = variables_dict['xa']),
-            ])
+        zp_jk = 0
+        for r in range(1,self.__d+1):
+            zp_jk += self.__coeff_collocation_u[r-1, j-1] * V['coll_var', k, r-1, var_type]
 
-        return coll_var
+        return zp_jk
+
+    def get_collocation_variables_struct(self, variables_dict, u_param):
+
+        entry_list = [
+            cas.entry('x', struct = variables_dict['x']),
+            cas.entry('z', struct = variables_dict['z'])
+        ]
+
+        if u_param == 'poly':
+            entry_list += [cas.entry('u', struct = variables_dict['u'])]
+
+        return cas.struct_symMX(entry_list)
 
     def __integrate_integral_outputs(self, Integral_outputs_list, integral_outputs_deriv, model, tf):
 
         # number of integral outputs
         ni = model.integral_outputs.cat.shape[0]
 
-        if ni > 0:
+        number_of_integral_outputs_is_positive = (ni > 0)
+        if number_of_integral_outputs_is_positive:
 
-            # constant term
+            # constant term (FROM THE LAST INTEGRATION INTERVAL, this follows from the loop in which this function is called)
             i0 =  model.integral_outputs(cas.vertcat(*Integral_outputs_list)[-ni:])
 
             # evaluate derivative functions
@@ -264,31 +344,36 @@ class Collocation(object):
                 for name in list(model.integral_outputs.keys()):
                     Integral_outputs_list.append(integral_output[name][i])
 
-        else:
-
-            32.0
-
         return Integral_outputs_list
 
+    def get_continuity_expression(self, V, kdx) -> cas.MX:
+        """ Returns the expression for the state at the end of the finite element """
+        xf_k = 0
+        for ddx in range(self.__d + 1):
+            if ddx == 0:
+                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
+            else:
+                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx - 1, 'x']
+        return xf_k
 
-    def append_continuity_constraint(self, g_list, g_bounds, V, kdx):
+    def get_continuity_constraint(self, V, kdx):
 
         # get an expression for the state at the end of the finite element
         xf_k = 0
         for ddx in range(self.__d + 1):
             if ddx == 0:
-                xf_k += self.__coeff_continuity[ddx] * V['xd', kdx]
+                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
             else:
-                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'xd']
+                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
 
+        # pin the end of the control interval to the start of the new control interval
+        g_continuity = V['x', kdx + 1] - xf_k
 
-        # add continuity equation to nlp
-        g_continuity = V['xd', kdx + 1] - xf_k
-        g_list.append(g_continuity)
-        # add constraint bounds
-        g_bounds = constraints.append_constraint_bounds(g_bounds, 'equality', g_continuity.size()[0])
+        cstr = cstr_op.Constraint(expr=g_continuity,
+                                  name='continuity_{}'.format(kdx),
+                                  cstr_type='eq')
 
-        return [g_list, g_bounds]
+        return cstr
 
     def __integrate_integral_constraints(self, integral_constraints, kdx, t_f):
 
@@ -301,81 +386,224 @@ class Collocation(object):
 
         return integral_over_interval
 
-    def collocate_constraints(self, options, model, formulation, V, P, Xdot):
+    def collocate_outputs_and_integrals(self, options, model, formulation, V, P, Xdot):
         """ Generate collocation and path constraints on all nodes, provide integral outputs and
             integral constraints on all nodes
         """
-        # extract discretization information
-        N_coll = self.__n_k*self.__d # collocation points
-
-        # extract model information
-        variables = model.variables
-        parameters = model.parameters
+        # construct list of all shooting node variables and parameters
+        if not (options['discretization'] == 'direct_collocation' and options['collocation']['u_param'] == 'poly'):
+            shooting_vars = struct_op.get_shooting_vars(options, V, P, Xdot, model)
+            shooting_params = struct_op.get_shooting_params(options, V, P, model)
 
         # construct list of all collocation node variables and parameters
-        coll_vars = []
+        coll_vars = struct_op.get_coll_vars(options, V, P, Xdot, model)
+        coll_params = struct_op.get_coll_params(options, V, P, model)
+
+        # initialize function evaluations
+        coll_outputs = []
+        integral_outputs_deriv = []
+        integral_constraints = OrderedDict()
+        integral_constraints['inequality'] = []
+        integral_constraints['equality'] = []
+
+        # evaluate integral_outputs_deriv
+        integral_outputs_fun = model.integral_outputs_fun
+        if options['compile_subfunctions']:
+            integral_outputs_fun = cf.CachedFunction(options['compilation_file_name'], integral_outputs_fun, do_compile=options['compile_subfunctions'])
+
+        if options['parallelization']['map_type'] == 'for-loop':
+            int_out_list = []
+            for k in range(coll_vars.shape[1]):
+                int_out_list.append(integral_outputs_fun(coll_vars[:,k], coll_params[:,k]))
+            integral_outputs_deriv = cas.horzcat(*int_out_list)
+
+        elif options['parallelization']['map_type'] == 'map':
+            integral_outputs_fun_map = integral_outputs_fun.map('integral_outputs_fun_map', options['parallelization']['type'], coll_vars.shape[1], [], [])
+            integral_outputs_deriv = integral_outputs_fun_map(coll_vars, coll_params)
+
+        # evaluate functions in for loop
         for kdx in range(self.__n_k):
+
+            if options['collocation']['u_param'] == 'zoh':
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(shooting_vars[:,kdx],shooting_params[:,kdx]))
+
             for ddx in range(self.__d):
-                var_at_time = struct_op.get_variables_at_time(options, V, Xdot, model, kdx, ddx)
-                coll_vars = cas.horzcat(coll_vars, var_at_time)
+                idx = ddx + kdx * self.__d
 
-        coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
-
-        # evaluate dynamics and constraint functions on all intervals
-        if options['parallelization']['include']:
-
-            # use function map for parallellization
-            parallellization = options['parallelization']['type']
-            dynamics = model.dynamics.map('dynamics_map', parallellization, N_coll, [], [])
-            path_constraints_fun = model.constraints_fun.map('constraints_map', parallellization, N_coll, [], [])
-            integral_outputs_fun = model.integral_outputs_fun.map('integral_outputs_map', parallellization, N_coll, [], [])
-            outputs_fun = model.outputs_fun.map('outputs_fun', parallellization, N_coll, [], [])
-
-            # extract formulation information
-            constraints_fun_ineq = formulation.constraints_fun['integral']['inequality'].map('integral_constraints_map_ineq', 'serial', N_coll, [], [])
-            constraints_fun_eq = formulation.constraints_fun['integral']['equality'].map('integral_constraints_map_eq', 'serial', N_coll, [], [])
-
-            # evaluate functions
-            coll_dynamics = dynamics(coll_vars, coll_params)
-            coll_constraints = path_constraints_fun(coll_vars, coll_params)
-            coll_outputs = outputs_fun(coll_vars, coll_params)
-            integral_outputs_deriv = integral_outputs_fun(coll_vars, coll_params)
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = constraints_fun_ineq(coll_vars, coll_params)
-            integral_constraints['equality'] = constraints_fun_eq(coll_vars, coll_params)
-
-        else:
-
-            # initialize function evaluations
-            coll_dynamics = []
-            coll_constraints = []
-            coll_outputs = []
-            integral_outputs_deriv = []
-            integral_constraints = OrderedDict()
-            integral_constraints['inequality'] = []
-            integral_constraints['equality'] = []
-
-            # evaluate functions in for loop
-            for i in range(N_coll):
-                coll_dynamics = cas.horzcat(coll_dynamics, model.dynamics(coll_vars[:,i],coll_params[:,i]))
-                coll_constraints = cas.horzcat(coll_constraints, model.constraints_fun(coll_vars[:,i],coll_params[:,i]))
-                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_outputs_deriv = cas.horzcat(integral_outputs_deriv, model.integral_outputs_fun(coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,i],coll_params[:,i]))
-                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,i],coll_params[:,i]))
-
+                coll_outputs = cas.horzcat(coll_outputs, model.outputs_fun(coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['inequality'] = cas.horzcat(integral_constraints['inequality'], formulation.constraints_fun['integral']['inequality'](coll_vars[:,idx],coll_params[:,idx]))
+                integral_constraints['equality'] = cas.horzcat(integral_constraints['equality'], formulation.constraints_fun['integral']['equality'](coll_vars[:,idx],coll_params[:,idx]))
 
         # integrate integral outputs
         Integral_outputs_list = [np.zeros(model.integral_outputs.cat.shape[0])]
         Integral_constraints_list = []
         for kdx in range(self.__n_k):
             tf = struct_op.calculate_tf(options, V, kdx)
+
             Integral_outputs_list = self.__integrate_integral_outputs(Integral_outputs_list, integral_outputs_deriv[:,kdx*self.__d:(kdx+1)*self.__d], model, tf)
             Integral_constraints_list += [self.__integrate_integral_constraints(integral_constraints, kdx, tf)]
 
-        return coll_dynamics, coll_constraints, coll_outputs, Integral_outputs_list, Integral_constraints_list
+
+        return coll_outputs, Integral_outputs_list, Integral_constraints_list
+
+    def __construct_symbolic_linear_interpolator_funs(self, nlp_params, V, time_grids, time_grids_opt, T_opt):
+
+        awelogger.logger.info('Constructing symbolic linear interpolator functions')
+
+        # single symbolic time where the interpolation is evaluated
+        t = cas.MX.sym('t')
+
+        t_x_coll = time_grids_opt['coll'](T_opt)
+        t_x_coll = [0.0] + cas.reshape(t_x_coll.T, t_x_coll.numel(), 1).full().squeeze().tolist()
+        t_z_coll = t_x_coll
+        t_u = time_grids_opt['u'](T_opt).full().squeeze().tolist()
+
+        sol_x = []
+        sol_z = []
+        sol_u = []
+
+        # collect the shooting variables
+        for k in range(nlp_params['n_k']):
+            if k == 0:
+                sol_x.append(V['x', k].full().squeeze())
+                sol_z.append(V['z', k].full())
+
+            for j in range(nlp_params['collocation']['d']):
+                sol_x.append(V['coll_var', k, j, 'x'].full().squeeze())
+                sol_z.append(V['coll_var', k, j, 'z'].full())
+            sol_u.append(V['u', k].full().squeeze())
+
+        # construct linear interpolation expressions for values of t between the nodes
+        vector_x = []
+        for idx in range(sol_x[0].shape[0]):
+            lut_x = cas.interpolant('LUT','linear',[t_x_coll],[sol_x[k][idx] for k in range(len(sol_x))])
+            vector_x.append(lut_x(t))
+        vector_x = cas.vertcat(*vector_x)
+
+        vector_z = []
+        for idx in range(sol_z[0].shape[0]):
+            lut_z = cas.interpolant('LUT','linear',[t_z_coll],[sol_z[k][idx] for k in range(len(sol_z))])
+            vector_z.append(lut_z(t))
+        vector_z = cas.vertcat(*vector_z)
+
+        vector_u = []
+        for idx in range(sol_u[0].shape[0]):
+            lut_u = cas.interpolant('LUT','linear',[t_u],[sol_u[k][idx] for k in range(len(sol_u))])
+            vector_u.append(lut_u(t))
+        vector_u = cas.vertcat(*vector_u)
+
+        # build symbolic functions to return
+        fun_x =  cas.Function('sym_interpolator_fun_x', [t], [vector_x])
+        fun_u =  cas.Function('sym_interpolator_fun_u', [t], [vector_u])
+        fun_z = cas.Function('sym_interpolator_fun_z', [t], [vector_z])
+
+        return fun_x,fun_u, fun_z
 
 
+    def __construct_symbolic_collocation_interpolator_funs(self, nlp_params, V):
+        """
+        Construct symbolic interpolator functions x(t), u(t), z(t) for given variable struct V
+        :return: a tuple of casadi.Functions (x(t), u(t), z(t))
+        """
+
+        # NLP data
+        n_k = V['x'].__len__()-1
+        t_f = V['theta', 't_f']
+
+        # create conditional interpolation functions
+        function_list_x = []
+        function_list_u = []
+        function_list_z = []
+
+        tau = cas.SX.sym('tau')
+        for k in range(n_k):
+
+            poly_vars = cas.horzcat(V['x', k], *V['coll_var', k, :, 'x'])
+            x = cas.mtimes(poly_vars, self.__coeff_fun(tau))
+            function_list_x.append(cas.Function('F_interp_x_{}'.format(k), [tau], [x]))
+
+            poly_vars = cas.horzcat(*V['coll_var', k, :, 'z'])
+            z = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
+            function_list_z.append(cas.Function('F_interp_z_{}'.format(k), [tau], [z]))
+
+            if k < n_k - 1:
+                if nlp_params['collocation']['u_param'] == 'poly':
+                    poly_vars = cas.horzcat(*V['coll_var', k, :, 'u'])
+                    u = cas.mtimes(poly_vars, self.__coeff_fun_u(tau))
+                else:
+                    u = V['u', k]
+                function_list_u.append(cas.Function('F_interp_u_{}'.format(k), [tau], [u]))
+
+        F_cond_x = cas.Function.conditional('F_cond_x', function_list_x, function_list_x[0])
+        F_cond_u = cas.Function.conditional('F_cond_u', function_list_u, function_list_u[0])
+        F_cond_z = cas.Function.conditional('F_cond_z', function_list_z, function_list_z[0])
+
+        # find time interval function
+        t = cas.SX.sym('t')
+
+        if nlp_params['SAM']['flag_SAM_reconstruction']:
+            from awebox.tools.sam_functionalities import constructPiecewiseCasadiExpression
+            from awebox.tools.sam_functionalities import construct_time_grids_SAM_reconstruction
+
+            # check that the timegrid is monotonically increasing
+            timegrid_f = construct_time_grids_SAM_reconstruction(nlp_params)
+            time_grid_x = timegrid_f['x'](V['theta', 't_f']).full().flatten()
+
+            assert np.all(np.diff(time_grid_x) > 0)
+            n_k_reconstruct = time_grid_x.shape[0] - 1
+            # in case of the reconstruction
+
+            # construct the kdx and tau expressions for each interval
+            expression_list = []
+            for k in range(n_k_reconstruct):
+                t_shift = t - time_grid_x[k]
+                deltat_interval = time_grid_x[k+1] - time_grid_x[k]
+                tau = t_shift / deltat_interval
+                expression_list.append(cas.vertcat(k,tau))
+
+            piecwise_expr = constructPiecewiseCasadiExpression(t, time_grid_x.tolist(), expression_list)
+            F_find_interval = cas.Function('F_find_interval', [t], [piecwise_expr[0],piecwise_expr[1]])
+
+
+        elif t_f.shape[0] == 2: # single_reelout phase fix
+
+            n_k_reelout = round(n_k * nlp_params['phase_fix_reelout'])
+            t_switch = t_f[0] * n_k_reelout / n_k
+
+            # if in reel-out
+            kdx = cas.floor(t/t_f[0]*n_k)
+            tau = t/t_f[0]*n_k - kdx
+            F_find_interval_1 = cas.Function('F_find_interval1', [t], [kdx, tau])
+
+            # if in reel-in
+            kdx_ri = cas.floor((t - t_switch)/t_f[1]*n_k)
+            kdx = n_k_reelout + kdx_ri
+            tau = (t - t_switch)/t_f[1]*n_k - kdx_ri
+            F_find_interval_2 = cas.Function('F_find_interval1', [t], [kdx, tau])
+
+            # conditional function
+            F_find_interval_cond = cas.Function.conditional('F_find_interval_cond', [F_find_interval_2, F_find_interval_1], F_find_interval_1)
+            in_reel_out_phase = cas.le(t, t_switch)
+            [kdx, tau] = F_find_interval_cond(in_reel_out_phase, t)
+            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+
+        else: # simple phase fix
+            kdx = cas.floor(t/t_f*n_k)
+            tau = t/t_f*n_k - kdx
+            F_find_interval = cas.Function('F_find_interval', [t], [kdx, tau])
+
+        # evaluate interpolation at symbolic time
+        [kdx, tau] = F_find_interval(t)
+        vector_x = F_cond_x(kdx, tau)
+        vector_z = F_cond_z(kdx, tau)
+        vector_u = F_cond_u(kdx, tau)
+
+        # create functions
+        __sym_interpolator_fun_x = cas.Function('sym_interpolator_fun_x', [t], [vector_x])
+        __sym_interpolator_fun_u = cas.Function('sym_interpolator_fun_u', [t], [vector_u])
+        __sym_interpolator_fun_z = cas.Function('sym_interpolator_fun_z', [t], [vector_z])
+
+        return __sym_interpolator_fun_x, __sym_interpolator_fun_u, __sym_interpolator_fun_z
 
     @property
     def quad_weights(self):
@@ -383,4 +611,20 @@ class Collocation(object):
 
     @quad_weights.setter
     def quad_weights(self, value):
-        logging.warning('Cannot set quad_weights object.')
+        awelogger.logger.warning('Cannot set quad_weights object.')
+
+    @property
+    def coeff_collocation(self):
+        return self.__coeff_collocation
+
+    @coeff_collocation.setter
+    def coeff_collocation(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation object.')
+
+    @property
+    def coeff_collocation_u(self):
+        return self.__coeff_collocation_u
+
+    @coeff_collocation_u.setter
+    def coeff_collocation_u(self, value):
+        awelogger.logger.warning('Cannot set coeff_collocation_u object.')
