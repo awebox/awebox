@@ -45,7 +45,8 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 class WakeSubstructure():
     def __init__(self, substructure_type=None):

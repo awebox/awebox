@@ -28,7 +28,8 @@ _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021
 '''
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 import copy
@@ -42,7 +43,7 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 class Element():
     def __init__(self, info_dict, info_order=None):
