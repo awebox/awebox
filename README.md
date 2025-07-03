@@ -1,6 +1,6 @@
 # AWEbox
 
-[![Python](https://github.com/awebox/awebox/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/awebox/awebox/actions/workflows/python-app.yml)
+[![build](https://github.com/awebox/awebox/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/awebox/awebox/actions/workflows/python-app.yml)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 
 AWEbox is a Python toolbox for modelling and optimal control of multiple-kite systems for Airborne Wind Energy (AWE). It provides interfaces that aim to take away from the user the burden of
