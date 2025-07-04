@@ -50,7 +50,7 @@ def run(plot_show_block=True, overwrite_options={}):
 
     # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
     # note: this may result in slightly slower solution timings
-    options['nlp.compile_subfunctions'] = True
+    options['nlp.compile_subfunctions'] = False
 
     for option_name, option_val in overwrite_options.items():
         options[option_name] = option_val
