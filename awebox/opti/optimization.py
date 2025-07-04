@@ -532,7 +532,7 @@ class Optimization(object):
 
         # ensure that problem is the correct problem
         for step_name in self.__schedule['homotopy'][:initial_index]:
-            if step_name == 'initial' or step_name == 'final':
+            if step_name == 'initial' or step_name == 'relax_power_reelout' or step_name == 'final':
                 self.advance_counters_for_warmstart(step_name, 0, nlp, model)
             else:
                 self.advance_counters_for_warmstart(step_name, 0, nlp, model)
