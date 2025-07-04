@@ -17,7 +17,7 @@ Single-kite optimal trajectory             |  Dual-kite optimal trajectory (reel
 <img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/single_kite.png" width="400">  |  <img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/dual_kites.png" width="400">
 
 
-### Implemented aircraft models
+## Implemented aircraft models
 
 - Ampyx AP2 (6DOF)
 - MegAWES (6DOF)
