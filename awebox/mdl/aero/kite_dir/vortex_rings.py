@@ -53,7 +53,7 @@ def vortex_ring_dipole_approx(q, q_v, n, Gamma):
     m = Gamma * n * 100**3 # Dipole moment (scalar * direction)
     dot = ca.mtimes(r.T, m)
     
-    u_ind = (1 / (4 * np.pi)) * (3 * dot * r - r_norm**2 * m) / r_norm**5
+    u_ind = (1 / (4 * np.pi)) * ((3 * dot * r) / (r_norm**5) - m / r_norm**3)
     
     # u_ind = np.zeros((3,1))
     return u_ind
