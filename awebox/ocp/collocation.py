@@ -387,8 +387,11 @@ class Collocation(object):
             # pin the end of the control interval to the start of the new control interval
             g_continuity = []
             lfcns = self.__coeff_fun
+            from numpy.polynomial.legendre import leggauss
             N_rings = nlp_options['N_rings']
-            tgrid = [k/N_rings + 1/(2*N_rings) for k in range(N_rings)]
+            gauss_points = (leggauss(N_rings)[0] + 1)/2 # gauss legendre weights
+            # tgrid = [k/N_rings + 1/(2*N_rings) for k in range(N_rings)] # midpoint rule
+            tgrid = gauss_points
             convection_times = [t_f / nlp_options['n_k'] * (1 - tau) for tau in tgrid]
             x_list = [model.variables_dict['x'](lfcns(tau)[0]*V['x', kdx] + sum([lfcns(tau)[ddx+1]*V['coll_var', kdx, ddx, 'x'] for ddx in range(self.__d)])) for tau in tgrid]
             outputs_list = []
