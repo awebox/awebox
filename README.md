@@ -17,6 +17,12 @@ Single-kite optimal trajectory             |  Dual-kite optimal trajectory (reel
 <img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/single_kite.png" width="400">  |  <img src="https://github.com/jdeschut/awebox/blob/README-figures/docs/dual_kites.png" width="400">
 
 
+### Implemented aircraft models
+
+- Ampyx AP2 (6DOF)
+- MegAWES (6DOF)
+- point-mass model with lift and roll control (3DOF)
+
 ## Installation
 
 `awebox` runs on Python 3. It depends heavily on the modeling language CasADi, which is a symbolic framework for algorithmic differentiation. CasADi also provides the interface to the NLP solver IPOPT.  
