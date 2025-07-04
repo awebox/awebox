@@ -6,8 +6,7 @@
 AWEbox is a Python toolbox for modelling and optimal control of multiple-kite systems for Airborne Wind Energy (AWE). It provides interfaces that aim to take away from the user the burden of
 
 - generating optimization-friendly high-fidelity system dynamics for different modeling options.
-- formulating and solving the trajectory optimization problem efficiently and reliably
-- tailored formulations especially for efficient optimization over long time horizons
+- formulating and solving the trajectory optimization problem efficiently and reliably, also for long time horizons
 - postprocessing and visualizing the solution and performing quality checks
 - tracking MPC design and solver generation for closed-loop simulations
 
@@ -48,15 +47,13 @@ python3 examples/ampyx_ap2_trajectory.py
 
 ## Acknowledgments
 
-This software has been developed in collaboration with the company Kiteswarms Ltd. The company has also supported the project through research funding.
-
-This project has received funding from the European Union’s Horizon 2020 research and innovation programme under the Marie Sklodowska-Curie grant agreement No 642682 (_AWESCO_), as well as by the German DFG via Grant No 525018088 (_MAWERO_).
+AWEbox has been developed under the supervision of Prof. Dr. Moritz Diehl (University of Freiburg, Germany) and has received financial support from the company Kiteswarms GmbH through an industrial research project as well as from the EU Horizon 2020 programme under the Marie Skłodowska-Curie grant agreement No 642682 (AWESCO) and from the German DFG via Grant No 525018088 (MAWERO).
 
 ## Citing `awebox`
 Please use the following citation: 
 
-"_De Schutter, J.; Leuthold, R.; Bronnenmeyer, T.; Malz, E.; Gros, S.; Diehl, M. AWEbox: An Optimal Control Framework for Single- and Multi-Aircraft Airborne Wind Energy Systems. Energies 2023, 16, 1900. https://doi.org/10.3390/en16041900_"
+_De Schutter, J.; Leuthold, R.; Bronnenmeyer, T.; Malz, E.; Gros, S.; Diehl, M. AWEbox: An Optimal Control Framework for Single- and Multi-Aircraft Airborne Wind Energy Systems. Energies 2023, 16, 1900. https://doi.org/10.3390/en16041900_
 
 and see also:
 
-"_Harzer, J,; De Schutter, J.; Diehl, M. Numerical Trajectory Optimization of Airborne Wind Energy Systems With Stroboscopic Averaging Methods, IEEE Control Systems Letters 2025 (9), pp. 703-708.   https://doi.org/10.1109/LCSYS.2025.3577225_"
+_Harzer, J,; De Schutter, J.; Diehl, M. Numerical Trajectory Optimization of Airborne Wind Energy Systems With Stroboscopic Averaging Methods, IEEE Control Systems Letters 2025 (9), pp. 703-708.   https://doi.org/10.1109/LCSYS.2025.3577225_
