@@ -5,7 +5,7 @@
 
 AWEbox is a Python toolbox for modelling and optimal control of multiple-kite systems for Airborne Wind Energy (AWE). It provides interfaces that aim to take away from the user the burden of
 
-- generating optimization-friendly high-fidelity system dynamics for different combinations of modeling options.
+- generating optimization-friendly high-fidelity system dynamics for different modeling options.
 - formulating and solving the trajectory optimization problem efficiently and reliably
 - tailored formulations especially for efficient optimization over long time horizons
 - postprocessing and visualizing the solution and performing quality checks
