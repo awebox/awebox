@@ -1112,7 +1112,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
 
             ### draw the swept annulus
             print_op.base_print('drawing swept background...')
-            draw_swept_background(ax, side, plot_dict)
+            draw_swept_background(ax, plot_dict)
 
             ### draw the contour
             haas_levels = [-0.05, 0., 0.2]

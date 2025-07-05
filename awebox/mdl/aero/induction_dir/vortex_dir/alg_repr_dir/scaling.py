@@ -87,13 +87,19 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
+    near_wake_unit_length = properties_ref['near_wake_unit_length']
     position_scaling_method = options['model']['aero']['vortex']['position_scaling_method']
     if position_scaling_method == 'q10':
         position_scaling = q_scaling
     elif position_scaling_method == 'convection':
+        position_scaling = q_scaling
+        # add the convection below
+    elif position_scaling_method == 'average':
         position_scaling = q_scaling + avg_downstream * vect_op.xhat_dm()
     elif position_scaling_method in ['radius', 'b_ref', 'c_ref']:
         position_scaling = properties_ref[position_scaling_method]
+    elif position_scaling_method in ['wingspan', 'span']:
+        position_scaling = properties_ref['b_ref']
     else:
         message = 'unexpected vortex-position-variable wx scaling method (' + position_scaling_method + ').'
         print_op.log_and_raise_error(message)
@@ -108,6 +114,10 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     for kite_shed in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
+
+            if position_scaling_method == 'convection':
+                wx_scale = q_scaling + near_wake_unit_length * wake_node * vect_op.xhat_dm()
+
             for tip in wingtips:
 
                 var_name = vortex_tools.get_wake_node_position_name(kite_shed, tip, wake_node)
