@@ -203,13 +203,21 @@ def get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval):
 
     n_hat = []
     for dim in range(3):
-        n_hat = cas.vertcat(n_hat,
-                                 plot_dict['interpolation_si']['outputs']['rotation']['ehat_normal' + str(top_parent)][dim][idx_at_eval])
+        n_hat = cas.vertcat(n_hat, plot_dict['interpolation_si']['outputs']['rotation']['ehat_normal' + str(top_parent)][dim][idx_at_eval])
     # roughly: nhat -> xhat
 
     b_hat_temp = vect_op.zhat_dm()
     a_hat = vect_op.normed_cross(b_hat_temp, n_hat) # zhat x xhat = yhat
     b_hat = vect_op.normed_cross(n_hat, a_hat) # xhat x yhat = zhat
+
+    print('')
+    print('')
+    print('induction contour coordinate axes')
+    print(n_hat)
+    print(a_hat)
+    print(b_hat)
+    print('')
+    print('')
 
     # therefore, mental-approximates read as:
     # n_hat = vect_op.xhat_dm()
@@ -1112,7 +1120,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
 
             ### draw the swept annulus
             print_op.base_print('drawing swept background...')
-            draw_swept_background(ax, plot_dict)
+            draw_swept_background(ax, side, plot_dict)
 
             ### draw the contour
             haas_levels = [-0.05, 0., 0.2]
@@ -1133,10 +1141,13 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             bound_wake = wake.get_substructure('bound')
 
             print_op.base_print('drawing wake...')
-            bound_wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
+            wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
+            # bound_wake.draw(ax, side, variables_scaled=variables_scaled, parameters=parameters, cosmetics=cosmetics)
 
             ax.grid(True)
+            normal_vector_model = plot_dict['options']['model']['aero']['actuator']['normal_vector_model']
             title = 'Induction factor over the kite plane \n tau = ' + str(tau_rounded)
+            title += ' w. n_hat model ' + normal_vector_model
             if this_is_haas_test:
                 scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
                 title += '; scaled_haas_error = ' + str(scaled_haas_error)
@@ -1169,16 +1180,12 @@ def get_induction_contour_side(plot_dict, idx_at_eval):
     x_center = kite_plane_induction_params['center']
     n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
 
-    side = (x_center, a_hat, b_hat, radius)
+    side = (x_center, a_hat, b_hat, 1./radius)
     return side
 
 
-def draw_swept_background(ax, plot_dict):
-    idx_at_eval = plot_dict['options']['visualization']['cosmetics']['animation']['snapshot_index']
-    side = get_induction_contour_side(plot_dict, idx_at_eval)
-
+def draw_swept_background(ax, side, plot_dict):
     for kite in plot_dict['architecture'].kite_nodes:
         for zeta in np.arange(-0.5, 0.5, 1. / 100.):
             tools.plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, color='gray', alpha=0.2)
-
     return None
