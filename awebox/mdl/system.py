@@ -96,6 +96,8 @@ def generate_structure(options, architecture):
     if options['trajectory']['system_type'] == 'drag_mode':
         kite_states += [('kappa', (1, 1))]
         kite_controls += [('dkappa', (1, 1))]
+    
+    # TODO: rocking mode
 
     # _list states, generalized coordinates and controls of all the nodes
     # together
@@ -174,6 +176,8 @@ def generate_structure(options, architecture):
         else:
             raise ValueError('invalid tether control variable chosen')
         
+    # TODO: rocking mode
+
     if options['integral_outputs']:
         pass
     else:
@@ -193,7 +197,7 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
-    if options['trajectory']['system_type'] == 'drag_mode':
+    if options['trajectory']['system_type'] in ['drag_mode', 'rocking_mode']:
         system_parameters.extend([('l_t', (1, 1))])
 
     if (architecture.number_of_nodes - architecture.number_of_kites) > 1:

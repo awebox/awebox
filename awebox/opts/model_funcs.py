@@ -418,10 +418,10 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
 
 def get_windings(user_options):
-    if user_options['trajectory']['system_type'] == 'drag_mode':
-        windings = 1
-    else:
+    if user_options['trajectory']['system_type'] == 'lift_mode':
         windings = user_options['trajectory']['lift_mode']['windings']
+    else:
+        windings = 1
     return windings
 
 ###### integral_outputs
@@ -877,14 +877,13 @@ def build_tether_stress_options(options, options_tree, fixed_params, architectur
 def build_tether_control_options(options, options_tree, fixed_params):
 
     user_options = options['user_options']
-    in_drag_mode_operation = user_options['trajectory']['system_type'] == 'drag_mode'
 
     ddl_t_bounds = options['model']['system_bounds']['x']['ddl_t']
     dddl_t_bounds = options['model']['system_bounds']['u']['dddl_t']
 
     control_name = options['model']['tether']['control_var']
 
-    if in_drag_mode_operation:
+    if user_options['trajectory']['system_type'] in ['drag_mode', 'rocking_mode']:
         options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:

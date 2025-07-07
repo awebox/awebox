@@ -60,6 +60,7 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
                                                               architecture)
 
+    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(variables_si, outputs, architecture)
 
@@ -68,6 +69,7 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
             node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
+            # TODO: rocking mode
             if options['trajectory']['system_type'] == 'drag_mode':
                 if force in list(generator_forces.keys()):
                     node_forces[force] += generator_forces[force]

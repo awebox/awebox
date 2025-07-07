@@ -109,6 +109,8 @@ def get_scaled_variable_bounds(nlp_options, V, model):
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
+
+    # TODO: rocking mode
     if nlp_options['system_type'] == 'drag_mode':
         # drag-mode phase fixing: fix y-speed of first system node
         if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (var_type == 'x'):

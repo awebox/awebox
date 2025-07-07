@@ -220,6 +220,7 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
             beta_si += outputs['aerodynamics']['beta{}'.format(kite)]**2
         beta_si = beta_si / len(architecture.kite_nodes)
         derivative_dict['beta_cost'] =  (beta_si, beta_scaling)
+    # TODO: rocking mode
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.
         power_derivative_sq = outputs['performance']['power_derivative']**2
@@ -325,6 +326,7 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
+    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
@@ -351,6 +353,7 @@ def power_balance_outputs(options, outputs, system_variables, parameters, archit
     # all aerodynamic forces have already been added to power balance, by this point.
     # outputs['power_balance'] is not empty!
 
+    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
 
@@ -420,6 +423,7 @@ def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
+    # TODO: rocking mode, arm rotation = kinetic energy
     # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         for source in outputs['e_kinetic'].keys():
