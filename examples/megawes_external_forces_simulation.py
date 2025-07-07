@@ -24,7 +24,7 @@ import csv
 import sys
 import os
 import matplotlib
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 # ----------------- import results from AWEbox ----------------- #

@@ -15,7 +15,7 @@ Aerodynamic model and constraints from BORNE project (Ghent University, UCLouvai
 import awebox as awe
 from megawes_settings import set_megawes_path_generation_settings
 import matplotlib
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 # ----------------- user-specific options ----------------- #

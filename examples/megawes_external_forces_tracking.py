@@ -25,7 +25,7 @@ import os
 import pickle
 import copy
 import matplotlib
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
