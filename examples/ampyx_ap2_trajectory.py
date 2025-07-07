@@ -24,7 +24,6 @@ def run(plot_show_block=True, overwrite_options={}):
     options = {}
     options['user_options.system_model.architecture'] = {1: 0}
     options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
-    # options['model.system_bounds.theta.t_f'] = [5., 30.]  # [s]
 
     # indicate desired operation mode
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -62,7 +61,7 @@ def run(plot_show_block=True, overwrite_options={}):
     trial.optimize()
 
     # write the solution to CSV file, interpolating the collocation solution with given frequency.
-    # trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
+    trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
 
     # draw some of the pre-coded plots for analysis
     trial.plot(['states', 'controls', 'constraints', 'quad'])

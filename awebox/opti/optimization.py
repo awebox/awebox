@@ -748,7 +748,8 @@ class Optimization(object):
 
     @V_opt.setter
     def V_opt(self, value):
-        awelogger.logger.warning('Cannot set V_opt object.')
+        awelogger.logger.warning('SHOULD NOT set V_opt object.')
+        self.__V_opt = value
 
     @property
     def V_ref(self):
@@ -764,7 +765,8 @@ class Optimization(object):
 
     @V_final_si.setter
     def V_final_si(self, value):
-        awelogger.logger.warning('Cannot set V_final_si object.')
+        awelogger.logger.warning('Should not set V_final_si object.')
+        self.__V_final_si = value
 
     @property
     def V_init(self):

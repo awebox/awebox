@@ -24,7 +24,8 @@
 #
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 import casadi.tools as cas
@@ -715,7 +716,7 @@ def calibrate_visualization(model, nlp, name, options):
     return plot_dict
 
 
-def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None) -> dict:
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -726,6 +727,9 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
     cosmetics = options['visualization']['cosmetics']
     if n_points is not None:
         cosmetics['interpolation']['n_points'] = int(n_points)
+
+    # extend the cosmetics dict with the SAM options
+    cosmetics['SAM'] = options['nlp']['SAM']
 
     plot_dict['cost'] = cost
 
@@ -902,7 +906,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
                                                    P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
                                                    integral_output_names, integral_outputs_ref,
-                                                   Collocation=Collocation, interpolate_time_grid = False)
+                                                   Collocation=Collocation, interpolate_time_grid = False, timegrid_label='ip')
 
     return plot_dict
 

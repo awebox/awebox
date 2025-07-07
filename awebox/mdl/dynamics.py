@@ -305,7 +305,7 @@ def make_output_structure(outputs, system_variables, parameters):
         full_list += [cas.entry(output_type, struct=outputs_dict[output_type])]
 
     # generate "empty" structure
-    out_struct = cas.struct_symMX(full_list)
+    out_struct = cas.struct_symSX(full_list)
     # generate structure with SX expressions
     outputs_struct = out_struct(outputs_vec)
     # generate outputs function

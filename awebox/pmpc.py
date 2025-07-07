@@ -28,7 +28,8 @@ Periodic MPC routines for awebox models
 :author: Jochem De Schutter (ALU Freiburg 2019)
 """
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 import awebox as awe
@@ -95,15 +96,8 @@ class Pmpc(object):
         if self.__cost_type == 'tracking':
             self.__create_reference_interpolator()
 
-        # periodic indexing
-        self.__index = 0
+        self.initialize(startTime=0) # just initialize once
 
-        # initialize
-        self.__initialize_solver()
-
-        awelogger.logger.info("Periodic MPC controller built.")
-
-        return None
 
     def __build_trial(self):
         """ Build options, model, formulation and nlp of mpc trial.
@@ -216,7 +210,7 @@ class Pmpc(object):
 
         if self.__mpc_options['homotopy_warmstart']:
 
-            homotopy_opts = opts
+            homotopy_opts = copy.deepcopy(opts)
             homotopy_opts['ipopt.mu_target'] = 1e-3
             homotopy_opts['ipopt.tol'] = 1e-4
             homotopy_opts['ipopt.max_iter'] = 200
@@ -231,13 +225,16 @@ class Pmpc(object):
         """ Compute periodic MPC feedback control for given initial condition.
         """
 
+        if not self._isInitialized:
+            raise Exception("MPC controller not initialized. Call initialize(startTime) first.")
+
         # update nlp parameters
         self.__p0 = self.__p(0.0)
         self.__p0['x0'] = x0
 
         # update reference
         if self.__cost_type == 'tracking':
-            ref = self.get_reference(*self.__compute_time_grids(self.__index))
+            ref = self.get_reference(*self.__compute_time_grids(self._time))
             self.__p0['ref'] = ref
 
         # update model wind speed
@@ -289,7 +286,8 @@ class Pmpc(object):
         if not self.__mpc_options['homotopy_warmstart']:
             self.__w0 = self.__trial.nlp.V(sol['x'])
 
-        self.__index += 1
+        # increment time
+        self._time += self.__ts
 
         if plot_flag == True:
             self.__p_fix_num = self.__P_fun(self.__p0)
@@ -444,25 +442,29 @@ class Pmpc(object):
         tgrids = {'x': self.__t_grid_x_coll, 'u': self.__t_grid_u}
         tgrids_opt = self.__pocp_trial.nlp.time_grids
         T_opt = V_pocp_si['theta', 't_f']
-        self.__interpolator = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
+
+        self._interpolator_scaled = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_opt, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
+        self._interpolator_si = self.__pocp_trial.nlp.Collocation.build_interpolator(nlp_options, V_pocp_si, symbolic_interpolator = True, time_grids = tgrids, time_grids_opt = tgrids_opt, T_opt = T_opt, ip_type = self.__mpc_options['ip_type'])
+        self._Tref = self.__ref_dict['time_grids']['ip'][-1]
+        ''' Period of the reference trajectory in seconds'''
 
         return None
 
-    def __compute_time_grids(self, index):
+    def __compute_time_grids(self, time):
         """ Compute NLP time grids based in periodic index
         """
 
-        Tref = self.__ref_dict['time_grids']['ip'][-1]
-        t_grid = self.__t_grid_coll + index*self.__ts
-        t_grid = ct.vertcat(*list(map(lambda x: x % Tref, t_grid))).full().squeeze()
+        t_grid_coll = self.__t_grid_coll + time
+        t_grid_coll = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_coll))).full().squeeze()
+        # TODO: this is the ugliest implementation of a modulo operation I have ever seen.
 
-        t_grid_x = self.__t_grid_x_coll + index*self.__ts
-        t_grid_x = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_x))).full().squeeze()
+        t_grid_x_coll = self.__t_grid_x_coll + time
+        t_grid_x_coll = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_x_coll))).full().squeeze()
 
-        t_grid_u = self.__t_grid_u + index*self.__ts
-        t_grid_u = ct.vertcat(*list(map(lambda x: x % Tref, t_grid_u))).full().squeeze()
+        t_grid_u = self.__t_grid_u + time
+        t_grid_u = ct.vertcat(*list(map(lambda x: x % self._Tref, t_grid_u))).full().squeeze()
 
-        return t_grid, t_grid_x, t_grid_u
+        return t_grid_coll, t_grid_x_coll, t_grid_u
 
     def get_reference(self, t_grid, t_grid_x, t_grid_u):
         """ Interpolate reference on NLP time grids.
@@ -471,11 +473,11 @@ class Pmpc(object):
         V_ref = self.__trial.nlp.V(0.0)
         for var_type in self.__var_list:
             if var_type == 'x':
-                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_x, var_type)
             elif var_type == 'u':
-                ip_dict[var_type] = self.__interpolator(t_grid_u, var_type)
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_u, var_type)
             elif var_type == 'z':
-                ip_dict[var_type] = self.__interpolator(t_grid_x, var_type)
+                ip_dict[var_type] = self.interpolator_scaled(t_grid_x, var_type)
 
         counter = 0
         counter_x = 0
@@ -515,12 +517,15 @@ class Pmpc(object):
 
         return V_ref
 
-    def __initialize_solver(self):
+    def initialize(self, startTime):
         """ Initialize solver with reference solution.
         """
 
+        # periodic indexing
+        self._time = startTime
+
         # initial guess
-        self.__w0 = self.get_reference(*self.__compute_time_grids(0.0))
+        self.__w0 = self.get_reference(*self.__compute_time_grids(startTime))
 
         for name in self.__trial.model.variables_dict['theta'].keys():
             if name != 't_f':
@@ -539,7 +544,8 @@ class Pmpc(object):
             'u0': []
         }
 
-        return None
+        self._isInitialized = True
+        awelogger.logger.info(f"... MPC controller initialized with start time {float(startTime) :0.3f} s.")
 
     def __shift_solution(self):
         """ Shift NLP solution one stage to the left.
@@ -760,13 +766,19 @@ class Pmpc(object):
         awelogger.logger.info('Cannot set t_grid_x_coll object.')
 
     @property
-    def interpolator(self):
-        """ interpolator
+    def interpolator_scaled(self):
+        """ interpolator instance that interpolates the SCALED reference trajectory
         """
-        return self.__interpolator
+        return self._interpolator_scaled
 
-    @interpolator.setter
-    def interpolator(self, value):
+    @property
+    def interpolator_si(self):
+        """ interpolator instance that interpolates the SI reference trajectory
+        """
+        return self._interpolator_si
+
+    @interpolator_scaled.setter
+    def interpolator_scaled(self, value):
         awelogger.logger.info('Cannot set interpolator object.')
 
     @property

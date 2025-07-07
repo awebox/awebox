@@ -44,7 +44,7 @@ from awebox.logger.logger import Logger as awelogger
 
 
 class Simulation:
-    def __init__(self, trial, sim_type, ts, options_seed):
+    def __init__(self, trial, sim_type, ts, options_seed, additional_mpc_options = {}):
         """ Constructor.
         """
 
@@ -57,7 +57,8 @@ class Simulation:
         options = awebox.opts.options.Options()
         options.fill_in_seed(options_seed)
         self.__sim_options = options['sim']
-        self.__mpc_options = options['mpc']
+        self.__mpc_options: dict = options['mpc']
+        self.__mpc_options.update(additional_mpc_options)
         self.__build()
 
         return None
@@ -113,17 +114,18 @@ class Simulation:
 
         return None
 
-    def run(self, n_sim, x0 = None, u_sim = None):
+    def run(self, n_sim, x0 = None, u_sim = None, startTime:float = 0):
         """ Run simulation
         """
 
+        assert n_sim > 0, 'Number of simulation steps must be greater than 0.'
         awelogger.logger.info('Start {} simulation...'.format(self.__sim_type))
 
         # TODO: check consistency of initial conditions and give warning
 
-        x0 = self.__initialize_sim(n_sim, x0, u_sim)
+        x0 = self.__initialize_sim(n_sim, x0, u_sim, startTime)
 
-        with ChargingBar('Simulating...', max = n_sim, fill='#') as bar:
+        with ChargingBar('Simulating...', max = n_sim, fill='#', suffix = '%(percent).1f%% - ETA: %(eta)ds') as bar:
             for i in range(n_sim):
 
                 # get (open/closed-loop) controls
@@ -151,28 +153,40 @@ class Simulation:
 
         return None
 
-    def __initialize_sim(self, n_sim, x0, u_sim):
+    def __initialize_sim(self, n_sim, x0, u_sim, startTime:float):
         """ Initialize simulation.
         """
 
-        # take first state of optimization trial
+        # update the start time so that it matches the time of the nearest shooting node of the reference trajectory
+        t_grid_x_node = self.trial.visualization.plot_dict['time_grids']['x'].full().squeeze()
+        startTime = startTime % t_grid_x_node[-1]  # make sure startTime is within the reference trajectory
+        startIndex_node = np.argmin(np.abs(t_grid_x_node - startTime)) # find the nearest element
+        startTime = t_grid_x_node[startIndex_node] # update the start time
+
+        # get the start state if needed
         if x0 is None:
-            x0 = self.__trial.optimization.V_opt['x',0]
+            x0 = self.trial.optimization.V_opt['x',startIndex_node]
 
         # set-up open loop controls
         if self.__sim_type == 'open_loop':
-            values_ip_u = []
-            interpolator = self.__trial.nlp.Collocastion.build_interpolator(
-                self.__trial.options['nlp'],
-                self.__trial.optimization.V_opt)
-            T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
-            t_grid = np.linspace(0, n_sim*self.__ts, n_sim)
-            self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
-            for name in list(self.__trial.model.variables_dict['u'].keys()):
-                for j in range(self.__trial.variables_dict['u'][name].shape[0]):
-                    values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
+            if u_sim is None: # get the controls from the trial
+                values_ip_u = []
+                interpolator = self.__trial.nlp.Collocastion.build_interpolator(
+                    self.__trial.options['nlp'],
+                    self.__trial.optimization.V_opt)
+                T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+                t_grid = np.linspace(startTime, startTime+ n_sim * self.__ts, n_sim, endpoint=False)
+                self.__t_grid = ct.vertcat(*list(map(lambda x: x % T_ref, t_grid))).full().squeeze()
+                for name in list(self.__trial.model.variables_dict['u'].keys()):
+                    for j in range(self.__trial.variables_dict['u'][name].shape[0]):
+                        values_ip_u.append(list(interpolator(t_grid, name, j,'u').full()))
+                self.__u_sim = ct.horzcat(*values_ip_u)
+            else: # use the provided controls
+                self.__u_sim = u_sim
 
-            self.__u_sim = ct.horzcat(*values_ip_u)
+        else: # MPC closed loop sim
+            self.mpc.initialize(startTime)
+
 
         # initialize algebraic variables for integrator
         self.__z0 = 0.1
@@ -188,11 +202,8 @@ class Simulation:
 
         # time grids
         self.__visualization.plot_dict['time_grids'] = {}
-        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(0,n_sim*self.__ts, n_sim)
-        self.__visualization.plot_dict['time_grids']['u']  = np.linspace(0,n_sim*self.__ts, n_sim)
-
-        # create reference
-        T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
+        self.__visualization.plot_dict['time_grids']['ip'] = np.linspace(startTime, startTime + n_sim * self.__ts, n_sim, endpoint=False)
+        self.__visualization.plot_dict['time_grids']['u']  = np.linspace(startTime, startTime + n_sim * self.__ts, n_sim, endpoint=False)
 
         # there was some sort of strange recursion error going on, when the deepcopy was applied all at once.
         original_plot_dict = self.__trial.visualization.plot_dict
@@ -200,8 +211,10 @@ class Simulation:
         for name, val in original_plot_dict.items():
             trial_plot_dict[name] = copy.deepcopy(val)
 
+        # create reference
+        T_ref = self.__trial.visualization.plot_dict['time_grids']['ip'][-1]
         tgrid_ip = copy.deepcopy(self.__visualization.plot_dict['time_grids']['ip'])
-        trial_plot_dict['time_grids']['ip'] = ct.vertcat(list(map(lambda x: x % T_ref, tgrid_ip))).full().squeeze()
+        trial_plot_dict['time_grids']['ip'] = np.mod(tgrid_ip, T_ref)
         trial_plot_dict = viz_tools.interpolate_ref_data(trial_plot_dict, self.__trial.options['visualization']['cosmetics'])
         self.__visualization.plot_dict['ref_si'] = trial_plot_dict['ref_si']
         self.__visualization.plot_dict['time_grids']['ref'] = {'ip': tgrid_ip}
