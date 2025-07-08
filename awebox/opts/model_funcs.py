@@ -926,7 +926,7 @@ def build_arm_control_options(options, options_tree, fixed_params):
         
         options_tree.append(('model', 'scaling', 'u', 'arm_control_torque', torque, ('???', None), 'x'))
 
-        if user_options['trajectory']['rocking_mode']['use_arm_control']:
+        if user_options['trajectory']['rocking_mode']['enable_arm_control']:
             # Bounds given by options
             arm_control_torque_bounds = options['model']['system_bounds']['u']['arm_control_torque']
 

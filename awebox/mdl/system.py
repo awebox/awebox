@@ -169,11 +169,17 @@ def generate_structure(options, architecture):
         else:
             raise ValueError('invalid tether control variable chosen')
         
-    # Add arm if applicable
+    # TODO: rocking mode
+    # # Add arm if applicable
+    # if options['trajectory']['system_type'] == 'rocking_mode':
+    #     system_states.extend([('arm_angle', (1, 1))])  # arm angle w.r.t. x-axis
+    #     system_states.extend([('darm_angle', (1, 1))])
+    #     system_controls.extend([('arm_control_torque', (1, 1))])  # torque applied to the arm to extract energy
+
+    system_states.extend([('A', (3, 1))])  # main tether attachment, can be either origin or arm tip
     if options['trajectory']['system_type'] == 'rocking_mode':
-        system_states.extend([('arm_angle', (1, 1))])  # arm angle w.r.t. x-axis
-        system_states.extend([('darm_angle', (1, 1))])
-        system_controls.extend([('arm_control_torque', (1, 1))])  # torque applied to the arm to extract energy
+        system_states.extend([('dA', (3, 1))])
+        system_controls.extend([('arm_control_torque', (1, 1))])
 
     if options['integral_outputs']:
         pass
