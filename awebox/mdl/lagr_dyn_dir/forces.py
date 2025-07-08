@@ -194,3 +194,6 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
 
     return outputs
 
+# TODO: rocking mode
+def generate_rocking_arm_forces_and_moments(options, variables_si, outputs, architecture):
+    pass

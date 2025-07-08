@@ -70,6 +70,9 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_tether_stress_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_tether_control_options(options, options_tree, fixed_params)
 
+    # arm
+    options_tree, fixed_params = build_arm_control_options(options, options_tree, fixed_params)
+
     # environment
     options_tree, fixed_params = build_wind_options(options, options_tree, fixed_params)
     options_tree, fixed_params = build_atmosphere_options(options, options_tree, fixed_params)
@@ -264,6 +267,8 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
     options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
+
+    options_tree.append(('model', 'scaling', 'u', 'arm_angle', cas.DM(1.0), ('???', None), 'x'))
 
     initialization_theta = options['solver']['initialization']['theta']
     for param in initialization_theta.keys():
@@ -899,6 +904,46 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
         else:
             raise ValueError('invalid tether control variable chosen')
+
+    return options_tree, fixed_params
+
+######## arm control
+
+def build_arm_options(options, options_tree, fixed_params):
+    pass
+    return options_tree, fixed_params
+
+# TODO: rocking mode options (see build_tether_control_options above)
+def build_arm_control_options(options, options_tree, fixed_params):
+    user_options = options['user_options']
+
+    if user_options['trajectory']['system_type'] == 'rocking_mode':
+        tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
+        length = options['solver']['initialization']['l_t']
+        tension = tension_per_unit_length * length
+        arm_length = user_options['trajectory']['rocking_mode']['arm_length']
+        torque = 0.7 * tension * arm_length  # Assumes a 45° angle in the horizontal plane, with sin(45°) = 0.7
+        
+        options_tree.append(('model', 'scaling', 'u', 'arm_control_torque', torque, ('???', None), 'x'))
+
+        if user_options['trajectory']['rocking_mode']['use_arm_control']:
+            # Bounds given by options
+            arm_control_torque_bounds = options['model']['system_bounds']['u']['arm_control_torque']
+
+            # Bounds given by tip arm acceleration + acceleration constraint
+            # TODO: rocking mode: remove because this should be a constraint on the tether end. It is there just in case.
+            acc_max = options['model']['model_bounds']['acceleration']['acc_max']
+            g = options['model']['scaling']['other']['g']
+            arm_inertia = options['model']['arm']['inertia']
+            acc_max_bound = arm_inertia * acc_max * g / arm_length
+
+            arm_control_torque_bounds = [min(arm_control_torque_bounds[0], -acc_max_bound), max(arm_control_torque_bounds[1], acc_max_bound)]
+        else:
+            arm_control_torque_bounds = [-0., 0.]
+
+        # TODO: rocking mode: other bound = arm_inertia * acc_max * g / arm_length
+
+        options_tree.append(('model', 'system_bounds', 'u', 'arm_control_torque', arm_control_torque_bounds, ('Torque applied to the arm [Nm]', None), 'x'))
 
     return options_tree, fixed_params
 

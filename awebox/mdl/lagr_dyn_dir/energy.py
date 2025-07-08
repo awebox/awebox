@@ -83,6 +83,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     q_node = variables_si['x']['q' + label]
     dq_node = variables_si['x']['dq' + label]
+    # TODO: rocking mode: q_parent = either arm or origin
     if node == 1:
         q_parent = cas.DM.zeros((3, 1))
         segment_vector = q_node - q_parent
@@ -91,6 +92,8 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
         dq_parent = reelout_speed * ehat_tether
     else:
         dq_parent = variables_si['x']['dq' + parent_label]
+
+    # TODO: rocking mode: add e_kinetic_arm_rot
 
     e_kin_trans = 0.5 * mass_segment / 3 * (
                 cas.mtimes(dq_node.T, dq_node) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_node.T, dq_parent))
@@ -123,6 +126,7 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     gravity = parameters['theta0', 'atmosphere', 'g']
 
     q_node = variables_si['x']['q' + label]
+    # TODO: rocking mode: q_parent = either arm (possibly at z > 0?) or origin
     if node == 1:
         q_parent = cas.DM.zeros((3, 1))
     else:

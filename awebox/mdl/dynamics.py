@@ -959,6 +959,7 @@ def get_roll_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]

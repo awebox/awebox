@@ -114,6 +114,12 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
 
                 # add to holonomic constraints
                 work_holonomic += z_si['lambda{}'.format(n01)] * g_local
+    
+    # add arm if relevant
+    if options['rocking_mode']:  # TODO: rocking mode: how do I know from (model_)options if I'm in rocking mode?
+        # TODO: rocking mode: What goes there???
+        pass
+
 
     g_cat = cas.vertcat(*g)
     gdot_cat = cas.vertcat(*gdot)
