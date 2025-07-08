@@ -68,9 +68,7 @@ class Wind:
             exp_ref = options['power_wind']['exp_ref']
 
             if not self.__type_incompatibility_warning_already_given and not self.__suppress_type_incompatibility_warning:
-                message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
-                          'directly from options. this may interfere with expected operation, especially in sweeps.'
-                awelogger.logger.warning(message)
+                warn_about_importing_from_options()
                 self.__type_incompatibility_warning_already_given = True
 
         if model in ['log_wind', 'power', 'uniform']:
@@ -95,9 +93,7 @@ class Wind:
         else:
             u_ref = self.__options['u_ref']
             if not self.__type_incompatibility_warning_already_given:
-                message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
-                          'directly from options. this may interfere with expected operation, especially in sweeps.'
-                awelogger.logger.warning(message)
+                warn_about_importing_from_options()
                 self.__type_incompatibility_warning_already_given = True
 
 
@@ -180,6 +176,13 @@ class Wind:
     @options.setter
     def options(self, value):
         awelogger.logger.warning('Cannot set options object.')
+
+def warn_about_importing_from_options():
+    message = 'to prevent casadi type incompatibility, wind parameters are imported ' \
+              'directly from options. this may interfere with expected operation, especially in sweeps.'
+    awelogger.logger.warning(message)
+    return None
+
 
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 

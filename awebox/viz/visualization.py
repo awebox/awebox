@@ -167,7 +167,6 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
-        plot_logic_dict['induction_contour'] = (wake.plot_induction_contour_on_kmp, None)
         plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
         plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
@@ -181,6 +180,13 @@ class Visualization(object):
         plot_logic_dict['actuator_xz'] = (wake.plot_actuator, {'side':'xz'})
         plot_logic_dict['velocity_distribution'] = (wake.plot_velocity_distribution, None)
         plot_logic_dict['velocity_distribution_comparison'] = (wake.plot_velocity_distribution_comparison_only, None)
+        plot_logic_dict['velocity_deficits'] = (wake.plot_velocity_deficits, None)
+        plot_logic_dict['induction_contour_wind_wind'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'wind', 'direction_induction': 'wind'})
+        plot_logic_dict['induction_contour_normal_wind'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'normal', 'direction_induction': 'wind'})
+        plot_logic_dict['induction_contour_normal_normal'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'normal', 'direction_induction': 'normal'})
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})

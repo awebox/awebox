@@ -196,28 +196,21 @@ def get_index_to_dimensions_dict():
     return index_to_dimensions
 
 
-def get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval):
+def get_coordinate_axes(plot_dict, idx_at_eval, direction='normal'):
+
+    # direction should be 'normal' or 'wind'
 
     architecture = plot_dict['architecture']
     top_parent = architecture.parent_map[architecture.number_of_nodes - 1]
 
     n_hat = []
     for dim in range(3):
-        n_hat = cas.vertcat(n_hat, plot_dict['interpolation_si']['outputs']['rotation']['ehat_normal' + str(top_parent)][dim][idx_at_eval])
+        n_hat = cas.vertcat(n_hat, plot_dict['interpolation_si']['outputs']['rotation']['ehat_' + direction + str(top_parent)][dim][idx_at_eval])
     # roughly: nhat -> xhat
 
     b_hat_temp = vect_op.zhat_dm()
     a_hat = vect_op.normed_cross(b_hat_temp, n_hat) # zhat x xhat = yhat
     b_hat = vect_op.normed_cross(n_hat, a_hat) # xhat x yhat = zhat
-
-    print('')
-    print('')
-    print('induction contour coordinate axes')
-    print(n_hat)
-    print(a_hat)
-    print(b_hat)
-    print('')
-    print('')
 
     # therefore, mental-approximates read as:
     # n_hat = vect_op.xhat_dm()
@@ -859,20 +852,186 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
 
     return fun_dict
 
+
+def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
+
+    x_over_d_vals = [0., 2.0, 4.0, 6.0]
+
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+    diam = 280 #todo
+    d_over_b = diam / b_ref
+
+    plot_table_r = 3
+    plot_table_c = len(x_over_d_vals)
+
+    fig = plt.figure(num=fig_num)
+    axes = fig.axes
+    if len(axes) == 0:  # if figure does not exist yet
+        fig, axes = plt.subplots(num=fig_num, nrows=plot_table_r, ncols=plot_table_c)
+
+    slice_axes_dict = {0: vect_op.zhat_dm(), 1: vect_op.yhat_dm(), 2: vect_op.yhat_dm()}
+    z_offset_dict = {0: 0., 1: -diam/2., 2: diam/2.}
+    y_labels_dict = {0: 'z [m]', 1: 'y [m] (z below)', 2: 'y [m] (z above)'}
+
+    total_subplots = len(list(slice_axes_dict.keys())) * len(x_over_d_vals)
+    pdx = 0
+    print_op.base_print('plotting temporal average velocity deficits...', level='info')
+
+    for idx in range(len(x_over_d_vals)):
+        x_over_d_local = x_over_d_vals[idx]
+        x_over_b = x_over_d_local * d_over_b
+
+        for rdx in [0, 1, 2]:
+
+            add_label_legends = (idx == len(x_over_d_vals) - 1)
+            suppress_wind_options_import_warning = (pdx > 0)
+
+            ax = axes[rdx, idx]
+            make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_over_b=x_over_b,
+                                                                   slice_axes=slice_axes_dict[rdx], z_offset=z_offset_dict[rdx],
+                                                                   add_legend_labels=add_label_legends,
+                                                                   suppress_wind_options_import_warning=suppress_wind_options_import_warning)
+            if rdx == 0:
+                ax.set_title('x/d = ' + str(x_over_d_local))
+            # todo.
+
+            if idx == 0:
+                ax.set_ylabel(y_labels_dict[rdx])
+
+            if idx > 0:
+                ax.sharex(axes[rdx, 0])
+                ax.sharey(axes[rdx, 0])
+
+            if add_label_legends:
+                ax.legend(loc='center right', bbox_to_anchor=(1.25, 0.5))
+
+            print_op.print_progress(pdx, total_subplots)
+            pdx += 1
+            fig.canvas.draw()
+
+    print_op.close_progress()
+
+    return None
+
+def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_over_b=0., slice_axes=vect_op.zhat_dm(), z_offset=0., add_legend_labels=False, suppress_wind_options_import_warning=True):
+    s_sym = cas.SX.sym('s_sym')
+
+    wind_model = plot_dict['options']['model']['wind']['model']
+    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
+    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
+    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
+    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
+    ehat_wind = vect_op.xhat_dm()
+
+    if not suppress_wind_options_import_warning:
+        wind.warn_about_importing_from_options()
+
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, 0)
+    x_center = kite_plane_induction_params['center']
+    radius = kite_plane_induction_params['average_radius']
+    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+
+    z_min = 0 #plot_dict['options']['model.system_bounds.x.q'][0][2]
+    z_max = 800 #x_center[2] + kite_plane_induction_params['mu_end_by_path'] * radius
+    y_offset = 400.
+    y_max = x_center[1] + y_offset #kite_plane_induction_params['mu_end_by_path'] * radius
+    y_min = -1. * y_max
+
+    if slice_axes[1] == 1.:
+        u_normalizing = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_center[2] + z_offset)
+    elif slice_axes[2] == 1:
+        u_normalizing = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, z_max)
+    else:
+        message = 'awebox is not yet set up to make velocity deficit plots across axis ' + repr(slice_axes)
+        message += '. skipping this plotting request.'
+        print_op.base_print(message, level='warning')
+        return None
+
+    u_infty_nn_list = []
+    u_wind_nn_list = []
+
+    n_interpolation = plot_dict['interpolation_si']['x']['q10'][0].shape[0]
+    for idx_at_eval in range(n_interpolation):
+
+        kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+
+        u_ind_fun = get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval)
+        x_obs = x_center + x_over_b * b_ref * ehat_wind + s_sym * slice_axes + z_offset * vect_op.zhat_dm()
+        u_ind = u_ind_fun(x_obs)
+
+        u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs[2]) * ehat_wind
+        u_wind = u_infty + u_ind
+
+        n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction='wind')
+
+        u_infty_normal_normalized = cas.mtimes(u_infty.T, n_hat) / u_normalizing
+        u_wind_normal_normalized = cas.mtimes(u_wind.T, n_hat) / u_normalizing
+
+        u_infty_nn_list = cas.vertcat(u_infty_nn_list, u_infty_normal_normalized)
+        u_wind_nn_list = cas.vertcat(u_wind_nn_list, u_wind_normal_normalized)
+
+    temp_average_u_infty_nn = vect_op.average(u_infty_nn_list)
+    temp_average_u_wind_nn = vect_op.average(u_wind_nn_list)
+
+    u_infty_nn_fun = cas.Function('u_infty_nn_fun', [s_sym], [temp_average_u_infty_nn])
+    u_wind_nn_fun = cas.Function('u_wind_nn_fun', [s_sym], [temp_average_u_wind_nn])
+
+    n_points = 100
+    param_range = np.arange(0., 1. + 1./float(n_points), 1./float(n_points))
+    z_vals = cas.DM([z_min + (z_max - z_min) * p_val for p_val in param_range]).T
+    y_vals = cas.DM([y_min + (y_max - y_min) * p_val for p_val in param_range]).T
+
+    if slice_axes[1] == 1:
+        s_vals = y_vals
+    elif slice_axes[2] == 1:
+        s_vals = z_vals
+    else:
+        message = 'awebox is not yet set up to make velocity deficit plots across axis ' + repr(slice_axes)
+        message += '. skipping this plotting request.'
+        print_op.base_print(message, level='warning')
+        return None
+
+    entries = s_vals.shape[1]
+    parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
+    u_infty_nn_map = u_infty_nn_fun.map(entries, parallelization_type)
+    u_wind_nn_map = u_wind_nn_fun.map(entries, parallelization_type)
+
+    def prep_to_plot(cas_dm_array):
+        return list(np.array(vect_op.columnize(cas_dm_array)))
+
+    u_infty_nn_vals = prep_to_plot(u_infty_nn_map(s_vals))
+    u_wind_nn_vals = prep_to_plot(u_wind_nn_map(s_vals))
+    s_vals = prep_to_plot(s_vals)
+
+    if add_legend_labels:
+        ax.plot(u_infty_nn_vals, s_vals, linestyle='--', label='free_stream', c='k')
+        ax.plot(u_wind_nn_vals, s_vals, linestyle='-', label='modeled', c='b')
+    else:
+        ax.plot(u_infty_nn_vals, s_vals, linestyle='--', c='k')
+        ax.plot(u_wind_nn_vals, s_vals, linestyle='-', c='b')
+
+    ax.set_xlabel("u/u_limit [-]")
+
+    return None
+
+
 def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
 
-    variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
-    parameters = plot_dict['parameters_plot']
     wake = plot_dict['wake']
-
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-    u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
-    u_ind_fun = cas.Function('a_fun', [x_obs_sym], [u_ind_sym])
+    if wake is not None:
+        parameters = plot_dict['parameters_plot']
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+        u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
+        u_ind_fun = cas.Function('u_ind_fun', [x_obs_sym], [u_ind_sym])
+
+    else:
+        u_ind_fun = cas.Function('u_ind_fun', [x_obs_sym], [cas.DM.zeros((3, 1))])
 
     return u_ind_fun
 
-def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
+def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0, direction='normal'):
 
     variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
     parameters = plot_dict['parameters_plot']
@@ -880,7 +1039,7 @@ def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_e
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
     u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
-    n_hat, _, _ = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
+    n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction)
 
     u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
 
@@ -910,7 +1069,7 @@ def get_induction_factor_normalizing_speed(plot_dict, idx_at_eval):
     return u_normalizing
 
 
-def compute_the_scaled_haas_error(plot_dict, cosmetics):
+def compute_the_scaled_haas_error(plot_dict, cosmetics, direction_induction='normal'):
 
     # reference points digitized from haas 2017
     data02 = [(0, -1.13084, -0.28134), (0, -0.89466, -0.55261), (0, -0.79354, -0.41195), (0, -0.79127, 0.02826), (0, -0.04449, 1.01208), (0, 0.22119, 0.83066), (0, 0.71947, -0.96407), (0, 0.52187, -0.66125), (0, 0.45227, 1.09891), (0, 0.92121, -0.46219), (0, 0.95625, -0.62566), (0, 0.19546, 1.12782)]
@@ -925,7 +1084,7 @@ def compute_the_scaled_haas_error(plot_dict, cosmetics):
     radius = kite_plane_induction_params['average_radius']
     x_center = kite_plane_induction_params['center']
 
-    a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
+    a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval, direction=direction_induction)
 
     total_squared_error = 0.
     baseline_squared_error = 0.
@@ -947,7 +1106,7 @@ def compute_the_scaled_haas_error(plot_dict, cosmetics):
     scaled_squared_error = total_squared_error / baseline_squared_error
     return scaled_squared_error
 
-def get_kite_plane_induction_params(plot_dict, idx_at_eval):
+def get_kite_plane_induction_params(plot_dict, idx_at_eval, suppress_wind_options_import_warning=True):
 
     kite_plane_induction_params = {}
 
@@ -973,6 +1132,8 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval):
     z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
     exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
     u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
+    if not suppress_wind_options_import_warning:
+        wind.warn_about_importing_from_options()
     kite_plane_induction_params['u_infty'] = u_infty
 
     vec_u_zero = []
@@ -1043,10 +1204,13 @@ def make_fast_check_if_this_is_a_haas_test(plot_dict, radius, x_center, variable
     return this_is_haas_test
 
 
-def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
+def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal'):
 
     vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
+
+        # include this once for the error message
+        _ = get_kite_plane_induction_params(plot_dict, 0, suppress_wind_options_import_warning=False)
 
         tau_style_dict = tools.get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
         print_op.base_print('plotting the induction contours at taus in ' + repr(tau_style_dict.keys()))
@@ -1058,7 +1222,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
 
             print_op.base_print('generating_induction_factor_casadi_function...')
             idx_at_eval = int(np.floor((float(n_points_interpolation) -1.)  * tau_at_eval))
-            a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval)
+            a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval, direction=direction_induction)
 
             print_op.base_print('slicing the variables at the appropriate interpolated time...')
             variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
@@ -1073,8 +1237,8 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
 
             ### compute the induction factors
             print_op.base_print('finding coordinates...')
-            side = get_induction_contour_side(plot_dict, idx_at_eval)
-            n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
+            side = get_induction_contour_side(plot_dict, idx_at_eval, direction=direction_plotting)
+            n_hat, a_hat, b_hat = get_coordinate_axes(plot_dict, idx_at_eval, direction=direction_plotting)
 
             print_op.base_print('deciding the observation range...')
             plot_radius_scaled = kite_plane_induction_params['mu_end_by_path']
@@ -1149,7 +1313,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             title = 'Induction factor over the kite plane \n tau = ' + str(tau_rounded)
             title += ' w. n_hat model ' + normal_vector_model
             if this_is_haas_test:
-                scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics)
+                scaled_haas_error = compute_the_scaled_haas_error(plot_dict, cosmetics, direction_induction=direction_induction)
                 title += '; scaled_haas_error = ' + str(scaled_haas_error)
 
             ax.set_title(title)
@@ -1166,19 +1330,19 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None):
             plt.tight_layout()
 
             print_op.base_print('saving figure at tau = ' + str(tau_rounded) + '...')
-            fig_new.savefig('figures/' + plot_dict['name'] + '_induction_contour_on_kmp_tau' + str(tau_rounded) + '.pdf')
+            fig_new.savefig('figures/' + plot_dict['name'] + '_' + direction_induction + '_induction_contour_on_' + direction_plotting + '_kmp_tau' + str(tau_rounded) + '.pdf')
 
         print_op.base_print('done with induction contour plotting!')
 
     return None
 
 
-def get_induction_contour_side(plot_dict, idx_at_eval):
+def get_induction_contour_side(plot_dict, idx_at_eval, direction='normal'):
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     radius = kite_plane_induction_params['average_radius']
     x_center = kite_plane_induction_params['center']
-    n_hat, a_hat, b_hat = get_coordinate_axes_for_haas_verification(plot_dict, idx_at_eval)
+    n_hat, a_hat, b_hat = get_coordinate_axes(plot_dict, idx_at_eval, direction=direction)
 
     side = (x_center, a_hat, b_hat, 1./radius)
     return side

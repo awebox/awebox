@@ -195,7 +195,7 @@ def get_binormal_n_vec(parent, variables, architecture):
 
     return n_vec
 
-def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture):
+def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, wind):
 
     rot_outputs = {}
     for parent in architecture.layer_nodes:
@@ -210,6 +210,13 @@ def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture
         ehat_tangential = vect_op.normed_cross(ehat_normal, ehat_radial)
         rot_outputs['ehat_radial' + str(kite)] = ehat_radial
         rot_outputs['ehat_tangential' + str(kite)] = ehat_tangential
+
+        ehat_wind = wind.get_wind_direction()
+        rot_outputs['ehat_wind' + str(parent)] = ehat_wind
+        ehat_radial_wind = vect_op.normed_cross(dq, ehat_wind)
+        ehat_tangential_wind = vect_op.normed_cross(ehat_wind, ehat_radial_wind)
+        rot_outputs['ehat_radial_wind' + str(kite)] = ehat_radial_wind
+        rot_outputs['ehat_tangential_wind' + str(kite)] = ehat_tangential_wind
 
     outputs['rotation'] = rot_outputs
     return outputs

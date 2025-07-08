@@ -117,7 +117,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 
 def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
-    outputs = unit_normal.get_rotation_axes_outputs(options, variables_si, outputs, architecture)
+    outputs = unit_normal.get_rotation_axes_outputs(options, variables_si, outputs, architecture, wind)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']

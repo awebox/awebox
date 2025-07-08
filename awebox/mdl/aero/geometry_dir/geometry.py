@@ -97,7 +97,7 @@ def get_center_velocity(model_options, parent, variables, architecture):
     return None
 
 
-def get_local_period_of_rotation(model_options, variables_si, kite, architecture, scaling):
+def get_local_period_of_rotation(model_options, variables_si, kite, architecture, wind):
 
     # the velocity we care about, is the one associated with rotation. so:
     # vec_v = vec_omega x vec_r
@@ -114,7 +114,7 @@ def get_local_period_of_rotation(model_options, variables_si, kite, architecture
     vec_v = dq_kite - dx_center
 
     vec_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
-    rotation_outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, {}, architecture)['rotation']
+    rotation_outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, {}, architecture, wind)['rotation']
     ehat_radial = rotation_outputs['ehat_radial' + str(kite)]
     radius = vect_op.abs(cas.mtimes(ehat_radial.T, vec_to_kite))
 
@@ -164,7 +164,7 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry'] = {}
 
     for kite in architecture.kite_nodes:
-        local_period_of_rotation = get_local_period_of_rotation(model_options, variables_si, kite, architecture, scaling)
+        local_period_of_rotation = get_local_period_of_rotation(model_options, variables_si, kite, architecture, wind)
         vector_from_center_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
         ehat_radial = outputs['rotation']['ehat_radial' + str(kite)]
         abs_radial_projection_of_vector_from_center_to_kite = vect_op.abs(cas.mtimes(vector_from_center_to_kite.T, ehat_radial))
@@ -208,7 +208,7 @@ def collect_geometry_outputs(model_options, wind, variables_si, outputs, paramet
         outputs['geometry']['average_radius' + str(parent)] = average_radius
         outputs['geometry']['average_relative_radius' + str(parent)] = average_radius / b_ref
 
-    outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture)
+    outputs = unit_normal.get_rotation_axes_outputs(model_options, variables_si, outputs, architecture, wind)
 
     return outputs
 
@@ -312,8 +312,8 @@ def test_specific_geometry_type(geometry_type='averaged', epsilon=1.e-6):
 
     found_position = get_center_position(model_options, parent, variables_si, architecture)
     found_velocity = get_center_velocity(model_options, parent, variables_si, architecture)
-    found_period2 = get_local_period_of_rotation(model_options, variables_si, 2, architecture, scaling)
-    found_period3 = get_local_period_of_rotation(model_options, variables_si, 3, architecture, scaling)
+    found_period2 = get_local_period_of_rotation(model_options, variables_si, 2, architecture, wind)
+    found_period3 = get_local_period_of_rotation(model_options, variables_si, 3, architecture, wind)
     found_clockwise2 = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, 2, architecture, wind)
     found_clockwise3 = kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options, variables_si, 3, architecture, wind)
 

@@ -158,7 +158,7 @@ def test_that_rotational_axes_are_consistent_at_snapshot(t, init_options, model,
     ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, kite, ret)
     ehat_dict = {'normal': ehat_normal, 'radial': ehat_radial, 'tangential': ehat_tangential}
 
-    rotation_outputs = unit_normal.get_rotation_axes_outputs(model.options, ret, {}, model.architecture)['rotation']
+    rotation_outputs = unit_normal.get_rotation_axes_outputs(model.options, ret, {}, model.architecture, model.wind)['rotation']
 
     node_identifier = {'radial': kite, 'tangential': kite, 'normal': parent}
 

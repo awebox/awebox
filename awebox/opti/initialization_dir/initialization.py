@@ -36,6 +36,7 @@ import numpy as np
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.vector_operations as vect_op
 
 import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.landing_scenario as landing

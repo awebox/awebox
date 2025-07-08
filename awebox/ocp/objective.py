@@ -255,9 +255,6 @@ def find_int_weights(nlp_options):
     return int_weights
 
 
-
-
-
 def find_homotopy_parameter_costs(component_costs, V, P):
 
     for name in struct_op.subkeys(V, 'phi'):
@@ -267,11 +264,11 @@ def find_homotopy_parameter_costs(component_costs, V, P):
 
 
 def find_time_cost(nlp_options, V, P):
-
-    time_period = ocp_outputs.find_time_period(nlp_options, V)
-    tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
-
-    time_cost = P['cost', 't_f'] * (time_period - tf_init) * (time_period - tf_init)
+    # this should penalize deviations in all t_f values, not just the final time.
+    # otherwise, you end up with situations where (when trying to match t_f), the optimizer
+    # adjusts the side of the control intervals on each side of t_switch.
+    diff = V['theta', 't_f'] - P['p', 'ref', 'theta', 't_f']
+    time_cost = P['cost', 't_f'] * cas.mtimes(diff.T, diff)
 
     return time_cost
 

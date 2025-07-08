@@ -80,6 +80,8 @@ def geometry():
 
 def battery_model_parameters(coeff_max, coeff_min):
 
+    #todo: some of these things have nothing to do with batteries?
+
     battery_model = {}
 
     # guessed values for battery model
