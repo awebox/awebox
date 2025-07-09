@@ -71,6 +71,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_tether_control_options(options, options_tree, fixed_params)
 
     # arm
+    options_tree, fixed_params = build_arm_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_arm_control_options(options, options_tree, fixed_params)
 
     # environment
@@ -907,13 +908,25 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
     return options_tree, fixed_params
 
-######## arm control
+######## arm
 
-def build_arm_options(options, options_tree, fixed_params):
-    pass
+def build_arm_options(options, options_tree, fixed_params, architecture):
+    user_options = options['user_options']
+    # scaling and bounds of arm_angle, darm_angle
+    arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
+    darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
+
+    options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('angle of attack', None), 'x'))
+    options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('angle of attack rate', None), 'x'))
+
+    t_f_guess = estimate_time_period(options, architecture)
+
+    options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
+    options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
     return options_tree, fixed_params
 
-# TODO: rocking mode options (see build_tether_control_options above)
+######## arm control
+
 def build_arm_control_options(options, options_tree, fixed_params):
     user_options = options['user_options']
 
@@ -921,29 +934,26 @@ def build_arm_control_options(options, options_tree, fixed_params):
         tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
         length = options['solver']['initialization']['l_t']
         tension = tension_per_unit_length * length
-        arm_length = user_options['trajectory']['rocking_mode']['arm_length']
+        arm_length = options['params']['arm']['arm_length']
         torque = 0.7 * tension * arm_length  # Assumes a 45° angle in the horizontal plane, with sin(45°) = 0.7
-        
-        options_tree.append(('model', 'scaling', 'u', 'arm_control_torque', torque, ('???', None), 'x'))
 
-        if user_options['trajectory']['rocking_mode']['enable_arm_control']:
-            # Bounds given by options
-            arm_control_torque_bounds = options['model']['system_bounds']['u']['arm_control_torque']
+        options_tree.append(('model', 'scaling', 'x', 'active_torque', torque, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'u', 'dactive_torque', torque, ('???', None), 'x'))
 
-            # Bounds given by tip arm acceleration + acceleration constraint
-            # TODO: rocking mode: remove because this should be a constraint on the tether end. It is there just in case.
-            acc_max = options['model']['model_bounds']['acceleration']['acc_max']
-            g = options['model']['scaling']['other']['g']
-            arm_inertia = options['model']['arm']['inertia']
-            acc_max_bound = arm_inertia * acc_max * g / arm_length
+        arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
+        darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
 
-            arm_control_torque_bounds = [min(arm_control_torque_bounds[0], -acc_max_bound), max(arm_control_torque_bounds[1], acc_max_bound)]
+        if user_options['trajectory']['rocking_mode']['enable_arm_control'] == True:
+            active_torque_bounds = options['model']['system_bounds']['x']['active_torque']
+            dactive_torque_bounds = options['model']['system_bounds']['u']['dactive_torque']
         else:
-            arm_control_torque_bounds = [-0., 0.]
+            active_torque_bounds = [-0.0, 0.0]
+            dactive_torque_bounds = [-0.0, 0.0]
 
-        # TODO: rocking mode: other bound = arm_inertia * acc_max * g / arm_length
-
-        options_tree.append(('model', 'system_bounds', 'u', 'arm_control_torque', arm_control_torque_bounds, ('Torque applied to the arm [Nm]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('arm angle bounds [rad]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('arm angular velocity bounds [rad/s]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'active_torque', active_torque_bounds, ('arm active torque [Nm]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'u', 'dactive_torque', dactive_torque_bounds, ('variation of arm active torque [Nm/s]', None), 'x'))
 
     return options_tree, fixed_params
 

@@ -60,7 +60,6 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
     tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
                                                               architecture)
 
-    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(variables_si, outputs, architecture)
 
@@ -69,13 +68,17 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
             node_forces[force] += tether_drag_forces[force]
             if force in list(aero_forces.keys()):
                 node_forces[force] += aero_forces[force]
-            # TODO: rocking mode
             if options['trajectory']['system_type'] == 'drag_mode':
                 if force in list(generator_forces.keys()):
                     node_forces[force] += generator_forces[force]
 
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
+
+    if options['trajectory']['system_type'] == 'rocking_mode':
+        node_forces["T"] = cas.SX.zeros((1, 1))
+        tether_torque, outputs = generate_rocking_mode_forces(options, variables_si, outputs, architecture)
+        node_forces["T"] += tether_torque
 
     return node_forces, outputs
 
@@ -195,5 +198,21 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
     return outputs
 
 # TODO: rocking mode
-def generate_rocking_arm_forces_and_moments(options, variables_si, outputs, architecture):
-    pass
+def generate_rocking_arm_forces(options, variables_si, outputs, architecture):
+    arm_angle = variables_si['arm_angle']
+    arm_length = options['params']['arm']['arm_length']
+    arm_tip = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
+
+    # TODO: rocking mode, verify this label
+    tether_first_node = variables_si['x']['q10']  # label 10 ok ?
+    segment_vector = tether_first_node - arm_tip
+    ehat_tether = vect_op.normalize(segment_vector)
+    tether_tension = variables_si['z']['lambda10']
+    tether_force = tether_tension * ehat_tether
+
+    tether_torque = cas.mtimes(tether_force.T, arm_tip)
+
+    outputs['arm']['tether_torque'] = tether_torque
+
+    return tether_torque, outputs
+

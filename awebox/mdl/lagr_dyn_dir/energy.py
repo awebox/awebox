@@ -75,6 +75,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
 
+    rocking_mode = options['user_options']['trajectory']['system_type'] == 'rocking_mode'
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
 
@@ -83,17 +84,21 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     q_node = variables_si['x']['q' + label]
     dq_node = variables_si['x']['dq' + label]
-    # TODO: rocking mode: q_parent = either arm or origin
+
     if node == 1:
-        q_parent = cas.DM.zeros((3, 1))
-        segment_vector = q_node - q_parent
-        ehat_tether = vect_op.normalize(segment_vector)
-        reelout_speed = get_reelout_speed(variables_si)
-        dq_parent = reelout_speed * ehat_tether
+        if rocking_mode:
+            arm_length =  parameters['arm']['arm_length']
+            darm_length =  parameters['arm']['darm_length']
+            arm_angle = vars_si['arm_angle']
+            dq_parent = arm_length * darm_length * cas.DM([-cas.sin(arm_angle), cas.cos(arm_angle), 0.0])
+        else:
+            q_parent = cas.DM.zeros((3, 1))
+            segment_vector = q_node - q_parent
+            ehat_tether = vect_op.normalize(segment_vector)
+            reelout_speed = get_reelout_speed(variables_si)
+            dq_parent = reelout_speed * ehat_tether
     else:
         dq_parent = variables_si['x']['dq' + parent_label]
-
-    # TODO: rocking mode: add e_kinetic_arm_rot
 
     e_kin_trans = 0.5 * mass_segment / 3 * (
                 cas.mtimes(dq_node.T, dq_node) + cas.mtimes(dq_parent.T, dq_parent) + cas.mtimes(dq_node.T, dq_parent))
@@ -113,6 +118,13 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     outputs['e_kinetic']['kite_rot' + label] = e_kinetic_kite_rot
 
+    e_kinetic_arm_rot = cas.DM(0.)
+    if rocking_mode:
+        arm_inertia = parameters['theta0', 'geometry', 'arm_inertia']
+        darm_angle = variables_si['x']['darm_angle']
+        e_kinetic_arm_rot = 0.5 * arm_inertia * darm_angle^2
+    outputs['e_kinetic']['arm_rot'] = e_kinetic_arm_rot
+
     return outputs
 
 
@@ -128,6 +140,7 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     q_node = variables_si['x']['q' + label]
     # TODO: rocking mode: q_parent = either arm (possibly at z > 0?) or origin
     if node == 1:
+        # For rocking mode: even if wrong, q_parent = origin is fine because only q_mean[2] (z component) is used
         q_parent = cas.DM.zeros((3, 1))
     else:
         q_parent = variables_si['x']['q' + parent_label]

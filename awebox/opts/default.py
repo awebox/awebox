@@ -40,10 +40,7 @@ def set_default_user_options():
         ## user options
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode', 'rocking_mode']), 't'),
-        ('user_options',    'trajectory',  'rocking_mode', 'enable_arm_control', False,              ('possible options', [True, False]),'x'),
-        ('user_options',    'trajectory',  'rocking_mode', 'arm_length',         3.,                 ('length of the arm [m]', None),'s'),
-        ('user_options',    'trajectory',  'rocking_mode', 'arm_inertia',        2000.,              ('inertia of the arm [kg m^2]', None),'s'),
-        ('user_options',    'trajectory',  'rocking_mode', 'torque_slope',       3000.,              ('slope of the linear torque function [Nm / (rad/s)]', None),'s'),
+        ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('possible options', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -189,6 +186,12 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
+        ## arm model
+        ('params',    'arm', None,          'arm_length',           3.,         ('length of the arm [m]', None),'s'),
+        ('params',    'arm', None,          'arm_inertia',          2000.,      ('inertia of the arm [kg m^2]', None),'s'),
+        ('params',    'arm', None,          'torque_slope',         3000.,      ('slope of the linear torque function [Nm / (rad/s)]', None),'s'),
+
+
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-4, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
@@ -207,12 +210,10 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                                 ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
 
-        # ('model',  'system_bounds', 'x',           'arm_angle',   [-3 * np.pi / 4, 3 * np.pi / 4],                                                  ('arm angle bounds [rad]', None), 'x'),
-        # ('model',  'system_bounds', 'x',           'darm_angle',  [-4 * np.pi, 4 * np.pi],                                                          ('arm velocity bounds [rad/s]', None), 'x'),
-        # ('model',  'system_bounds', 'x',           'ddarm_angle', [-20 * np.pi, 20 * np.pi],                                                        ('arm acceleration bounds [rad/s^2]', None), 'x'),
-        ('model',  'system_bounds', 'x',           'A',            [np.array([-cas.inf, -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])],('arm position bounds [m]', None), 'x'),
-        ('model',  'system_bounds', 'u',           'arm_control_torque',[-cas.inf, cas.inf],                                                        ('arm control torque [Nm]', None), 'x'),
-
+        ('model',  'system_bounds', 'x',           'alpha',         [-3 * np.pi / 4, 3 * np.pi / 4],            ('arm angle bounds [rad]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'dalpha',        [-4 * np.pi, 4 * np.pi],                    ('arm angular velocity bounds [rad/s]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'active_torque',[-cas.inf, cas.inf],                         ('arm active torque [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
+        ('model',  'system_bounds', 'u',           'dactive_torque',[-cas.inf, cas.inf],                        ('variation of arm active torque [Nm/s]', None), 'x'),  # TODO: rocking mode: add a constraint dynamically: one second to go from 0 to max_torque
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),

@@ -118,7 +118,10 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
     # add arm if relevant
     if options['rocking_mode']:  # TODO: rocking mode: how do I know from (model_)options if I'm in rocking mode?
         # TODO: rocking mode: What goes there???
-        pass
+        
+        "connect the first tether to the arm"
+    else:
+        "connect the first tether to the origin"
 
 
     g_cat = cas.vertcat(*g)
@@ -218,6 +221,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
 
+    rocking_mode = (options['trajectory']['system_type'] == 'rocking_mode')
     com_attachment = (options['tether']['attachment'] == 'com')
     stick_attachment = (options['tether']['attachment'] == 'stick')
     kite_has_6dof = (int(options['kite_dof']) == 6)
@@ -245,7 +249,13 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
             current_node = q_si
 
         if node == 1:
-            previous_node = cas.DM.zeros((3, 1))
+            if options['user_options']['trajectory']['system_type'] == 'rocking_mode':
+                arm_length =  parameters['arm']['arm_length']
+                arm_angle = vars_si['arm_angle']
+                previous_node = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
+            else:
+                previous_node = cas.DM.zeros((3, 1))
+
             if 'l_t' in x_si.keys():
                 segment_length = x_si['l_t']
             else:

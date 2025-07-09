@@ -1,39 +1,36 @@
 # Defining the rocking mode
 ## Parameters
-  - `arm_length`
-  - `arm_inertia`
-  - `torque_slope` > 0: passive torque, `torque(darm_angle) = torque_slope * darm_angle`
-  - `enable_arm_control`: active torque
+  - [x] `arm_length`
+  - [x] `arm_inertia`
+  - [x] `torque_slope` > 0: passive torque, `torque(darm_angle) = torque_slope * darm_angle`
+  - [x] `enable_arm_control`: active torque
 
 ## Variables:
-  - x:
-    - `arm_angle` in `[-π, π]`  # There shouldn't be any singularity since going around is 1. forbidden and 2. non-optimal
-    - `darm_angle` in `[-4π, 4π]`  # Doing more than 2 full turns in 1 second seems unreasonable
-    - `arm_control_torque` in `[-inf, inf]` (or `[0, 0]` if `enable_arm_control` is `False`), can be refined using maximum acceleration or maximum tether tension 
-  - u:
-    - `darm_control_torque` in `[-inf, inf]` (or `[0, 0]` if `enable_arm_control` is `False`)
+  - [x] x:
+    - `arm_angle` in `[-3π/4, 3π/4]`  # There shouldn't be any singularity since going around is 1. forbidden and 2. non-optimal
+    - `arm_angle` in `[-4π, 4π]`  # Doing more than 2 full turns in 1 second seems unreasonable
+    - `active_torque` in `[-inf, inf]` (or `[0, 0]` if `enable_arm_control` is `False`), can be refined using maximum acceleration or maximum tether tension 
+  - [x] u:
+    - `dactive_torque` in `[-inf, inf]` (or `[0, 0]` if `enable_arm_control` is `False`)
 
 ## Constraints:
-  - `q_0 = [cos(arm_angle), sin(arm_angle)]`
-
-  - z:
-    - A(arm_angle) in `[[-inf]*3, [inf]*3]`
-    - dA(arm_angle, darm_angle) in `[[-inf]*3, [inf]*3]`
+  - [x] `q_0 = [cos(arm_angle), sin(arm_angle)]`
 
 ## Optimizable parameters
-  - `torque_slope`
-  - `arm_inertia`
+  - [x] `arm_length`
+  - [x] `arm_inertia`
+  - [x] `torque_slope`
 
 ## Energies
-  - Kinetic: `0.5 * arm_inertia * darm_angle^2`
-  - revise tether velocity at the ground station ? p.69
+  - [x] Kinetic: `0.5 * arm_inertia * darm_angle^2`
+  - [x] revise tether velocity at the ground station ? p.69
 
 ## Power output
-  - `P_rocking = (torque_slope * darm_angle + arm_control_torque) * arm_angle` (positive is power is being extracted from the device)
+  - [x] `P_rocking = (torque_slope * darm_angle + arm_control_torque) * arm_angle` (positive is power is being extracted from the device)
 
 ## Dynamics:
   - (`d(arm_angle) = darm_angle`)
-  - `arm_inertia * d(darm_angle) = (A - O) * base_tether_tension - control_torque - torque_slope * darm_angle (- arm_aero_torque)`
+  - [x] `arm_inertia * d(darm_angle) = (A - O) * base_tether_tension - control_torque - torque_slope * darm_angle (- arm_aero_torque)`
   - (`d(arm_control_torque) = darm_control_torque`)
   - besoin de quelque chose comme eq:3.5 ?
 
@@ -54,7 +51,7 @@
   - kite(t) = (l_t + l_a) * [cos(τ), sin(τ), 0], where θ = Θ0 + Δθ sin(τ), φ = Δφ cos(τ)
   
 
-TODO:
+# TODO:
  - [x] add 'system_type" = 'rocking_mode'
  - [x] add arm_length, arm_inertia parameters  `opts/defaults.py`
  - what is sweep_type ???
@@ -75,14 +72,21 @@ TODO:
  - add power generation                                     https://vscode.dev/github/abavoil/awebox/blob/abavoil/awebox/mdl/dynamics.py#L327
 
 
-Investigate:
- - sweep type
- - model.tether.attachment
- - how is the winch modeled ?
- - consider aerodynamic drag of the arm ? -> C_D_arm, α, dα, arm_diameter -> torque
+# Investigate:
+ - sweep type: outdated
+ - model.tether.attachment: com = center of mass, stick = ???
+ - how is the winch modeled ?: no winch model, only mecanical energy is considered
+ - consider aerodynamic drag of the arm ? -> C_D_arm, α, dα, arm_diameter -> torque: not for now
 
-Questions :
+# Questions :
+## 9 july 2025
  - Add a tether ground attachment either at [0, 0, 0] or at the tip of the arm
- - p.78: "by translating a priori knowledge on the optimal value of T into variable bounds" -> things like estimating the tension, kite speed etc.?
- - Homotopy: is it automatic or do I have to implement anything myself ?
- - Possible to simulate for half of the eight to use and impose symmetry ?
+ - Homotopy: is it automatic or do I have to implement anything myself ?: automatic
+ - Possible to simulate for half of the eight to use and impose symmetry ?: with some work
+
+ - parameters in params instead of user_options, with same sweep_type
+ - use arm angle as state and generalized coordinate + derivative
+ - have an ifelse on mode when computing tether attachment
+
+## ? july 2025
+ - only arm_angle as generalized coordinates ? I don't really understand Lagrangian mechanics

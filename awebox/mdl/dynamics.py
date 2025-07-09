@@ -326,13 +326,17 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
-    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         power = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        darm_angle = variables_si['x']['darm_angle']
+        passive_torque = parameters['theta0', 'arm', 'torque_slope'] * darm_angle
+        active_torque = variables_si['x']['active_torque']
+        power = darm_angle * (passive_torque + active_torque)
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
         outputs['performance']['p_current'] = power
