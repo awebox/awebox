@@ -56,7 +56,7 @@
 
 TODO:
  - [x] add 'system_type" = 'rocking_mode'
- - [x] add arm_length, amr_inertia parameters  `opts/defaults.py`
+ - [x] add arm_length, arm_inertia parameters  `opts/defaults.py`
  - what is sweep_type ???
 
  1. Torque proportional to the angular velocity of the arm
