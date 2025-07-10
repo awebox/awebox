@@ -187,6 +187,7 @@ class Visualization(object):
                                                           {'direction_plotting': 'normal', 'direction_induction': 'wind'})
         plot_logic_dict['induction_contour_normal_normal'] = (wake.plot_induction_contour_on_kmp,
                                                           {'direction_plotting': 'normal', 'direction_induction': 'normal'})
+        plot_logic_dict['induction_wind_tunnel'] = (wake.plot_induction_contour_on_vwt_cross_sections, {'direction_induction': 'wind'})
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})

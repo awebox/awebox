@@ -870,7 +870,7 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
         old_label = label
 
     plot_tether = (len(kite_nodes) == 1)
-    if plot_tether:
+    if plot_tether and cosmetics['trajectory']['tethers']:
         time_entries = plot_dict[search_name]['x']['q10'][0].shape[0]
         for index in range(time_entries):
             plot_all_tethers(ax, side, plot_dict, ref=False, index=index)

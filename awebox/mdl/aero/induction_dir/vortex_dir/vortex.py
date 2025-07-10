@@ -384,6 +384,10 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
             ehat_tangential = outputs['rotation']['ehat_tangential' + str(kite_obs)]
             ehat_radial = outputs['rotation']['ehat_radial' + str(kite_obs)]
 
+            ehat_wind = outputs['rotation']['ehat_wind' + str(parent_obs)]
+            ehat_wind_tangential = outputs['rotation']['ehat_wind_tangential' + str(kite_obs)]
+            ehat_wind_radial = outputs['rotation']['ehat_wind_radial' + str(kite_obs)]
+
             ehat_chord = outputs['aerodynamics']['ehat_chord' + str(kite_obs)]
             ehat_span = outputs['aerodynamics']['ehat_span' + str(kite_obs)]
             ehat_up = outputs['aerodynamics']['ehat_up' + str(kite_obs)]
@@ -392,7 +396,7 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
             yhat = vect_op.yhat_dm()
             zhat = vect_op.zhat_dm()
 
-            rot_dir_dict = {'radial': ehat_radial, 'tangential': ehat_tangential, 'normal': ehat_normal, 'chord': ehat_chord, 'span': ehat_span, 'up': ehat_up, 'x': xhat, 'y': yhat, 'z': zhat}
+            rot_dir_dict = {'radial': ehat_radial, 'tangential': ehat_tangential, 'normal': ehat_normal, 'wind': ehat_wind, 'wind_tangential': ehat_wind_tangential, 'wind_radial': ehat_wind_radial, 'chord': ehat_chord, 'span': ehat_span, 'up': ehat_up, 'x': xhat, 'y': yhat, 'z': zhat}
             for rot_name, rot_ehat in rot_dir_dict.items():
                 outputs['vortex']['u_ind_' + rot_name + str(kite_obs)] = cas.mtimes(vec_u_ind.T, rot_ehat)
 

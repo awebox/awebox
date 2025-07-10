@@ -500,6 +500,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'trajectory', 'dcm_colors',  dcm_colors,     ('dictionary of colors suitable for consistent dcm representation', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'axisfont',    {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'ylabelsize',  15,             ('???', None), 'x'),
+        ('visualization', 'cosmetics', 'trajectory', 'tethers',     True,           ('choose whether tethers should be drawn or not for single-kite problems. for multi-kite, this is always off', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_bodies', False,          ('choose whether kite bodies should be plotted or not', [True, False]), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'body_cross_sections_per_meter', 3,       ('discretization level of kite body visualization', None), 'x'),
         ('visualization', 'cosmetics', 'trajectory', 'kite_aero_dcm',     False,    ('draw the kite aerodynamic-orientation (dcm) axes, with-or-without the kite bodies', [True, False]), 'x'),

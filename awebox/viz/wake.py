@@ -36,6 +36,7 @@ import pdb
 
 import casadi.tools as cas
 import numpy as np
+from matplotlib import ticker
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.mdl.wind as wind
@@ -953,22 +954,14 @@ def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmet
     n_interpolation = plot_dict['interpolation_si']['x']['q10'][0].shape[0]
     for idx_at_eval in range(n_interpolation):
 
-        kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
-
-        u_ind_fun = get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval)
         x_obs = x_center + x_over_b * b_ref * ehat_wind + s_sym * slice_axes + z_offset * vect_op.zhat_dm()
-        u_ind = u_ind_fun(x_obs)
+        u_wind_proj, u_infty_proj = get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval, direction_induction='wind', x_obs=x_obs)
 
-        u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs[2]) * ehat_wind
-        u_wind = u_infty + u_ind
+        u_infty_proj_normalized = u_infty_proj / u_normalizing
+        u_wind_proj_normalized = u_wind_proj / u_normalizing
 
-        n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction='wind')
-
-        u_infty_normal_normalized = cas.mtimes(u_infty.T, n_hat) / u_normalizing
-        u_wind_normal_normalized = cas.mtimes(u_wind.T, n_hat) / u_normalizing
-
-        u_infty_nn_list = cas.vertcat(u_infty_nn_list, u_infty_normal_normalized)
-        u_wind_nn_list = cas.vertcat(u_wind_nn_list, u_wind_normal_normalized)
+        u_infty_nn_list = cas.vertcat(u_infty_nn_list, u_infty_proj_normalized)
+        u_wind_nn_list = cas.vertcat(u_wind_nn_list, u_wind_proj_normalized)
 
     temp_average_u_infty_nn = vect_op.average(u_infty_nn_list)
     temp_average_u_wind_nn = vect_op.average(u_wind_nn_list)
@@ -1013,6 +1006,41 @@ def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmet
     ax.set_xlabel("u/u_limit [-]")
 
     return None
+
+
+def get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=0, direction_induction=None, x_obs=None):
+
+    wind_model = plot_dict['options']['model']['wind']['model']
+    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
+    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
+    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
+    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
+    ehat_wind = vect_op.xhat_dm()
+
+    if x_obs is not None:
+        x_obs_sym = x_obs
+    else:
+        x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
+
+    u_ind_fun = get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval)
+    u_ind = u_ind_fun(x_obs_sym)
+
+    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs_sym[2]) * ehat_wind
+    u_wind = u_infty + u_ind
+
+    if direction_induction is not None:
+        if direction_induction == 'wind':
+            u_wind = cas.mtimes(u_wind.T, ehat_wind)
+        else:
+            message = 'function is not yet set up for projections in the ' + direction_induction + ' direction'
+            print_op.log_and_raise_error(message)
+
+    if x_obs is None:
+        u_wind_fun = cas.Function('u_wind_fun', [x_obs_sym], [u_wind])
+        u_infty_fun = cas.Function('u_infty_fun', [x_obs_sym], [u_infty])
+        return u_wind_fun, u_infty_fun
+    else:
+        return u_wind, u_infty
 
 
 def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=0):
@@ -1169,39 +1197,71 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval, suppress_wind_option
     return kite_plane_induction_params
 
 
-def make_fast_check_if_this_is_a_haas_test(plot_dict, radius, x_center, variables_si, thresh=0.01):
-    this_is_haas_test = True
-    haas_expectations = {'radius': 155.77,
-                         'period': 2. * np.pi / (7. * 10. / 155.77),
-                         'l_s': 400.,
-                         'diam_t': 5e-3,
-                         'diam_s': 5e-3,
-                         'x_center_altitude': 0.
+def is_this_a_haas2017_test(plot_dict, kite_plane_induction_params, variables_si, thresh=0.01):
+    test_name = 'Haas 2017'
+    verification_dict = {'radius': {'found': kite_plane_induction_params['average_radius'],
+                                    'expected': 155.77},
+                         'period': {'found': plot_dict['time_grids']['ip'][-1],
+                                    'expected': 2. * np.pi / (7. * 10. / 155.77)},
+                         'diam_t': {'found': variables_si['theta', 'diam_t'],
+                                    'expected': 5e-3},
+                         'x_center_altitude': {'found': kite_plane_induction_params['center'][2],
+                                               'expected': 0.},
+                         'kite_span': {'found': plot_dict['options']['model']['params']['geometry']['b_ref'],
+                                       'expected': 68},
+                         'kite_dof': {'found': plot_dict['options']['user_options']['system_model']['kite_dof'],
+                                      'expected': 6},
+                         'u_ref': {'found': plot_dict['options']['user_options']['wind']['u_ref'],
+                                   'expected': 10.}
+                       }
+    try:
+        verification_dict['l_s'] = {'found': variables_si['theta', 'l_s'],
+                'expected': 400.}
+        verification_dict['diam_s'] = {'found': variables_si['theta', 'diam_s'],
+                   'expected': 5e-3}
+    except:
+        pass
+    return is_this_a_verification_test(test_name, verification_dict, thresh=thresh)
+
+
+def is_this_a_haas2019_test(plot_dict, kite_plane_induction_params, variables_si, thresh=0.01):
+    test_name = 'Haas 2019'
+    verification_dict = {'period': {'found': plot_dict['time_grids']['ip'][-1],
+                                    'expected': 43.8178},
+                         'diam_t': {'found': variables_si['theta', 'diam_t'],
+                                    'expected': 9.55e-2},
+                         'x_center_altitude': {'found': kite_plane_induction_params['center'][2],
+                                               'expected': 260.},
+                         'kite_span': {'found': plot_dict['options']['model']['params']['geometry']['b_ref'],
+                                       'expected': 60},
+                         'kite_dof': {'found': plot_dict['options']['user_options']['system_model']['kite_dof'],
+                                      'expected': 3},
+                         'u_ref': {'found': plot_dict['options']['user_options']['wind']['u_ref'],
+                                   'expected': 10.},
+                         'wind_reference': {'found': plot_dict['options']['model']['params']['wind']['log_wind']['z0_air'],
+                                            'expected': 0.0002}
                          }
-    local_comparison = {'radius': radius,
-                        'period': plot_dict['time_grids']['ip'][-1],
-                        'l_s': variables_si['theta', 'l_s'],
-                        'diam_t': variables_si['theta', 'diam_t'],
-                        'diam_s': variables_si['theta', 'diam_s'],
-                        'x_center_altitude': x_center[2]
-                        }
+    return is_this_a_verification_test(test_name, verification_dict, thresh=thresh)
 
-    for haas_name, haas_val in haas_expectations.items():
-        local_diff = haas_val - local_comparison[haas_name]
-        if np.abs(haas_val) > thresh:
-            error = np.abs(local_diff) / haas_val
-            if error > thresh:
-                this_is_haas_test = False
+
+def is_this_a_verification_test(test_name, verification_dict, thresh=0.01):
+
+    this_is_a_verification_test = True
+    for comparison, val_dict in verification_dict.items():
+        if np.abs(val_dict['expected']) > thresh:
+            normalization = np.abs(val_dict['expected'])
         else:
-            diff = local_diff
-            if diff > thresh:
-                this_is_haas_test = False
+            normalization = 1.
 
-    if this_is_haas_test:
-        message = "this seems to be a verification test along the lines of Haas 2017's induction test, and we're going to proceed as though it is!"
+        error = (val_dict['expected'] - val_dict['found']) / normalization
+        if np.abs(error) > thresh:
+            this_is_a_verification_test = False
+
+    if this_is_a_verification_test:
+        message = "It seems like you're trying to perform a verification test using " + test_name + "'s published induction values. We're going to proceed as though it is!"
         print_op.base_print(message, level='warning')
 
-    return this_is_haas_test
+    return this_is_a_verification_test
 
 
 def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal'):
@@ -1227,13 +1287,13 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             print_op.base_print('slicing the variables at the appropriate interpolated time...')
             variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
             scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
-            variables_si = struct_op.variables_scaled_to_si(plot_dict['model_variables'], variables_scaled, scaling)
+            variables_si = plot_dict['model_variables'](struct_op.variables_scaled_to_si(plot_dict['model_variables'], variables_scaled, scaling))
             kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
             radius = kite_plane_induction_params['average_radius']
             x_center = kite_plane_induction_params['center']
 
             print_op.base_print('deciding the circumstances of the contour plot...')
-            this_is_haas_test = make_fast_check_if_this_is_a_haas_test(plot_dict, radius, x_center, variables_si, thresh=0.01)
+            this_is_haas_test = is_this_a_haas2017_test(plot_dict, kite_plane_induction_params, variables_si, thresh=0.01)
 
             ### compute the induction factors
             print_op.base_print('finding coordinates...')
@@ -1352,4 +1412,149 @@ def draw_swept_background(ax, side, plot_dict):
     for kite in plot_dict['architecture'].kite_nodes:
         for zeta in np.arange(-0.5, 0.5, 1. / 100.):
             tools.plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, color='gray', alpha=0.2)
+    return None
+
+def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name, fig_num=None, direction_induction='wind'):
+
+    vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
+    if vortex_info_exists:
+
+        # include this once for the error message
+        _ = get_kite_plane_induction_params(plot_dict, 0, suppress_wind_options_import_warning=False)
+
+        tau_style_dict = tools.get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
+        print_op.base_print('plotting the induction contours at taus in ' + repr(tau_style_dict.keys()))
+        for tau_at_eval in tau_style_dict.keys():
+            tau_rounded = np.round(tau_at_eval, 2)
+
+            n_points_contour = 100
+            n_points_interpolation = plot_dict['cosmetics']['interpolation']['n_points']
+
+            print_op.base_print('generating_induction_factor_casadi_function...')
+            idx_at_eval = int(np.floor((float(n_points_interpolation) -1.)  * tau_at_eval))
+            u_wind_proj_fun, _ = get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval, direction_induction=direction_induction)
+
+            ### initialize the figure
+            fig_new, axes = plt.subplots(num=int(tau_rounded * 1e5), facecolor='none', nrows=2, ncols=1)
+
+            print_op.base_print('slicing the variables at the appropriate interpolated time...')
+            variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+            scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+            variables_si = struct_op.variables_scaled_to_si(plot_dict['model_variables'], variables_scaled, scaling)
+            kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
+
+            print_op.base_print('deciding the circumstances of the contour plot...')
+            this_is_haas_test = is_this_a_haas2019_test(plot_dict, kite_plane_induction_params, variables_si,
+                                                        thresh=0.01)
+
+            side_axes_dict = {0: 'z', 1: 'y'}
+            for adx in side_axes_dict.keys():
+                ax = axes[adx]
+        
+                ### compute the induction factors
+                print_op.base_print('finding coordinates...')
+                side = 'x' + side_axes_dict[adx]
+
+                print_op.base_print('deciding the observation range...')
+                x_min = 0.
+                z_min = 0.
+                if this_is_haas_test:
+                    x_max = 2400.
+                    y_min = -400.
+                    y_max = 400.
+                    z_max = 800.
+                else:
+                    x_center = kite_plane_induction_params['center']
+                    diameter = 2. * kite_plane_induction_params['average_radius']
+                    x_max = x_center[0] + 6.5 * diameter
+                    z_max = x_center[2] + 2. * diameter
+                    y_max = z_max / 2.
+                    y_min = -1. * y_max
+                ax.set_aspect('equal')
+
+                x_hat = vect_op.xhat_dm()
+                if side == 'xy':
+                    a_hat = vect_op.yhat_dm()
+                    a_min = y_min
+                    a_max = y_max
+                elif side == 'xz':
+                    a_hat = vect_op.zhat_dm()
+                    a_min = z_min
+                    a_max = z_max
+
+                ratio_points = float((x_max - x_min) / (a_max - a_min))
+                n_x = int(np.round(ratio_points * n_points_contour))
+                n_a = n_points_contour
+                xx_mesh, aa_mesh = np.meshgrid(np.linspace(x_min, x_max, n_x),
+                                               np.linspace(a_min, a_max, n_a),
+                                               indexing='xy'
+                                               )
+
+                print_op.base_print('making the casadi function map...')
+
+                xx_number_entries = xx_mesh.shape[0] * xx_mesh.shape[1]
+                parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
+                u_map = u_wind_proj_fun.map(xx_number_entries, parallelization_type)
+    
+                print_op.base_print('making induction contour plot...')
+                total_progress = xx_mesh.shape[0] * xx_mesh.shape[1]
+                print_op.base_print('generating observation grid...')
+                observation_points_concatenated = []
+                pdx = 0
+                for idx in range(xx_mesh.shape[0]):
+                    for jdx in range(xx_mesh.shape[1]):
+                        x_obs = xx_mesh[idx, jdx] * vect_op.xhat_dm() + aa_mesh[idx, jdx] * a_hat
+                        observation_points_concatenated = cas.horzcat(observation_points_concatenated, x_obs)
+                        print_op.print_progress(pdx, total_progress)
+                        pdx += 1
+                print_op.close_progress()
+    
+                print_op.base_print('computing induction factors...')
+                uu_computed = u_map(observation_points_concatenated)
+    
+                print_op.base_print('reassigning computed induction factors...')
+                ldx = 0
+                uu = np.zeros(xx_mesh.shape)
+                for idx in range(xx_mesh.shape[0]):
+                    for jdx in range(xx_mesh.shape[1]):
+                        uu[idx, jdx] = float(uu_computed[ldx])
+                        print_op.print_progress(ldx, total_progress)
+                        ldx += 1
+                print_op.close_progress()
+
+                ### draw the trajectory
+                print_op.base_print('drawing trajectory...')
+                temp_cosmetics = copy.deepcopy(cosmetics)
+                temp_cosmetics['trajectory']['tethers'] = False
+                temp_cosmetics['trajectory']['colors'] = ['k'] * 20
+                tools.plot_trajectory_contents(ax, plot_dict, temp_cosmetics, side, plot_kites=True)
+                for kite in plot_dict['architecture'].kite_nodes:
+                    parent = plot_dict['architecture'].parent_map[kite]
+                    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+                    tools.basic_draw(ax, side, x_start=q_kite, x_end=q_kite, color='k', marker='o')
+    
+                ### draw the contour
+                general_levels = n_points_contour
+                if this_is_haas_test:
+                    general_levels = np.linspace(0., 15, n_points_contour)
+                cmap = 'viridis' #'YlGnBu_r'
+                cs = ax.contourf(xx_mesh, aa_mesh, uu, general_levels, cmap=cmap)
+                cbar = fig_new.colorbar(cs, ax=ax)
+                tick_locator = ticker.MaxNLocator(nbins=7)
+                cbar.locator = tick_locator
+                cbar.update_ticks()
+                cbar.ax.set_ylabel('u [m/s]', rotation=90)
+    
+                # title
+                ax.set_xlabel(side[0] + " [m]")
+                ax.set_ylabel(side[1] + " [m]")
+
+            title = 'Instantanous (' + direction_induction + ' dir.) flow development, at tau = ' + str(tau_rounded)
+            axes[0].set_title(title)
+
+            print_op.base_print('saving figure at tau = ' + str(tau_rounded) + '...')
+            fig_new.savefig('figures/' + plot_dict['name'] + '_' + direction_induction + '_induction_contour_vwt_cs' + str(tau_rounded) + '.pdf')
+
+        print_op.base_print('done with induction contour on vwt plotting!')
+
     return None

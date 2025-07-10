@@ -215,8 +215,8 @@ def get_rotation_axes_outputs(model_options, variables_si, outputs, architecture
         rot_outputs['ehat_wind' + str(parent)] = ehat_wind
         ehat_radial_wind = vect_op.normed_cross(dq, ehat_wind)
         ehat_tangential_wind = vect_op.normed_cross(ehat_wind, ehat_radial_wind)
-        rot_outputs['ehat_radial_wind' + str(kite)] = ehat_radial_wind
-        rot_outputs['ehat_tangential_wind' + str(kite)] = ehat_tangential_wind
+        rot_outputs['ehat_wind_radial' + str(kite)] = ehat_radial_wind
+        rot_outputs['ehat_wind_tangential' + str(kite)] = ehat_tangential_wind
 
     outputs['rotation'] = rot_outputs
     return outputs

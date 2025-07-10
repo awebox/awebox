@@ -477,7 +477,8 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     #
     # #########################
     # # remove this
-    # trial.plot(['induction_contour', 'projected_xy', 'projected_xz', 'projected_yz', 'power', 'constraints'])
+    # trial.optimize(final_homotopy_step='initial')
+    # trial.plot(['induction_contour_wind_wind', 'induction_contour_normal_wind', 'induction_contour_normal_normal', 'induction_wind_tunnel', 'projected_xy', 'projected_xz', 'projected_yz', 'power', 'constraints'])
     # plt.show()
     # #######################
 
