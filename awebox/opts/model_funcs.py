@@ -269,8 +269,6 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     kappa_scaling = options['model']['scaling']['x']['kappa']
     options_tree.append(('model', 'scaling', 'u', 'dkappa', kappa_scaling, ('???', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'u', 'arm_angle', cas.DM(1.0), ('???', None), 'x'))
-
     initialization_theta = options['solver']['initialization']['theta']
     for param in initialization_theta.keys():
         options_tree.append(('model', 'scaling', 'theta', param, options['solver']['initialization']['theta'][param], ('descript', None), 'x'))

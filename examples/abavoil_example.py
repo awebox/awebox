@@ -40,11 +40,13 @@ def run(plot_show_block=True, overwrite_options={}):
     options['params.arm.arm_inertia'] = 2000  # kg m^2
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['params.arm.torque_slope'] = 0  # Nm / (rad/s)
+    options['solver.initialization.l_t'] = 30.  # m, Is this how we define tether length ?
 
-    # new lemniscate options
+    # indicate initialization, cf. new lemniscate options
     options['solver.initialization.shape'] = 'lemniscate'
     options['solver.initialization.lemniscate.az_width'] = 40*np.pi/180
     options['solver.initialization.lemniscate.el_width'] = 10*np.pi/180
+    #  options['solver.initialization.fix_tether_length'] = True ?
 
     # indicate desired environment
     # here: wind velocity profile according to power-law
@@ -92,24 +94,8 @@ def run(plot_show_block=True, overwrite_options={}):
     print('Average power: {} kW'.format(avg_power))
     print('======================================')
 
-    nplot, mplot, iplot = 5, 1, 0
+    nplot, mplot, iplot = 3, 1, 0
     plt.subplots(nplot, mplot, sharex=True)
-
-    iplot += 1
-    plt.subplot(100 * nplot + 10 * mplot + iplot)
-    plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
-    plt.ylabel('[m]')
-    plt.legend()
-    plt.grid(True)
-
-    iplot += 1
-    plt.subplot(100 * nplot + 10 * mplot + iplot)
-    plt.plot(time, plot_dict['x']['dl_t'][0], label='Tether Reel-out Speed')
-    plt.ylabel('[m/s]')
-    plt.legend()
-    plt.hlines([20, -15], time[0], time[-1], linestyle='--', color='black')
-    plt.grid(True)
-
 
     iplot += 1
     plt.subplot(100 * nplot + 10 * mplot + iplot)

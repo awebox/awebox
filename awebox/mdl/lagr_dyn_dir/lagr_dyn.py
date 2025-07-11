@@ -19,6 +19,8 @@ import numpy as np
 
 def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling):
 
+    rocking_mode = options['trajectory']['system_type'] == 'rocking_mode'  # 'arm_angle' in system_variables['SI']['x'].keys()
+
     parent_map = architecture.parent_map
     number_of_nodes = architecture.number_of_nodes
 
@@ -94,11 +96,16 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
     # TODO: rocking mode: lagrangian_momentum_correction is 4x1 while lagrangian_rhs_translation is 3x1
+    if rocking_mode:
+        tether_torque, outputs = forces_comp.generate_rocking_mode_forces(options, system_variables['SI'], outputs, architecture)
+        lagrangian_rhs_translation = cas.vertcat(tether_torque, lagrangian_rhs_translation)
     lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling
     node_mass_scaling = mass_comp.estimate_node_mass_scaling(options, system_variables['SI'], parameters, architecture, scaling)
     force_scaling = node_mass_scaling * options['scaling']['other']['g'] * 10.
+    if rocking_mode:
+        force_scaling = cas.vertcat(options['scaling']['x']['arm_angle'], force_scaling)
     inverse_characteristic_forces = cas.inv(cas.diag(force_scaling))
 
     # TODO: rocking mode: lagrangian_lhs_translation is 4x1 while lagrangian_rhs_translation is 3x1

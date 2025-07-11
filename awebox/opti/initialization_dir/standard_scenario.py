@@ -24,8 +24,8 @@
 #
 '''
 initialization functions specific to the standard path scenario
-_python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: mark schelbergen (TU Delft, 2021)
 '''
 
 
@@ -131,7 +131,7 @@ def guess_values_at_time(t, init_options, model):
                     ret['omega' + str(node) + str(parent)] = omega_vector
                     ret['r' + str(node) + str(parent)] = dcm_column
             elif init_options['shape'] == 'lemniscate':
-                # TODO: make work for 6DOF
+                # TODO: implement DCM initialization
                 w_lj = init_options['lemniscate']['az_width']
                 h_lj = init_options['lemniscate']['el_width']
                 el0 = init_options['inclination_deg']*np.pi/180.0
@@ -151,7 +151,7 @@ def guess_values_at_time(t, init_options, model):
                 psi = np.arctan2(azdot, -eldot)
                 ret['yaw' +str(node) + str(parent)] = psi
 
-                l = init_options['x']['l_t']
+                l = init_options['l_t']
                 l12 = cas.norm_2(q[:2])
                 dcm_tau2e = cas.blockcat([
                     [q[0]*q[2]/(l*l12), -q[1]/l12,   q[0]/l],
