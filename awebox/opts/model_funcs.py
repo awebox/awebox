@@ -72,7 +72,7 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
 
     # arm
     options_tree, fixed_params = build_arm_options(options, options_tree, fixed_params, architecture)
-    options_tree, fixed_params = build_arm_control_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_arm_control_options(options, options_tree, fixed_params, architecture)
 
     # environment
     options_tree, fixed_params = build_wind_options(options, options_tree, fixed_params)
@@ -927,7 +927,7 @@ def build_arm_options(options, options_tree, fixed_params, architecture):
 
 ######## arm control
 
-def build_arm_control_options(options, options_tree, fixed_params):
+def build_arm_control_options(options, options_tree, fixed_params, architecture):
     user_options = options['user_options']
 
     if user_options['trajectory']['system_type'] == 'rocking_mode':

@@ -91,18 +91,7 @@ def generate_structure(options, architecture):
 
     else:
         raise ValueError('kite dof option %s not inluded at present', str(kite_dof))
-
-    # add drag mode states and controls
-    if options['trajectory']['system_type'] == 'drag_mode':
-        kite_states += [('kappa', (1, 1))]
-        kite_controls += [('dkappa', (1, 1))]
-    elif options['trajectory']['system_type'] == 'rocking_mode':
-        system_states.extend([('arm_angle', (1, 1))])  # arm angle w.r.t. x-axis
-        system_states.extend([('darm_angle', (1, 1))])
-        system_states.extend([('active_torque', (1, 1))])  # torque applied to the arm to extract energy
-        system_gc.extend([('arm_angle', (1, 1))])
-        system_controls.extend([('dactive_torque', (1, 1))])
-
+    
     # _list states, generalized coordinates and controls of all the nodes
     # together
     system_states = []
@@ -111,6 +100,17 @@ def generate_structure(options, architecture):
     system_multipliers = []
 
     system_lifted = []
+
+    # add drag mode states and controls
+    if options['trajectory']['system_type'] == 'drag_mode':
+        kite_states += [('kappa', (1, 1))]
+        kite_controls += [('dkappa', (1, 1))]
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        system_states += ([('arm_angle', (1, 1))])  # arm angle w.r.t. x-axis
+        system_states += ([('darm_angle', (1, 1))])
+        system_states += ([('active_torque', (1, 1))])  # torque applied to the arm to extract energy
+        system_gc += ([('arm_angle', (1, 1))])
+        system_controls += ([('dactive_torque', (1, 1))])
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]

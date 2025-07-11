@@ -10,12 +10,16 @@ Energy, Vol.173, pp. 569-585, 2019.
 :author: Jochem De Schutter
 :edited: Rachel Leuthold
 """
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
 
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
-import matplotlib.pyplot as plt
-import numpy as np
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 import awebox.tools.print_operations as print_op
+
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 def run(plot_show_block=True, overwrite_options={}):
 
@@ -27,13 +31,20 @@ def run(plot_show_block=True, overwrite_options={}):
 
     # indicate desired operation mode
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
+    options['user_options.trajectory.type'] = 'power_cycle'
+    options['user_options.trajectory.system_type'] = 'rocking_mode'
+    # options['trajectory.lift_mode.windings'] = 1  # TODO: rocking mode, make sure that 2+ changes nothing
+
+    # indicate rocking mode options
+    options['params.arm.arm_length'] = 2  # m
+    options['params.arm.arm_inertia'] = 2000  # kg m^2
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    options['params.arm.torque_slope'] = 0  # Nm / (rad/s)
+
+    # new lemniscate options
     options['solver.initialization.shape'] = 'lemniscate'
     options['solver.initialization.lemniscate.az_width'] = 40*np.pi/180
     options['solver.initialization.lemniscate.el_width'] = 10*np.pi/180
-    options['user_options.trajectory.type'] = 'power_cycle'
-    options['trajectory.system_type'] = 'rocking_mode'
-    options['trajectory.rocking_mode.enable_arm_control'] = True
-    options['params.arm.torque_slope'] = 0
 
     # indicate desired environment
     # here: wind velocity profile according to power-law

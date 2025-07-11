@@ -75,7 +75,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
 
-    rocking_mode = options['user_options']['trajectory']['system_type'] == 'rocking_mode'
+    rocking_mode = options['trajectory']['system_type'] == 'rocking_mode'
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
 

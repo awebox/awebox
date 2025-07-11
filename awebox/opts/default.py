@@ -210,8 +210,8 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                                 ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
 
-        ('model',  'system_bounds', 'x',           'alpha',         [-3 * np.pi / 4, 3 * np.pi / 4],            ('arm angle bounds [rad]', None), 'x'),
-        ('model',  'system_bounds', 'x',           'dalpha',        [-4 * np.pi, 4 * np.pi],                    ('arm angular velocity bounds [rad/s]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'arm_angle',         [-3 * np.pi / 4, 3 * np.pi / 4],            ('arm angle bounds [rad]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'darm_angle',        [-4 * np.pi, 4 * np.pi],                    ('arm angular velocity bounds [rad/s]', None), 'x'),
         ('model',  'system_bounds', 'x',           'active_torque',[-cas.inf, cas.inf],                         ('arm active torque [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
         ('model',  'system_bounds', 'u',           'dactive_torque',[-cas.inf, cas.inf],                        ('variation of arm active torque [Nm/s]', None), 'x'),
 

@@ -114,15 +114,6 @@ def generate_holonomic_constraints(architecture, outputs, system_variables, para
 
                 # add to holonomic constraints
                 work_holonomic += z_si['lambda{}'.format(n01)] * g_local
-    
-    # add arm if relevant
-    if options['rocking_mode']:  # TODO: rocking mode: how do I know from (model_)options if I'm in rocking mode?
-        # TODO: rocking mode: What goes there???
-        
-        "connect the first tether to the arm"
-    else:
-        "connect the first tether to the origin"
-
 
     g_cat = cas.vertcat(*g)
     gdot_cat = cas.vertcat(*gdot)
@@ -249,7 +240,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
             current_node = q_si
 
         if node == 1:
-            if options['user_options']['trajectory']['system_type'] == 'rocking_mode':
+            if options['trajectory']['system_type'] == 'rocking_mode':
                 arm_length =  parameters['arm']['arm_length']
                 arm_angle = vars_si['arm_angle']
                 previous_node = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
