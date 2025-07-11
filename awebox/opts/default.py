@@ -213,7 +213,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'x',           'alpha',         [-3 * np.pi / 4, 3 * np.pi / 4],            ('arm angle bounds [rad]', None), 'x'),
         ('model',  'system_bounds', 'x',           'dalpha',        [-4 * np.pi, 4 * np.pi],                    ('arm angular velocity bounds [rad/s]', None), 'x'),
         ('model',  'system_bounds', 'x',           'active_torque',[-cas.inf, cas.inf],                         ('arm active torque [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
-        ('model',  'system_bounds', 'u',           'dactive_torque',[-cas.inf, cas.inf],                        ('variation of arm active torque [Nm/s]', None), 'x'),  # TODO: rocking mode: add a constraint dynamically: one second to go from 0 to max_torque
+        ('model',  'system_bounds', 'u',           'dactive_torque',[-cas.inf, cas.inf],                        ('variation of arm active torque [Nm/s]', None), 'x'),
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
@@ -389,6 +389,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', ['default', 'modular']), 't'),
+        ('solver',  'initialization', None, 'shape',                'circular', ('set initialization shape ', ['circular', 'lemniscate']), 's'),
+        ('solver',  'initialization', 'lemniscate', 'az_width',     20*np.pi/180.,  ('lemniscate azimuth range', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'el_width',     8*np.pi/180.,  ('lemniscate elevation range', None), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          20.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
@@ -432,7 +435,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'weights',      None,   'arm_angle',1e-2,       ('optimization weight for the arm_angle variable [-]', None), 's'),
         ('solver',  'weights',      None,   'darm_angle',1e0,       ('optimization weight for the darm_angle variable [-]', None), 's'),
         ('solver',  'weights',      None,   'ddarm_angle',1e2,      ('optimization weight for the ddarm_angle variable [-]', None), 's'),
-        ('solver',  'weights',      None,   'arm_control_torque',1e2,('optimization weight for the arm_control_torque variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'active_torque',1e2,    ('optimization weight for the active_torque variable [-]', None), 's'),
         ('solver',  'weights',      None,   'l_s',      1e0,        ('optimization weight for the l_s variable [-]', None), 's'),
         ('solver',  'weights',      None,   'r',        1e1,        ('optimization weight for all r variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'omega',    1e-1,       ('optimization weight for all omega variables [-]', None),'x'),

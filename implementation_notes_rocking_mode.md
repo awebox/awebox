@@ -26,16 +26,16 @@
   - [x] revise tether velocity at the ground station ? p.69
 
 ## Power output
-  - [x] `P_rocking = (torque_slope * darm_angle + arm_control_torque) * arm_angle` (positive is power is being extracted from the device)
+  - [x] `P_rocking = (torque_slope * darm_angle + active_torque) * arm_angle` (positive is power is being extracted from the device)
 
 ## Dynamics:
   - (`d(arm_angle) = darm_angle`)
   - [x] `arm_inertia * d(darm_angle) = (A - O) * base_tether_tension - control_torque - torque_slope * darm_angle (- arm_aero_torque)`
-  - (`d(arm_control_torque) = darm_control_torque`)
+  - (`d(active_torque) = dactive_torque`)
   - besoin de quelque chose comme eq:3.5 ?
 
 ## Phase invariance
-  - `psy_rocking(x_rocking(0)) = darm_angle(0) == 0`, also imposes oscillation of the arm instead of full rotations ?
+  - `psi_rocking(x_rocking(0)) = darm_angle(0) == 0`, also imposes oscillation of the arm instead of full rotations ?
 
 ## Initialization
 ### Fly in eights
