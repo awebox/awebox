@@ -106,11 +106,11 @@ def generate_structure(options, architecture):
         kite_states += [('kappa', (1, 1))]
         kite_controls += [('dkappa', (1, 1))]
     elif options['trajectory']['system_type'] == 'rocking_mode':
-        system_states += ([('arm_angle', (1, 1))])  # arm angle w.r.t. x-axis
-        system_states += ([('darm_angle', (1, 1))])
-        system_states += ([('active_torque', (1, 1))])  # torque applied to the arm to extract energy
-        system_gc += ([('arm_angle', (1, 1))])
-        system_controls += ([('dactive_torque', (1, 1))])
+        system_states += [('arm_angle', (1, 1))]  # arm angle w.r.t. x-axis
+        system_states += [('darm_angle', (1, 1))]
+        system_states += [('active_torque', (1, 1))]  # torque applied to the arm to extract energy
+        system_controls += [('dactive_torque', (1, 1))]
+        system_gc += ['arm_angle']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]

@@ -87,10 +87,10 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     if node == 1:
         if rocking_mode:
-            arm_length =  parameters['arm']['arm_length']
-            darm_length =  parameters['arm']['darm_length']
-            arm_angle = vars_si['arm_angle']
-            dq_parent = arm_length * darm_length * cas.DM([-cas.sin(arm_angle), cas.cos(arm_angle), 0.0])
+            arm_length =  parameters['theta0', 'arm', 'arm_length']
+            arm_angle = variables_si['x']['arm_angle']
+            darm_angle =  variables_si['x']['darm_angle']
+            dq_parent = darm_angle * arm_length * cas.DM([-cas.sin(arm_angle), cas.cos(arm_angle), 0.0])
         else:
             q_parent = cas.DM.zeros((3, 1))
             segment_vector = q_node - q_parent
@@ -120,9 +120,9 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     e_kinetic_arm_rot = cas.DM(0.)
     if rocking_mode:
-        arm_inertia = parameters['theta0', 'geometry', 'arm_inertia']
+        arm_inertia = parameters['theta0', 'arm', 'arm_inertia']
         darm_angle = variables_si['x']['darm_angle']
-        e_kinetic_arm_rot = 0.5 * arm_inertia * darm_angle^2
+        e_kinetic_arm_rot = 0.5 * arm_inertia * darm_angle**2
     outputs['e_kinetic']['arm_rot'] = e_kinetic_arm_rot
 
     return outputs

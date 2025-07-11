@@ -93,6 +93,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
+    # TODO: rocking mode: lagrangian_momentum_correction is 4x1 while lagrangian_rhs_translation is 3x1
     lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling
@@ -100,6 +101,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     force_scaling = node_mass_scaling * options['scaling']['other']['g'] * 10.
     inverse_characteristic_forces = cas.inv(cas.diag(force_scaling))
 
+    # TODO: rocking mode: lagrangian_lhs_translation is 4x1 while lagrangian_rhs_translation is 3x1
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
     dynamics_translation_scaled = cas.mtimes(inverse_characteristic_forces, dynamics_translation_si)
 
@@ -256,6 +258,7 @@ def generate_rotational_dynamics(options, variables, f_nodes, parameters, output
 
 def generate_generalized_coordinates(system_variables, system_gc):
 
+    # TODO: rocking mode: add arm_angle etc. to the list?
     struct_flag = (not isinstance(system_variables, dict)) and ('[x,q10,0]' in system_variables.labels())
 
     if struct_flag == 1:

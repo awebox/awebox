@@ -197,13 +197,12 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
 
     return outputs
 
-# TODO: rocking mode
-def generate_rocking_arm_forces(options, variables_si, outputs, architecture):
-    arm_angle = variables_si['arm_angle']
+
+def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
+    arm_angle = variables_si['x']['arm_angle']
     arm_length = options['params']['arm']['arm_length']
     arm_tip = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
 
-    # TODO: rocking mode, verify this label
     tether_first_node = variables_si['x']['q10']  # label 10 ok ?
     segment_vector = tether_first_node - arm_tip
     ehat_tether = vect_op.normalize(segment_vector)
@@ -212,6 +211,8 @@ def generate_rocking_arm_forces(options, variables_si, outputs, architecture):
 
     tether_torque = cas.mtimes(tether_force.T, arm_tip)
 
+    # TODO: rocking mode: is this ok ?
+    outputs['arm'] = {}
     outputs['arm']['tether_torque'] = tether_torque
 
     return tether_torque, outputs
