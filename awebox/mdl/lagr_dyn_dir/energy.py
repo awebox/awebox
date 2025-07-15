@@ -138,7 +138,6 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     gravity = parameters['theta0', 'atmosphere', 'g']
 
     q_node = variables_si['x']['q' + label]
-    # TODO: rocking mode: q_parent = either arm (possibly at z > 0?) or origin
     if node == 1:
         # For rocking mode: even if wrong, q_parent = origin is fine because only q_mean[2] (z component) is used
         q_parent = cas.DM.zeros((3, 1))

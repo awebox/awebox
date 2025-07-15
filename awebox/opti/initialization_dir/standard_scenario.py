@@ -74,11 +74,21 @@ def guess_values_at_time(t, init_options, model):
 
     kite_dof = model.kite_dof
 
+    phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
+    if 'arm_angle' in ret:
+        ret['arm_angle'] = t * phase_rate - np.pi/4
+        ret['darm_angle'] = phase_rate
+        ret['active_torque'] = 0.0
+
     for node in range(1, number_of_nodes):
 
         parent = parent_map[node]
         if parent == 0:
-            parent_position = np.zeros((3, 1))
+            if 'arm_angle' in ret:
+                arm_length = init_options['arm']['arm_length']
+                parent_position = arm_length * np.array(cas.vertcat(np.cos(ret['arm_angle']), np.sin(ret['arm_angle']), cas.DM(0.0)))
+            else:
+                parent_position = np.zeros((3, 1))
         else:
             grandparent = parent_map[parent]
             parent_position = ret['q' + str(parent) + str(grandparent)]

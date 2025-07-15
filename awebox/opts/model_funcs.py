@@ -921,6 +921,8 @@ def build_arm_options(options, options_tree, fixed_params, architecture):
 
     options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
     options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
+
+    options_tree.append(('solver', 'initialization', 'arm', 'arm_length', options['params']['arm']['arm_length'], ('length of the arm [m]', None),'s'))  # To access arm_length during initialization: model.params['theta0', 'arm', 'arm_length'] is nan
     return options_tree, fixed_params
 
 ######## arm control
