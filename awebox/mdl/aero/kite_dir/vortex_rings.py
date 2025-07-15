@@ -31,8 +31,11 @@ import casadi as ca
 from awebox.mdl.aero.kite_dir.elliptic_integrals_functions import *
 import awebox.tools.cached_functions as cf
 
+# Compensation model
+def compensation_model(r, A, eps):
+    return 1 + A / (r**2 + eps**2)
 
-def vortex_ring_dipole_approx(q, q_v, n, Gamma):
+def vortex_ring_dipole_approx(q, q_v, n, Gamma, R_ring):
     """
     Approximate the induced velocity at point q from a vortex ring,
     using a far-field potential dipole aligned with the ring's normal vector.
@@ -49,11 +52,19 @@ def vortex_ring_dipole_approx(q, q_v, n, Gamma):
     """
     r = q - q_v
     r_norm = ca.sqrt(ca.mtimes(r.T, r))
-    
-    m = Gamma * n * 100**3 # Dipole moment (scalar * direction)
+
+    m = Gamma * n * 100**3 # Dipole moment (scalar * direction * scaling**3)
     dot = ca.mtimes(r.T, m)
-    
-    u_ind = (1 / (4 * np.pi)) * ((3 * dot * r) / (r_norm**5) - m / r_norm**3)
+
+    # compensation model
+    rdot = ca.mtimes(r.T, n)
+    # rdot = r
+    rdot_norm = ca.sqrt(ca.mtimes(rdot.T, rdot))
+    A = - 0.1508
+    epsilon = 0.3827
+    comp = compensation_model(rdot_norm / R_ring, A, epsilon)
+    comp = 1
+    u_ind = (1 / (4 * np.pi)) * ((3 * dot * r) / (r_norm**5) - m / r_norm**3)  * comp
     
     # u_ind = np.zeros((3,1))
     return u_ind
@@ -83,7 +94,7 @@ def far_wake_ring_induction_function(data):
     # w_f = - gamma_ring / (4 * np.pi) * (elliptic_integrand_series_axial(R_j, R_ring, h, data['N_elliptic_int'], method = data['elliptic_method']))
 
     # FAR WAKE INDUCTION OF VORTEX DIPOLE!!!!
-    w_f = - vortex_ring_dipole_approx(p_k, p_r, n_ring, gamma_ring)
+    w_f = - vortex_ring_dipole_approx(p_k, p_r, n_ring, gamma_ring, R_ring)
 
     far_wake_axial_induction_fun = ca.Function('far_wake_axial_induction_fun', [p_k, p_r, n_ring, gamma_ring, R_ring], [w_f])
     # compilation_file_name = 'far_wake_axial_induction_fun_'
