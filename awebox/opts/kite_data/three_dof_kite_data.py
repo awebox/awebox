@@ -64,7 +64,7 @@ def aero():
     stab_derivs['frame']['moment'] = 'control'
 
     stab_derivs['CD'] = {}
-    stab_derivs['CD']['0'] = [0.02]
+    stab_derivs['CD']['0'] = [0.008]
     stab_derivs['CD']['alpha'] = [0]
 
     aero_validity = {}
