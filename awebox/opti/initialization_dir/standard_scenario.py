@@ -142,8 +142,8 @@ def guess_values_at_time(t, init_options, model):
                     ret['r' + str(node) + str(parent)] = dcm_column
             elif init_options['shape'] == 'lemniscate':
                 # TODO: implement DCM initialization
-                w_lj = init_options['lemniscate']['az_width']
-                h_lj = init_options['lemniscate']['el_width']
+                w_lj = init_options['lemniscate']['az_width_deg']*np.pi/180.0
+                h_lj = init_options['lemniscate']['el_width_deg']*np.pi/180.0
                 el0 = init_options['inclination_deg']*np.pi/180.0
                 tether_length = init_options['l_t']
 

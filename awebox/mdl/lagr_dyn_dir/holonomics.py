@@ -243,7 +243,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
             if options['trajectory']['system_type'] == 'rocking_mode':
                 arm_length =  parameters['theta0', 'arm', 'arm_length']
                 arm_angle = x_si['arm_angle']
-                previous_node = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
+                previous_node = arm_length * cas.vertcat(cas.cos(arm_angle), cas.sin(arm_angle), 0.0)
             else:
                 previous_node = cas.DM.zeros((3, 1))
 

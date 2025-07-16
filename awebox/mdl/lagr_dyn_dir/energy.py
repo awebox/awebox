@@ -90,7 +90,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
             arm_length =  parameters['theta0', 'arm', 'arm_length']
             arm_angle = variables_si['x']['arm_angle']
             darm_angle =  variables_si['x']['darm_angle']
-            dq_parent = darm_angle * arm_length * cas.DM([-cas.sin(arm_angle), cas.cos(arm_angle), 0.0])
+            dq_parent = darm_angle * arm_length * cas.vertcat(-cas.sin(arm_angle), cas.cos(arm_angle), 0.0)
         else:
             q_parent = cas.DM.zeros((3, 1))
             segment_vector = q_node - q_parent

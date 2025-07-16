@@ -29,6 +29,7 @@ def rocking_mode_options(overwrite_options={}):
     options = {}
     options['user_options.system_model.architecture'] = {1: 0}
     options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+    options['user_options.system_model.kite_dof'] = 3
 
     # indicate desired operation mode
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
@@ -41,13 +42,13 @@ def rocking_mode_options(overwrite_options={}):
     options['params.arm.arm_inertia'] = 2000  # kg m^2
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['params.arm.torque_slope'] = 0  # Nm / (rad/s)
-    options['solver.initialization.l_t'] = 30.  # m, Is this how we define tether length ?
+    options['solver.initialization.l_t'] = 200.  # m, Is this how we define tether length ?
 
     # Test this later since the initialization is less complete than for 'circular'
     # # indicate initialization, cf. new lemniscate options
     # options['solver.initialization.shape'] = 'lemniscate'
-    # options['solver.initialization.lemniscate.az_width'] = 40*np.pi/180
-    # options['solver.initialization.lemniscate.el_width'] = 10*np.pi/180
+    # options['solver.initialization.lemniscate.az_width_deg'] = 40
+    # options['solver.initialization.lemniscate.el_width_deg'] = 10
     # options['solver.initialization.fix_tether_length'] = True ?
 
     # indicate desired environment
@@ -80,8 +81,11 @@ def main():
     options = rocking_mode_options()
     trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
     trial.build()
-    trial.optimize()
+    trial.optimize(final_homotopy_step= 'final')
     return trial
 
 if __name__ == "__main__":
     trial = main()
+    trial.plot(['states', 'controls', 'invariants', 'isometric'])
+    plt.show()
+    

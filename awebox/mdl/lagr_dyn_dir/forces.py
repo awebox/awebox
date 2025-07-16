@@ -208,8 +208,10 @@ def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
     ehat_tether = vect_op.normalize(segment_vector)
     tether_tension = variables_si['z']['lambda10']
     tether_force = tether_tension * ehat_tether
+    # only the control torque (passive + active)
 
     tether_torque = cas.mtimes(tether_force.T, arm_tip)
+    # tether_torque = variables_si['x']['active_torque'] + variables_si['x']['darm_angle'] * options['params']['arm']['torque_slope']
 
     # TODO: rocking mode: is this ok ?
     outputs['arm'] = {}
