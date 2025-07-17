@@ -307,6 +307,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     options_tree.append(('solver', 'initialization', None, 'cross_tether_attachment', options['model']['tether']['cross_tether']['attachment'], ('cross-tether attachment',[True,False]),'x'))
     rotation_bounds = options['params']['model_bounds']['rot_angles'][0]
     options_tree.append(('solver', 'initialization', None, 'rotation_bounds', np.pi/2-rotation_bounds, ('enable cross-tether',[True,False]),'x'))
+    options_tree.append(('solver', None, None, 'n_points_callback', options['visualization']['cosmetics']['interpolation']['n_points'], ('number of interpolation points to be used in callback function',None),'x'))
 
     # expand MX -> SX in solver
     expand = True
