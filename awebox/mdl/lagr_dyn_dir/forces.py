@@ -199,23 +199,31 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
 
 
 def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
-    arm_angle = variables_si['x']['arm_angle']
-    arm_length = options['params']['arm']['arm_length']
-    arm_tip = arm_length * cas.DM([cas.cos(arm_angle), cas.sin(arm_angle), 0.0])
+    x = variables_si['x']
+    arm_params = options['params']['arm']
 
-    tether_first_node = variables_si['x']['q10']  # label 10 ok ?
-    segment_vector = tether_first_node - arm_tip
+    passive_torque = arm_params['torque_slope'] * x['darm_angle']
+    active_torque = x['active_torque']
+    generator_torque = passive_torque + active_torque
+
+    # Compute some outputs for analysis
+    arm_length = arm_params['arm_length']
+    arm_angle = x['arm_angle']
+    q_arm_tip = arm_length * cas.vertcat(np.cos(arm_angle), np.sin(arm_angle), 0)
+
+    segment_vector = x['q10'] - q_arm_tip
     ehat_tether = vect_op.normalize(segment_vector)
-    tether_tension = variables_si['z']['lambda10']
-    tether_force = tether_tension * ehat_tether
-    # only the control torque (passive + active)
+    tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
+    tension_force = tension * ehat_tether
+    tether_torque_on_arm = vect_op.cross(tension_force, q_arm_tip)[2]
 
-    tether_torque = cas.mtimes(tether_force.T, arm_tip)
-    # tether_torque = variables_si['x']['active_torque'] + variables_si['x']['darm_angle'] * options['params']['arm']['torque_slope']
+    outputs.setdefault('arm', {})
+    outputs['arm']['tension'] = tension
+    outputs['arm']['ehat_tether'] = ehat_tether
+    outputs['arm']['q_arm_tip'] = q_arm_tip  # For 3D plot
+    outputs['arm']['tether_torque_on_arm'] = tether_torque_on_arm
+    outputs['arm']['passive_torque'] = passive_torque
+    outputs['arm']['active_torque'] = active_torque
 
-    # TODO: rocking mode: is this ok ?
-    outputs['arm'] = {}
-    outputs['arm']['tether_torque'] = tether_torque
-
-    return tether_torque, outputs
+    return generator_torque, outputs
 

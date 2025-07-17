@@ -334,9 +334,15 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     elif options['trajectory']['system_type'] == 'rocking_mode':
         darm_angle = variables_si['x']['darm_angle']
-        passive_torque = parameters['theta0', 'arm', 'torque_slope'] * darm_angle
-        active_torque = variables_si['x']['active_torque']
-        power = darm_angle * (passive_torque + active_torque)
+        passive_power = parameters['theta0', 'arm', 'torque_slope'] * darm_angle**2
+        active_power = variables_si['x']['active_torque'] * darm_angle
+        power = passive_power + active_power
+
+        outputs['performance']['p_current'] = power
+        # Should this go in 'arm'? Should this even be stored?
+        outputs.setdefault('arm', {})
+        outputs['arm']['passive_power'] = passive_power
+        outputs['arm']['active_power'] = active_power
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
         outputs['performance']['p_current'] = power

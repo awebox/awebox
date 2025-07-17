@@ -97,8 +97,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
     # TODO: rocking mode: lagrangian_momentum_correction is 4x1 while lagrangian_rhs_translation is 3x1
     if rocking_mode:
-        tether_torque, outputs = forces_comp.generate_rocking_mode_forces(options, system_variables['SI'], outputs, architecture)
-        lagrangian_rhs_translation = cas.vertcat(tether_torque, lagrangian_rhs_translation)
+        generator_torque, outputs = forces_comp.generate_rocking_mode_forces(options, system_variables['SI'], outputs, architecture)
+        lagrangian_rhs_translation = cas.vertcat(generator_torque, lagrangian_rhs_translation)
     lagrangian_rhs_translation += lagrangian_momentum_correction
 
     # scaling

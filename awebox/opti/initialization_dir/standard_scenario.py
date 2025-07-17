@@ -76,8 +76,8 @@ def guess_values_at_time(t, init_options, model):
 
     phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
     if 'arm_angle' in ret:
-        ret['arm_angle'] = t * phase_rate - np.pi/4
-        ret['darm_angle'] = phase_rate
+        ret['arm_angle'] = np.pi * np.cos(t * phase_rate - np.pi/4)
+        ret['darm_angle'] = -np.pi * np.sin(t * phase_rate - np.pi/4) * phase_rate
         ret['active_torque'] = 0.0
 
     for node in range(1, number_of_nodes):
