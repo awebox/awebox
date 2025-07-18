@@ -202,11 +202,16 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                     V_init_si['x', :, 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
                     V_init_si['coll_var', :, :, 'x', 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
 
-                    for i in range(N_rings):
-                        q_0_convected = tf_guess * i / n_k * v_init
-                        V_init_si['x', (k+i)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                    if model.options['aero']['vortex_rings']['type'] == 'rectangle':
+                        dq0 = V_init_si['x', k, 'dq{}1'.format(j)] / np.linalg.norm(V_init_si['x', k, 'dq{}1'.format(j)])
+                        V_init_si['x', :, 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
+                        V_init_si['coll_var', :, :, 'x', 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
+
+                    for d in range(N_rings):
+                        q_0_convected = tf_guess * d / n_k * v_init
+                        V_init_si['x', (k+d)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
                         for ddx in range(d):
-                            V_init_si['coll_var', (k+i)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                            V_init_si['coll_var', (k+d)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
 
     return V_init_si
 
