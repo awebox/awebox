@@ -431,14 +431,26 @@ class Collocation(object):
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '2'):
                     idx = struct_op.get_idx_from_state(state)
+                    if nlp_options['vortex_type'] == 'dipole':
+                        gamma = outputs_list[idx]['aerodynamics','gamma_dipole2']
+                    elif nlp_options['vortex_type'] == 'rectangle':
+                        gamma = outputs_list[idx]['aerodynamics','gamma_rectangle2']
+                    else:
+                        raise Exception
                     g_continuity.append(
-                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','gamma_dipole2']
+                        V['x', kdx + 1, state] - gamma
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '3'):
                     idx = struct_op.get_idx_from_state(state)
+                    if nlp_options['vortex_type'] == 'dipole':
+                        gamma = outputs_list[idx]['aerodynamics','gamma_dipole3']
+                    elif nlp_options['vortex_type'] == 'rectangle':
+                        gamma = outputs_list[idx]['aerodynamics','gamma_rectangle3']
+                    else:
+                        raise Exception
                     g_continuity.append(
-                        V['x', kdx + 1, state] -  outputs_list[idx]['aerodynamics','gamma_dipole3']
+                        V['x', kdx + 1, state] - gamma
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'n', 'ring', '2'):
@@ -452,6 +464,19 @@ class Collocation(object):
                     g_continuity.append(
                         V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','n_dipole3']
                     )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'ec', 'ring', '2'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','ec_rectangle2']
+                    )
+
+                elif struct_op.is_state_for_kdx(state, kdx, 'ec', 'ring', '3'):
+                    idx = struct_op.get_idx_from_state(state)
+                    g_continuity.append(
+                        V['x', kdx + 1, state] - outputs_list[idx]['aerodynamics','ec_rectangle3']
+                    )
+
 
                 else:
                     g_continuity.append(
