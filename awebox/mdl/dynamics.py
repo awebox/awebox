@@ -323,6 +323,19 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
+def get_arm_power(options, variables_si, outputs):
+    darm_angle = variables_si['x']['darm_angle']
+    passive_torque = -options['params']['arm']['torque_slope'] * darm_angle
+    active_torque = variables_si['x']['active_torque']
+    passive_power = -passive_torque * darm_angle
+    active_power = -active_torque * darm_angle
+
+    outputs.setdefault('arm', {})
+    outputs['arm']['passive_power'] = passive_power
+    outputs['arm']['active_power'] = active_power
+
+    return passive_power + active_power
+
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
@@ -333,16 +346,8 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     elif options['trajectory']['system_type'] == 'rocking_mode':
-        darm_angle = variables_si['x']['darm_angle']
-        passive_power = parameters['theta0', 'arm', 'torque_slope'] * darm_angle**2
-        active_power = variables_si['x']['active_torque'] * darm_angle
-        power = passive_power + active_power
-
+        power = get_arm_power(options, variables_si, outputs)
         outputs['performance']['p_current'] = power
-        # Should this go in 'arm'? Should this even be stored?
-        outputs.setdefault('arm', {})
-        outputs['arm']['passive_power'] = passive_power
-        outputs['arm']['active_power'] = active_power
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
         outputs['performance']['p_current'] = power
@@ -433,8 +438,6 @@ def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
-    # TODO: rocking mode, arm rotation = kinetic energy
-    # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         for source in outputs['e_kinetic'].keys():
 
@@ -970,6 +973,7 @@ def get_roll_expr(x, n0, n1, parent_map):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
         # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
@@ -992,6 +996,8 @@ def get_pitch_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
@@ -1017,6 +1023,8 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     r_wtip = cas.vertcat(0.0, -parameters['theta0', 'geometry', 'b_ref'] / 2, 0.0)
 
     if n1 == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length IS available here
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
@@ -1054,6 +1062,8 @@ def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]

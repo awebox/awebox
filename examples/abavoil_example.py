@@ -82,144 +82,111 @@ def rocking_mode_options(overwrite_options={}):
 
     return options
 
+def plot_arm_torques_and_energies(trial):
+    plot_dict = trial.visualization.plot_dict
+    arm_outputs = plot_dict['outputs']['arm']
+    x = plot_dict['x']
+    arm_angle = x['arm_angle'][0]
+    darm_angle = x['darm_angle'][0]
+    dkinetic_energy = -plot_dict['outputs']['power_balance']['P_kin_arm_rot'][0]  # positive when energy is added to the system
+    tether_power_on_arm = arm_outputs['tether_torque_on_arm'][0] * darm_angle  # positive when energy is added to the system
+    generator_power = arm_outputs['passive_power'][0] + arm_outputs['active_power'][0]  # positive when energy is subtracted from the system
+
+    plt.figure()
+    plt.tight_layout()
+    n, m, i = 6, 1, 0
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_angle / np.max(abs(arm_angle)), label="arm_angle")
+    plt.plot(darm_angle / np.max(abs(darm_angle)), label="darm_angle")
+    plt.title("Normalized arm state [1]")
+    plt.legend()
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(dkinetic_energy, label="1: dK/dt")
+    plt.plot(tether_power_on_arm, label="2: P_tether")
+    plt.plot(generator_power, label="3: P_gen")
+    plt.plot(dkinetic_energy - tether_power_on_arm + generator_power, label="1-2+3=0")
+    plt.title("Power balance of the arm [W]")
+    plt.grid()
+    plt.legend()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['passive_torque'][0])
+    plt.title("Passive torque [Nm]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['passive_power'][0])
+    plt.title("Passive power output [W]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['active_torque'][0])
+    plt.title("Active torque [Nm]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['active_power'][0])
+    plt.title("Active power output [W]")
+    plt.grid()
+
+def plot_arm_states(trial):
+    plot_dict = trial.visualization.plot_dict
+    arm_outputs = plot_dict['outputs']['arm']
+    x = plot_dict['x']
+    u = plot_dict['u']
+
+    plt.figure()
+    plt.tight_layout()
+    n, m, i = 6, 1, 0
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(x['arm_angle'][0])
+    plt.title("Arm angle [rad]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(x['darm_angle'][0])
+    plt.title("d(arm angle)/dt [rad/s]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['tension'][0])
+    plt.title("Tether tension [N]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(x['active_torque'][0])
+    plt.title("Active torque [Nm]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.plot(arm_outputs['tether_torque_on_arm'][0])
+    plt.title("Tether torque [Nm]")
+    plt.grid()
+    plt.subplot(n, m, (i := i + 1))
+    plt.stairs(u['dactive_torque'][0], lw=2)
+    plt.title("d(active torque)/dt [Nm/s]")
+    plt.grid()
+
 def main():
     override_options = {}
     override_options['params.arm.arm_inertia'] = None
-    override_options['params.arm.torque_slope'] = 1000
+    override_options['params.arm.torque_slope'] = 1450  # This gives an average active power of 0 !
     override_options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     override_options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
+
+    # Opti 1: no arm control, find best torque_slope
+    # Opti 2: no torque_slope, find best arm control
+    # Opti 3: mixed, find best torque_slope and arm control st. avg of active power = 0
+    # What about arm length and inertia ?
+
+    # Add power balance check & fix todos in dynamics.py
 
     options = rocking_mode_options(override_options)
     trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
     trial.build()
     trial.optimize()  # final_homotopy_step=['final] to control when to stop
-    trial.plot(['states', 'controls', 'invariants', 'isometric'])
+    trial.plot(['states', 'controls', 'invariants', 'quad'])
+    plot_arm_torques_and_energies(trial)
+    plot_arm_states(trial)
+    plt.show()
     return trial
 
 if __name__ == "__main__":
     trial = main()
 
-
-plot_dict = trial.visualization.plot_dict
-perf = plot_dict['outputs']['performance']
-pb = plot_dict['outputs']['power_balance']
-arm = plot_dict['outputs']['arm']
-x = plot_dict['x']
-xdot = plot_dict['xdot']
-
-plt.figure()
-passive_power = arm['passive_power'][0]
-active_power = arm['active_power'][0]
-plt.plot(passive_power / np.max(passive_power), label="passive")
-plt.plot(active_power / np.max(active_power), label="active")
-plt.title("normalized power")
-plt.legend()
-
-P_kin_arm_rot = pb['P_kin_arm_rot'][0]
-
 # Test: set torque_slope to a small value (eg. 1 Nm/(rad/s)) and verify that
 # active_torque and passive_torque are of the same sign most of the time
-# Which means that the optimisation process gives a solution that extracts energy when possible instead of inputing it
-darm_angle = x['darm_angle'][0]
-passive_torque = arm['passive_torque'][0]
-active_torque = arm['active_torque'][0]
-plt.figure()
-plt.plot(passive_torque / np.max(passive_torque), label="passive torque")
-plt.plot(active_torque / np.max(active_torque), label="active torque")
-plt.legend()
-plt.grid()
-plt.title("Are active and passive torques of the same sign?")
-
-# Kinetic energy theorem
-# (d(1/2 * I * darm_angle**2) / dt = I * darm_angle * ddarm_angle) = tether_power_on_arm - (passive_power + active_power)
-# Or equivalently, int(tether_power_on_arm) - int(passive_power) - int(active_power) = I * (darm_angle(tf) - darm_angle(0)) = 0
-arm_inertia = plot_dict['options']['params']['arm']['arm_inertia']
-arm_angle = x['arm_angle'][0]
-ddarm_angle = xdot['ddarm_angle'][0]
-
-dkinetic_energy = arm_inertia * darm_angle * ddarm_angle
-passive_power = passive_torque * darm_angle
-active_power = active_torque * darm_angle
-generator_power = passive_power + active_power
-
-tether_torque_on_arm = arm['tether_torque_on_arm'][0]
-tether_power_on_arm = tether_torque_on_arm * darm_angle
-
-zero = generator_power - tether_power_on_arm - dkinetic_energy  # Positive = extracting energy out of the void, negative = losing energy to the void
-plt.figure()
-plt.plot(generator_power, label="1: power extracted by the generator")
-plt.plot(tether_power_on_arm, label="2: power injected by the tethers")
-plt.plot(dkinetic_energy, label="3: variation of the kinetic energy")
-plt.plot(zero, label="(1) - (2) - (3) = 0 W")
-plt.title("Power balance of the arm")
-plt.legend()
-
-# Plot 1:
-# arm angle&darm_angle | power balance
-# active_torque | active power
-# passive_torque | passive power
-
-plt.figure()
-plt.tight_layout()
-plt.subplot(3, 2, 1)
-plt.plot(arm_angle / np.max(abs(arm_angle)), label="normalized arm_angle")
-plt.plot(darm_angle / np.max(abs(darm_angle)), label="normalized darm_angle")
-plt.title("Arm state")
-plt.legend()
-plt.grid()
-plt.subplot(3, 2, 2)
-plt.plot(tether_power_on_arm)
-plt.title("Tether power on arm")
-plt.grid()
-plt.subplot(3, 2, 3)
-plt.plot(arm['passive_torque'][0])
-plt.title("Passive generator torque")
-plt.grid()
-plt.subplot(3, 2, 4)
-plt.plot(arm['passive_power'][0])
-plt.title("Passive power output")
-plt.grid()
-plt.subplot(3, 2, 5)
-plt.plot(arm['active_torque'][0])
-plt.title("Active generator torque")
-plt.grid()
-plt.subplot(3, 2, 6)
-plt.plot(arm['active_power'][0])
-plt.title("Active power output")
-plt.grid()
-
-# Plot 2:
-# arm angle | darm_angle
-# tension | active_torque
-# tether_torque_on_arm | dactive_torque
-
-active_torque = x['active_torque'][0]
-dactive_torque = xdot['dactive_torque'][0]
-
-plt.figure()
-plt.tight_layout()
-plt.subplot(3, 2, 1)
-plt.plot(arm_angle)
-plt.title("Arm angle")
-plt.grid()
-plt.subplot(3, 2, 2)
-plt.plot(darm_angle)
-plt.title("Variation of arm angle")
-plt.grid()
-plt.subplot(3, 2, 3)
-plt.plot(arm['tension'][0])
-plt.title("Tether tension")
-plt.grid()
-plt.subplot(3, 2, 4)
-plt.plot(active_torque)
-plt.title("Active torque")
-plt.grid()
-plt.subplot(3, 2, 5)
-plt.plot(tether_torque_on_arm)
-plt.title("Tether torque on arm")
-plt.grid()
-plt.subplot(3, 2, 6)
-plt.plot(dactive_torque)
-plt.title("Variation of active torque")
-plt.grid()
-plt.show()
+# Which means that the optimisation process gives a solution that extracts energy when possible instead of burning it

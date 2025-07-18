@@ -202,7 +202,8 @@ def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
     x = variables_si['x']
     arm_params = options['params']['arm']
 
-    passive_torque = arm_params['torque_slope'] * x['darm_angle']
+    # Torque applied by generator to arm
+    passive_torque = -arm_params['torque_slope'] * x['darm_angle']
     active_torque = x['active_torque']
     generator_torque = passive_torque + active_torque
 
@@ -215,7 +216,7 @@ def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
     ehat_tether = vect_op.normalize(segment_vector)
     tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
     tension_force = tension * ehat_tether
-    tether_torque_on_arm = vect_op.cross(tension_force, q_arm_tip)[2]
+    tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
 
     outputs.setdefault('arm', {})
     outputs['arm']['tension'] = tension
