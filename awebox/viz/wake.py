@@ -39,7 +39,7 @@ import numpy as np
 from matplotlib import ticker
 from awebox.logger.logger import Logger as awelogger
 
-import awebox.mdl.wind as wind
+import awebox.mdl.wind as module_wind
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.indicators as aero_indicators
@@ -775,13 +775,10 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
     vec_to_center = x_obs - x_center
     radius_to_center = vect_op.abs(cas.mtimes(vec_to_center.T, ehat_radial))
 
-    wind_model = plot_dict['options']['model']['wind']['model']
-    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
-    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
-    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
-    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
-    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs[2])
-    vec_u_infty = u_infty * vect_op.xhat_dm()
+    wind = plot_dict['wind']
+    model_parameters = plot_dict['model_parameters']
+    parameters = model_parameters(plot_dict['parameters_plot'])
+    vec_u_infty = wind.get_velocity(x_obs[2], external_parameters=parameters)
 
     omega_name = 'omega' + str(kite) + str(parent)
     if omega_name in x_vals.keys():
@@ -846,8 +843,11 @@ def get_velocity_distribution_at_spanwise_position_functions(plot_dict, cosmetic
         }
     outputs['norm_minus'] = outputs['eff'] - outputs['app']
 
+    model_parameters = plot_dict['model_parameters']
+    parameters = plot_dict['parameters_plot']
     fun_dict = {}
     for name, val in outputs.items():
+
         local_fun = cas.Function(name + '_fun', [xi_sym], [val])
         fun_dict[name] = local_fun
 
@@ -859,8 +859,22 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
     x_over_d_vals = [0., 2.0, 4.0, 6.0]
 
     b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
-    diam = 280 #todo
-    d_over_b = diam / b_ref
+
+    kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, 0)
+
+    vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
+    if vortex_info_exists:
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, 0)
+        scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
+        variables_si = struct_op.variables_scaled_to_si(plot_dict['model_variables'], variables_scaled, scaling)
+        this_is_haas2019_test = is_this_a_haas2019_test(plot_dict, kite_plane_induction_params, variables_si)
+    else:
+        this_is_haas2019_test = False
+
+    if this_is_haas2019_test:
+        diam = 280
+    else:
+        diam = kite_plane_induction_params['average_radius'] * 2.
 
     plot_table_r = 3
     plot_table_c = len(x_over_d_vals)
@@ -872,7 +886,7 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
 
     slice_axes_dict = {0: vect_op.zhat_dm(), 1: vect_op.yhat_dm(), 2: vect_op.yhat_dm()}
     z_offset_dict = {0: 0., 1: -diam/2., 2: diam/2.}
-    y_labels_dict = {0: 'z [m]', 1: 'y [m] (z below)', 2: 'y [m] (z above)'}
+    y_labels_dict = {0: 'z [m] (y=0)', 1: 'y [m] (z=1r below z_center)', 2: 'y [m] (z=1r above z_center)'}
 
     total_subplots = len(list(slice_axes_dict.keys())) * len(x_over_d_vals)
     pdx = 0
@@ -880,18 +894,23 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
 
     for idx in range(len(x_over_d_vals)):
         x_over_d_local = x_over_d_vals[idx]
-        x_over_b = x_over_d_local * d_over_b
+        x_offset = x_over_d_local * diam
 
         for rdx in [0, 1, 2]:
+
+            z_offset_local = z_offset_dict[rdx]
 
             add_label_legends = (idx == len(x_over_d_vals) - 1)
             suppress_wind_options_import_warning = (pdx > 0)
 
             ax = axes[rdx, idx]
-            make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_over_b=x_over_b,
-                                                                   slice_axes=slice_axes_dict[rdx], z_offset=z_offset_dict[rdx],
+            make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_offset=x_offset, z_offset=z_offset_local,
+                                                                   slice_axes=slice_axes_dict[rdx],
                                                                    add_legend_labels=add_label_legends,
                                                                    suppress_wind_options_import_warning=suppress_wind_options_import_warning)
+            if this_is_haas2019_test:
+                add_haas2019_velocity_deficit_curves(ax=ax, z_offset_local=z_offset_local, x_over_d_local=x_over_d_local)
+
             if rdx == 0:
                 ax.set_title('x/d = ' + str(x_over_d_local))
             # todo.
@@ -914,75 +933,130 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
 
     return None
 
-def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_over_b=0., slice_axes=vect_op.zhat_dm(), z_offset=0., add_legend_labels=False, suppress_wind_options_import_warning=True):
+
+def add_haas2019_velocity_deficit_curves(ax, z_offset_local, x_over_d_local):
+    curve_dict = {'horizontal_light': {}, 'horizontal_dark': {}, 'vertical': {}}
+    curve_dict['vertical'][0.] = {'x': [3.78, 4.47, 5.16, 5.85, 6.57, 7.56, 8.55, 9.53, 10.52, 11.55, 12.59, 13.63, 15.74, 18.55, 21.36, 28.11, 35.22, 42.48, 49.79, 57.9, 68.13, 78.35, 88.76, 99.56, 110.35, 120.71, 129.68, 137.59, 143.58, 148.18, 153.38, 163.92, 174.4, 184.69, 194.98, 205.26, 215.55, 226.04, 236.65, 247.25, 257.85, 268.45, 279.01, 289.55, 300.08, 310.61, 321.3, 332, 342.74, 351.36, 357.89, 360.61, 363.34, 365.65, 367.88, 370.1, 371.89, 373.63, 375.45, 377.85, 380.24, 383.67, 389.95, 393.37, 396.21, 400.22, 404.23, 407.71, 410.82, 413.92, 416.89, 419.7, 422.5, 425.34, 428.22, 432.23, 439.95, 450.73, 461.46, 472.21, 483, 493.79, 504.58, 515.37, 526.17, 536.96, 547.75, 558.53, 569.32, 580.12, 590.91, 601.7, 612.5, 623.29, 634.06, 644.84, 655.61, 666.39, 677.17, 687.96, 698.76, 709.55, 720.34, 731.12, 741.89, 752.67, 763.45, 774.23, 785, 795.78],
+                                 'u': [0.5, 0.51769, 0.53539, 0.55308, 0.57077, 0.58843, 0.60609, 0.62374, 0.6414, 0.65905, 0.6767, 0.69434, 0.71167, 0.72879, 0.74591, 0.75957, 0.77291, 0.78603, 0.79909, 0.81009, 0.81579, 0.82149, 0.82535, 0.82535, 0.82535, 0.83016, 0.83922, 0.85128, 0.86574, 0.88169, 0.89412, 0.89792, 0.90214, 0.90752, 0.91289, 0.91827, 0.92364, 0.9277, 0.93104, 0.93438, 0.93773, 0.94107, 0.94475, 0.94865, 0.95254, 0.95644, 0.95893, 0.96126, 0.96303, 0.95537, 0.94169, 0.92454, 0.90738, 0.89007, 0.87272, 0.85536, 0.83788, 0.82038, 0.80291, 0.78562, 0.76833, 0.75296, 0.76219, 0.77893, 0.79603, 0.8125, 0.82896, 0.84572, 0.8627, 0.87969, 0.89673, 0.91385, 0.93097, 0.94808, 0.96516, 0.98162, 0.99184, 0.99104, 0.98914, 0.9877, 0.98827, 0.98878, 0.98926, 0.98974, 0.99022, 0.99085, 0.99149, 0.99213, 0.99277, 0.99321, 0.9936, 0.99398, 0.99437, 0.99488, 0.99599, 0.99709, 0.9982, 0.99931, 1.00016, 1.0006, 1.00104, 1.00148, 1.0021, 1.00312, 1.00414, 1.00515, 1.00617, 1.00724, 1.00831, 1.00939]
+                                 }
+    curve_dict['vertical'][2.] = {'x': [3.2, 3.67, 4.14, 4.61, 5.02, 5.36, 5.69, 6.02, 6.75, 7.5, 8.25, 8.28, 8.3, 9.27, 10.9, 12.53, 14.78, 17.09, 20.82, 25.66, 31.87, 40.48, 50.35, 61.12, 67.03, 72.35, 77.32, 81.07, 84.91, 89.11, 93.72, 99.62, 109.04, 117.3, 127.73, 136.1, 141.49, 146.15, 151.31, 156.48, 161.65, 166.23, 170.61, 175, 179.15, 183.31, 187.75, 193.32, 200.09, 208.61, 217.97, 227.99, 238.66, 249.36, 260.13, 270.85, 281.4, 291.97, 302.67, 313.38, 324.18, 333.77, 341.72, 348.08, 354.49, 363.42, 373.16, 382.28, 393.07, 403.05, 412.37, 420.78, 427.4, 433.06, 439.3, 445.92, 453.57, 464.08, 474.81, 485.45, 496.17, 506.94, 517.71, 528.47, 539.23, 550, 560.76, 571.54, 582.33, 593.12, 603.91, 614.71, 625.5, 636.3, 647.05, 657.8, 668.55, 679.36, 690.16, 700.96, 711.74, 722.52, 733.3, 744.08, 754.88, 765.67, 776.46, 787.24, 797.98],
+                                 'u': [0.46293, 0.481, 0.49906, 0.51713, 0.5352, 0.55328, 0.57135, 0.58943, 0.60747, 0.62551, 0.64356, 0.66164, 0.67972, 0.69769, 0.71557, 0.73345, 0.75114, 0.76881, 0.78565, 0.80182, 0.81643, 0.8271, 0.83437, 0.83366, 0.81877, 0.80306, 0.78703, 0.77008, 0.7532, 0.73655, 0.72023, 0.70562, 0.69689, 0.68524, 0.68354, 0.69437, 0.70974, 0.72607, 0.74196, 0.75786, 0.77376, 0.79014, 0.80668, 0.82321, 0.83992, 0.85662, 0.87313, 0.88846, 0.90258, 0.91361, 0.92247, 0.92904, 0.93194, 0.93438, 0.9357, 0.93763, 0.9416, 0.9453, 0.9478, 0.95027, 0.95027, 0.94449, 0.93244, 0.91784, 0.90352, 0.89356, 0.88581, 0.87616, 0.87531, 0.88181, 0.89094, 0.90222, 0.9163, 0.93171, 0.94648, 0.96075, 0.97354, 0.97574, 0.97761, 0.98076, 0.98288, 0.98441, 0.98593, 0.98749, 0.98907, 0.99065, 0.99222, 0.99342, 0.99443, 0.99543, 0.99641, 0.997, 0.99758, 0.99816, 0.99996, 1.00182, 1.00362, 1.00362, 1.00362, 1.00366, 1.00489, 1.00613, 1.00736, 1.00846, 1.00933, 1.0102, 1.01107, 1.01219, 1.01419]
+                                 }
+    curve_dict['vertical'][4.] = {'x': [3.78, 4.06, 4.35, 4.63, 4.92, 5.23, 5.55, 5.86, 6.32, 6.84, 7.35, 8.27, 9.46, 10.65, 11.84, 13.82, 16.74, 21.28, 29.78, 39.56, 49.21, 55.91, 64.23, 74.17, 84.61, 95.27, 105.97, 116.47, 126.74, 136.96, 146.27, 155.52, 164.16, 172.88, 181.75, 190.63, 200.07, 209.52, 218.54, 227.56, 236.13, 244.59, 252.97, 261.31, 271.42, 281.93, 292.53, 303.18, 313.59, 322.97, 330.61, 338.86, 349.14, 359.91, 370.61, 381.33, 392.08, 402.81, 413.35, 423.89, 433.87, 443.44, 452.53, 460.3, 469.09, 479.12, 489.73, 500.33, 511.12, 521.9, 532.69, 543.47, 554.24, 565.02, 575.79, 586.57, 597.35, 608.13, 618.91, 629.69, 640.47, 651.25, 662.03, 672.81, 683.58, 694.36, 705.14, 715.92, 726.7, 737.48, 748.26, 759.05, 769.83, 780.61, 791.39],
+                                 'u': [0.49644, 0.51423, 0.53202, 0.5498, 0.56759, 0.58538, 0.60316, 0.62095, 0.63873, 0.6565, 0.67427, 0.69199, 0.70968, 0.72736, 0.74505, 0.76249, 0.77959, 0.79568, 0.80665, 0.81091, 0.80414, 0.79046, 0.77998, 0.77314, 0.772, 0.77484, 0.7772, 0.78101, 0.78653, 0.79219, 0.80121, 0.81035, 0.82103, 0.83153, 0.84165, 0.85178, 0.86039, 0.86899, 0.87877, 0.88855, 0.89935, 0.91042, 0.92163, 0.93292, 0.93832, 0.94235, 0.94572, 0.94864, 0.94729, 0.93923, 0.92665, 0.9152, 0.91237, 0.91236, 0.91468, 0.91682, 0.91847, 0.92036, 0.92417, 0.92803, 0.93483, 0.94289, 0.95251, 0.96472, 0.9744, 0.98086, 0.98419, 0.98752, 0.98831, 0.98908, 0.98986, 0.99083, 0.99197, 0.9931, 0.99424, 0.99524, 0.99615, 0.99706, 0.99797, 0.99895, 0.99995, 1.00095, 1.00197, 1.00306, 1.00416, 1.00526, 1.00633, 1.00724, 1.00815, 1.00906, 1.00997, 1.01087, 1.01178, 1.01269, 1.0136]
+                                 }
+    curve_dict['vertical'][6.] = {'x': [3.78, 4.14, 4.51, 4.87, 5.02, 5.17, 5.33, 6.18, 7.61, 9.24, 11.41, 14.38, 19.35, 26.98, 36.56, 46.85, 56.46, 64.92, 73.48, 83.24, 94.03, 104.8, 115.4, 125.78, 136.57, 147.15, 157.14, 167.13, 177.14, 187.15, 197.31, 207.58, 217.64, 227.29, 236.95, 246.64, 256.44, 266.23, 275.89, 285.58, 295.86, 306.07, 314.81, 323.61, 333.68, 343.82, 354.15, 364.75, 375.31, 385.81, 396.27, 406.65, 417.4, 428.19, 438.99, 449.63, 460.06, 469.83, 479.69, 489.72, 500.42, 511.12, 521.82, 532.57, 543.35, 554.13, 564.91, 575.7, 586.49, 597.28, 608.06, 618.83, 629.61, 640.39, 651.17, 661.96, 672.76, 683.56, 694.35, 705.13, 715.9, 726.68, 737.46, 748.23, 759.01, 769.79, 780.57, 791.32],
+                                 'u': [0.58654, 0.60401, 0.62148, 0.63896, 0.65644, 0.67392, 0.6914, 0.7088, 0.72613, 0.7434, 0.76052, 0.77719, 0.79271, 0.8047, 0.81031, 0.80597, 0.81031, 0.82102, 0.83147, 0.8382, 0.83763, 0.83656, 0.83378, 0.82973, 0.83062, 0.83294, 0.83958, 0.8462, 0.85275, 0.85931, 0.86517, 0.87058, 0.87682, 0.88464, 0.89246, 0.90017, 0.9075, 0.91486, 0.92268, 0.93036, 0.93569, 0.93275, 0.92271, 0.9126, 0.917, 0.92302, 0.92791, 0.93116, 0.93483, 0.93888, 0.9432, 0.94801, 0.94902, 0.9493, 0.9493, 0.95222, 0.9563, 0.96374, 0.97085, 0.9773, 0.97962, 0.98195, 0.98428, 0.98573, 0.98668, 0.98762, 0.98857, 0.9892, 0.98982, 0.99046, 0.99144, 0.99243, 0.99342, 0.99441, 0.9954, 0.99563, 0.99563, 0.99563, 0.99585, 0.99688, 0.99792, 0.99895, 0.99998, 1.00101, 1.00205, 1.00308, 1.00411, 1.00563]
+                                 }
+
+    curve_dict['horizontal_light'][0.] = {'x': [0, 25.44, 103.55, 181.07, 217.16, 252.07, 282.84, 349.7, 401.78, 454.44, 489.94, 529.59, 568.64, 612.43, 682.25, 798.22],
+                                         'u': [1.01365, 1.01075, 1.00987, 0.99827, 0.98857, 0.97692, 0.96331, 0.94779, 0.94688, 0.94695, 0.95089, 0.96556, 0.97925, 0.99392, 1.00181, 1.00487]
+                                         }
+    curve_dict['horizontal_dark'][0.] = {'x': [0.59, 12.42, 24.25, 36.08, 47.91, 59.74, 71.56, 83.4, 95.23, 107.06, 118.89, 130.71, 142.53, 154.34, 166.16, 177.97, 189.78, 201.58, 213.32, 225.06, 236.75, 248.37, 260.01, 271.76, 280.8, 286.35, 291.5, 297.55, 303.61, 310.48, 317.68, 325.99, 334.45, 342.48, 351.12, 361.25, 372.73, 384.56, 396.39, 408.13, 419.71, 430.69, 440.76, 450.17, 459.29, 466.73, 474, 481.04, 488.96, 497.17, 503.64, 510.57, 520.48, 530.97, 542.61, 554.44, 566.26, 578.03, 589.8, 601.57, 613.33, 625.1, 636.87, 648.69, 660.5, 672.33, 684.16, 695.99, 707.83, 719.66, 731.5, 743.33, 755.17, 767, 778.83, 790.67],
+                                        'u': [1.01267, 1.01209, 1.0115, 1.01092, 1.01123, 1.01184, 1.01246, 1.0129, 1.01317, 1.01344, 1.01371, 1.0146, 1.01576, 1.01692, 1.01811, 1.01935, 1.0206, 1.02202, 1.02449, 1.02697, 1.02991, 1.03365, 1.03707, 1.03932, 1.03039, 1.01325, 0.99573, 0.97898, 0.96224, 0.94641, 0.93095, 0.91713, 0.90352, 0.8892, 0.87604, 0.86649, 0.86199, 0.86133, 0.86159, 0.86348, 0.86751, 0.87403, 0.88426, 0.89609, 0.90844, 0.92362, 0.939, 0.95468, 0.96913, 0.98318, 0.99941, 1.01477, 1.02543, 1.03335, 1.0299, 1.02992, 1.02951, 1.02745, 1.02539, 1.02333, 1.02129, 1.01925, 1.01727, 1.01614, 1.01501, 1.01442, 1.01435, 1.01427, 1.0142, 1.01413, 1.01405, 1.01398, 1.01391, 1.01383, 1.01376, 1.01369]
+                                        }
+
+    curve_dict['horizontal_light'][2.] = {'x': [1.18, 52.07, 109.47, 175.15, 185.21, 192.9, 201.18, 214.79, 227.22, 233.14, 242.01, 256.21, 277.51, 295.27, 303.55, 311.24, 323.08, 334.91, 341.42, 350.3, 355.03, 367.46, 376.33, 382.84, 391.12, 412.43, 421.89, 428.4, 440.24, 457.99, 466.27, 471.6, 484.02, 494.08, 500, 506.51, 514.2, 527.22, 541.42, 561.54, 571.6, 585.8, 599.41, 613.02, 636.09, 656.21, 691.72, 799.41],
+                                         'u': [1.02079, 1.01683, 1.02277, 1.02376, 1.02376, 1.01782, 0.99604, 0.97228, 0.94752, 0.94356, 0.92277, 0.89109, 0.8505, 0.8198, 0.81188, 0.81188, 0.8198, 0.83168, 0.83663, 0.83267, 0.82079, 0.79703, 0.78218, 0.78119, 0.78317, 0.78416, 0.78713, 0.79703, 0.82277, 0.84851, 0.8495, 0.8495, 0.83168, 0.80693, 0.79307, 0.79109, 0.79307, 0.80891, 0.83069, 0.84158, 0.85248, 0.87327, 0.91584, 0.95644, 1.00495, 1.01386, 1.01485, 1.02079]
+                                         }
+    curve_dict['horizontal_dark'][2.] = {'x': [1.18, 13.02, 24.85, 36.68, 48.51, 60.34, 72.18, 84.01, 95.84, 107.67, 119.51, 131.34, 143.17, 155, 166.83, 178.66, 190.49, 202.31, 214.14, 225.96, 237.38, 248.27, 258.92, 269.64, 279.96, 289.43, 299.16, 309.17, 319.14, 330.08, 341.91, 353.71, 365.51, 377.33, 389.16, 400.99, 412.81, 424.61, 436.41, 448.2, 459.57, 469.46, 479.57, 490.15, 500.5, 510.62, 520.09, 529.74, 541.05, 552.48, 564.3, 576.11, 587.93, 599.75, 611.58, 623.41, 635.24, 647.08, 658.91, 670.74, 682.58, 694.41, 706.25, 718.08, 729.91, 741.75, 753.58, 765.42, 777.25, 789.08],
+                                        'u': [1.01881, 1.01844, 1.01807, 1.0177, 1.01733, 1.01696, 1.01708, 1.01746, 1.01784, 1.01822, 1.0186, 1.01863, 1.01821, 1.01779, 1.01737, 1.01696, 1.01622, 1.01534, 1.01485, 1.01462, 1.00947, 1.00189, 0.99325, 0.98487, 0.97539, 0.96351, 0.95225, 0.94169, 0.93108, 0.92716, 0.92752, 0.92608, 0.92465, 0.9239, 0.92424, 0.92459, 0.92556, 0.92708, 0.9286, 0.9271, 0.92813, 0.93899, 0.94924, 0.9581, 0.96768, 0.97794, 0.98971, 1.00061, 1.00644, 1.01114, 1.01221, 1.01328, 1.01435, 1.01517, 1.01578, 1.01639, 1.01687, 1.01701, 1.01715, 1.0173, 1.01744, 1.01758, 1.01772, 1.01786, 1.018, 1.01814, 1.01829, 1.01843, 1.01857, 1.01871]
+                                        }
+
+    curve_dict['horizontal_light'][4.] = {'x': [1.19, 95.38, 135.92, 157.97, 172.88, 190.76, 210.43, 228.32, 244.41, 256.93, 265.87, 276.01, 287.33, 309.39, 318.33, 328.46, 340.39, 348.73, 356.48, 363.64, 374.37, 382.71, 389.87, 397.62, 408.94, 424.44, 438.75, 450.07, 461.4, 471.54, 481.67, 494.19, 512.67, 525.78, 536.51, 552.01, 572.88, 582.41, 604.47, 623.55, 652.16, 674.22, 708.79, 798.81],
+                                         'u': [1.0167, 1.01948, 1.01299, 1.00928, 0.99536, 0.97959, 0.96197, 0.95455, 0.95269, 0.9564, 0.95362, 0.94527, 0.93043, 0.90631, 0.89889, 0.89981, 0.90631, 0.90631, 0.90445, 0.89332, 0.88126, 0.87291, 0.8757, 0.88683, 0.90816, 0.92022, 0.93135, 0.93135, 0.92301, 0.90538, 0.89054, 0.87848, 0.88776, 0.89981, 0.91095, 0.92022, 0.92022, 0.92579, 0.93414, 0.95269, 0.97774, 1.00464, 1.01763, 1.01763]
+                                         }
+    curve_dict['horizontal_dark'][4.] = {'x': [0, 11.92, 23.84, 35.77, 47.69, 59.61, 71.53, 83.45, 95.38, 107.3, 119.22, 131.14, 143.07, 154.99, 166.91, 178.8, 190.66, 202.5, 214.34, 225.96, 237.42, 248.88, 260.27, 271.65, 283.11, 294.59, 306.37, 318.22, 330.08, 342, 353.92, 365.84, 377.77, 389.69, 401.59, 413.44, 425.29, 437.14, 449.04, 460.93, 472.83, 484.75, 496.59, 508.02, 519.16, 530.19, 541.19, 552.12, 563.06, 574.71, 586.47, 598.34, 610.26, 622.17, 634.09, 646.01, 657.94, 669.86, 681.78, 693.7, 705.62, 717.54, 729.47, 741.39, 753.31, 765.23, 777.15, 789.08],
+                                        'u': [1.0167, 1.01688, 1.01705, 1.01723, 1.01741, 1.01759, 1.01763, 1.01763, 1.01763, 1.01763, 1.01763, 1.01763, 1.01763, 1.01763, 1.01763, 1.01649, 1.0146, 1.01248, 1.01023, 1.00635, 1.00125, 0.99614, 0.99063, 0.98512, 0.97998, 0.97501, 0.97238, 0.97033, 0.96846, 0.96846, 0.96846, 0.96846, 0.96846, 0.96846, 0.96797, 0.96589, 0.96381, 0.96211, 0.96334, 0.96458, 0.96573, 0.9662, 0.96744, 0.97271, 0.9793, 0.98632, 0.99348, 1.00088, 1.00828, 1.01192, 1.01497, 1.01624, 1.01688, 1.01752, 1.01778, 1.01798, 1.01817, 1.01836, 1.01855, 1.01874, 1.01893, 1.01912, 1.01931, 1.01951, 1.0197, 1.01989, 1.02008, 1.02027]
+                                        }
+
+    curve_dict['horizontal_light'][6.] = {'x': [-0.59, 82.84, 133.73, 204.14, 239.05, 250.89, 276.33, 305.33, 321.89, 336.09, 345.56, 355.62, 367.46, 388.76, 410.06, 428.99, 447.93, 463.31, 472.19, 485.21, 498.82, 514.79, 533.73, 552.07, 577.51, 598.22, 623.67, 694.67, 796.45],
+                                         'u': [1.01724, 1.01437, 1.01341, 0.98467, 0.97031, 0.96264, 0.96169, 0.95594, 0.9636, 0.97222, 0.97222, 0.96743, 0.95402, 0.94636, 0.94923, 0.95785, 0.9636, 0.95594, 0.94061, 0.92816, 0.92816, 0.93678, 0.94636, 0.95115, 0.95402, 0.96264, 0.97414, 1.00958, 1.01341]
+                                         }
+    curve_dict['horizontal_dark'][6.] = {'x': [1.18, 13.02, 24.85, 36.68, 48.52, 60.35, 72.18, 84, 95.82, 107.65, 119.47, 131.31, 143.14, 154.98, 166.81, 178.64, 190.48, 202.31, 214.13, 224.54, 235.7, 247.34, 259.01, 270.78, 282.55, 294.34, 306.17, 318.01, 329.84, 341.67, 353.51, 365.34, 377.17, 388.99, 400.82, 412.65, 424.44, 436.23, 448.06, 459.89, 471.72, 483.56, 495.36, 507.16, 518.92, 530.67, 542.37, 554.04, 565.54, 576.98, 588.6, 600.3, 612.1, 623.92, 635.76, 647.59, 659.42, 671.26, 683.09, 694.93, 706.76, 718.6, 730.43, 742.26, 754.1, 765.93, 777.77, 789.6],
+                                        'u': [1.01628, 1.01647, 1.01666, 1.01684, 1.01703, 1.01721, 1.01653, 1.0157, 1.01487, 1.01404, 1.01341, 1.01341, 1.01341, 1.01341, 1.01341, 1.01341, 1.01341, 1.01341, 1.01261, 1.00413, 0.99861, 0.99515, 0.99197, 0.99004, 0.9881, 0.98659, 0.98659, 0.98659, 0.98659, 0.98689, 0.98738, 0.98786, 0.98835, 0.98896, 0.98963, 0.9903, 0.98891, 0.98766, 0.9881, 0.98853, 0.98894, 0.98935, 0.98839, 0.98688, 0.98841, 0.99068, 0.99355, 0.9967, 1.00109, 1.00593, 1.00958, 1.01218, 1.01361, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437, 1.01437]
+                                        }
+
+    if z_offset_local == 0:
+        local_series = 'vertical'
+    elif z_offset_local < 0:
+        local_series = 'horizontal_light'
+    elif z_offset_local > 0:
+        local_series = 'horizontal_dark'
+    else:
+        message = 'something went wrong with assigning Haas2019 reference velocity deficits'
+        print_op.log_and_raise_error(message)
+
+    local_curve = curve_dict[local_series][x_over_d_local]
+
+    if 'horizontal' in local_series:
+        local_curve['x'] = list(np.array(local_curve['x']) - np.array([400.] * len(local_curve['x'])))
+
+    ax.plot(local_curve['u'], local_curve['x'], linestyle='dotted', c='b', label='Haas 2019')
+    return None
+
+
+def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_offset=0., z_offset=0., slice_axes=vect_op.zhat_dm(), add_legend_labels=False, suppress_wind_options_import_warning=True):
     s_sym = cas.SX.sym('s_sym')
 
-    wind_model = plot_dict['options']['model']['wind']['model']
-    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
-    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
-    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
-    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
-    ehat_wind = vect_op.xhat_dm()
-
-    if not suppress_wind_options_import_warning:
-        wind.warn_about_importing_from_options()
+    # if not suppress_wind_options_import_warning:
+    #     wind.warn_about_importing_from_options()
 
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, 0)
     x_center = kite_plane_induction_params['center']
-    radius = kite_plane_induction_params['average_radius']
-    b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
 
     z_min = 0 #plot_dict['options']['model.system_bounds.x.q'][0][2]
     z_max = 800 #x_center[2] + kite_plane_induction_params['mu_end_by_path'] * radius
-    y_offset = 400.
+    y_offset = (z_max - z_min) / 2.
     y_max = x_center[1] + y_offset #kite_plane_induction_params['mu_end_by_path'] * radius
-    y_min = -1. * y_max
+    y_min = x_center[1] - y_offset
 
-    if slice_axes[1] == 1.:
-        u_normalizing = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_center[2] + z_offset)
-    elif slice_axes[2] == 1:
-        u_normalizing = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, z_max)
-    else:
-        message = 'awebox is not yet set up to make velocity deficit plots across axis ' + repr(slice_axes)
-        message += '. skipping this plotting request.'
-        print_op.base_print(message, level='warning')
-        return None
-
-    u_infty_nn_list = []
-    u_wind_nn_list = []
+    u_infty_proj_list = []
+    u_wind_proj_list = []
 
     n_interpolation = plot_dict['interpolation_si']['x']['q10'][0].shape[0]
     for idx_at_eval in range(n_interpolation):
 
-        x_obs = x_center + x_over_b * b_ref * ehat_wind + s_sym * slice_axes + z_offset * vect_op.zhat_dm()
+        x_obs = x_center + x_offset * vect_op.xhat_dm() + z_offset * vect_op.zhat_dm() + s_sym * slice_axes
         u_wind_proj, u_infty_proj = get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval, direction_induction='wind', x_obs=x_obs)
 
-        u_infty_proj_normalized = u_infty_proj / u_normalizing
-        u_wind_proj_normalized = u_wind_proj / u_normalizing
+        u_infty_proj_list = cas.vertcat(u_infty_proj_list, u_infty_proj)
+        u_wind_proj_list = cas.vertcat(u_wind_proj_list, u_wind_proj)
 
-        u_infty_nn_list = cas.vertcat(u_infty_nn_list, u_infty_proj_normalized)
-        u_wind_nn_list = cas.vertcat(u_wind_nn_list, u_wind_proj_normalized)
+    temp_average_u_infty = vect_op.average(u_infty_proj_list)
+    temp_average_u_wind = vect_op.average(u_wind_proj_list)
 
-    temp_average_u_infty_nn = vect_op.average(u_infty_nn_list)
-    temp_average_u_wind_nn = vect_op.average(u_wind_nn_list)
+    u_infty_avg_proj_fun = cas.Function('u_infty_avg_proj_fun', [s_sym], [temp_average_u_infty])
+    u_wind_avg_proj_fun = cas.Function('u_wind_avg_proj_fun', [s_sym], [temp_average_u_wind])
 
-    u_infty_nn_fun = cas.Function('u_infty_nn_fun', [s_sym], [temp_average_u_infty_nn])
-    u_wind_nn_fun = cas.Function('u_wind_nn_fun', [s_sym], [temp_average_u_wind_nn])
-
-    n_points = 100
+    n_points = int(z_max - z_min) # evaluate every meter
     param_range = np.arange(0., 1. + 1./float(n_points), 1./float(n_points))
     z_vals = cas.DM([z_min + (z_max - z_min) * p_val for p_val in param_range]).T
     y_vals = cas.DM([y_min + (y_max - y_min) * p_val for p_val in param_range]).T
 
     if slice_axes[1] == 1:
         s_vals = y_vals
+        y_axis_vals = y_vals
     elif slice_axes[2] == 1:
-        s_vals = z_vals
+        # notice above !!
+        # z_obs = z_center + z_offset + s
+        # s = z_target - z_center - z_offset
+        s_vals = []
+        for idx in range(z_vals.shape[1]):
+            local_s = z_vals[0, idx] - x_center[2] - z_offset
+            s_vals = cas.horzcat(s_vals, local_s)
+        y_axis_vals = z_vals
+
     else:
         message = 'awebox is not yet set up to make velocity deficit plots across axis ' + repr(slice_axes)
         message += '. skipping this plotting request.'
         print_op.base_print(message, level='warning')
         return None
+
+    u_normalizing = u_infty_avg_proj_fun(np.max(np.array(s_vals)))
+
+    u_infty_nn_fun = cas.Function('u_infty_nn_fun', [s_sym], [u_infty_avg_proj_fun(s_sym) / u_normalizing])
+    u_wind_nn_fun = cas.Function('u_wind_nn_fun', [s_sym], [u_wind_avg_proj_fun(s_sym) / u_normalizing])
 
     entries = s_vals.shape[1]
     parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
@@ -994,28 +1068,22 @@ def make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmet
 
     u_infty_nn_vals = prep_to_plot(u_infty_nn_map(s_vals))
     u_wind_nn_vals = prep_to_plot(u_wind_nn_map(s_vals))
-    s_vals = prep_to_plot(s_vals)
+    y_axis_vals = prep_to_plot(y_axis_vals)
 
     if add_legend_labels:
-        ax.plot(u_infty_nn_vals, s_vals, linestyle='--', label='free_stream', c='k')
-        ax.plot(u_wind_nn_vals, s_vals, linestyle='-', label='modeled', c='b')
+        ax.plot(u_infty_nn_vals, y_axis_vals, linestyle='--', label='free_stream', c='k')
+        ax.plot(u_wind_nn_vals, y_axis_vals, linestyle='-', label='modeled', c='b')
     else:
-        ax.plot(u_infty_nn_vals, s_vals, linestyle='--', c='k')
-        ax.plot(u_wind_nn_vals, s_vals, linestyle='-', c='b')
+        ax.plot(u_infty_nn_vals, y_axis_vals, linestyle='--', c='k')
+        ax.plot(u_wind_nn_vals, y_axis_vals, linestyle='-', c='b')
 
     ax.set_xlabel("u/u_limit [-]")
+    ax.set_xlim([0.5, 1.25])
 
     return None
 
 
 def get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=0, direction_induction=None, x_obs=None):
-
-    wind_model = plot_dict['options']['model']['wind']['model']
-    u_ref = plot_dict['options']['user_options']['wind']['u_ref']
-    z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
-    z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
-    exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
-    ehat_wind = vect_op.xhat_dm()
 
     if x_obs is not None:
         x_obs_sym = x_obs
@@ -1025,12 +1093,18 @@ def get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=0, dir
     u_ind_fun = get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval=idx_at_eval)
     u_ind = u_ind_fun(x_obs_sym)
 
-    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, x_obs_sym[2]) * ehat_wind
+    wind = plot_dict['wind']
+    model_parameters = plot_dict['model_parameters']
+    parameters = model_parameters(plot_dict['parameters_plot'])
+    u_infty = wind.get_velocity(x_obs_sym[2], external_parameters=parameters)
+    ehat_wind = wind.get_wind_direction()
+
     u_wind = u_infty + u_ind
 
     if direction_induction is not None:
         if direction_induction == 'wind':
             u_wind = cas.mtimes(u_wind.T, ehat_wind)
+            u_infty = cas.mtimes(u_infty.T, ehat_wind)
         else:
             message = 'function is not yet set up for projections in the ' + direction_induction + ' direction'
             print_op.log_and_raise_error(message)
@@ -1061,17 +1135,20 @@ def get_total_biot_savart_at_observer_function(plot_dict, cosmetics, idx_at_eval
 
 def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval=0, direction='normal'):
 
-    variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
-    parameters = plot_dict['parameters_plot']
-    wake = plot_dict['wake']
     x_obs_sym = cas.SX.sym('x_obs_sym', (3, 1))
-    u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
+    if 'wake' in plot_dict.keys():
+        variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+        parameters = plot_dict['parameters_plot']
+        wake = plot_dict['wake']
+        u_ind_sym = wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs_sym)
 
-    n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction)
+        n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction)
 
-    u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
+        u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
 
-    a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
+        a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
+    else:
+        a_sym = cas.DM.zero((1, 1))
     a_fun = cas.Function('a_fun', [x_obs_sym], [a_sym])
 
     return a_fun
@@ -1159,10 +1236,11 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval, suppress_wind_option
     z_ref = plot_dict['options']['model']['params']['wind']['z_ref']
     z0_air = plot_dict['options']['model']['params']['wind']['log_wind']['z0_air']
     exp_ref = plot_dict['options']['model']['params']['wind']['power_wind']['exp_ref']
-    u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
-    if not suppress_wind_options_import_warning:
-        wind.warn_about_importing_from_options()
-    kite_plane_induction_params['u_infty'] = u_infty
+    wind = plot_dict['wind']
+    # u_infty = wind.get_speed(wind_model, u_ref, z_ref, z0_air, exp_ref, center[2])
+    # if not suppress_wind_options_import_warning:
+    #     wind.warn_about_importing_from_options()
+    kite_plane_induction_params['u_infty'] = wind.get_velocity(center[2])[0]
 
     vec_u_zero = []
     for dim in range(3):
@@ -1230,8 +1308,6 @@ def is_this_a_haas2019_test(plot_dict, kite_plane_induction_params, variables_si
                                     'expected': 43.8178},
                          'diam_t': {'found': variables_si['theta', 'diam_t'],
                                     'expected': 9.55e-2},
-                         'x_center_altitude': {'found': kite_plane_induction_params['center'][2],
-                                               'expected': 260.},
                          'kite_span': {'found': plot_dict['options']['model']['params']['geometry']['b_ref'],
                                        'expected': 60},
                          'kite_dof': {'found': plot_dict['options']['user_options']['system_model']['kite_dof'],
@@ -1463,6 +1539,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                     y_min = -400.
                     y_max = 400.
                     z_max = 800.
+                    position_shift_xy_in_z = 260 * vect_op.zhat_dm()
                 else:
                     x_center = kite_plane_induction_params['center']
                     diameter = 2. * kite_plane_induction_params['average_radius']
@@ -1470,6 +1547,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                     z_max = x_center[2] + 2. * diameter
                     y_max = z_max / 2.
                     y_min = -1. * y_max
+                    position_shift_xy_in_z = x_center[2] * vect_op.zhat_dm()
                 ax.set_aspect('equal')
 
                 x_hat = vect_op.xhat_dm()
@@ -1477,10 +1555,12 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                     a_hat = vect_op.yhat_dm()
                     a_min = y_min
                     a_max = y_max
+                    position_shift = position_shift_xy_in_z
                 elif side == 'xz':
                     a_hat = vect_op.zhat_dm()
                     a_min = z_min
                     a_max = z_max
+                    position_shift = cas.DM.zeros((3, 1))
 
                 ratio_points = float((x_max - x_min) / (a_max - a_min))
                 n_x = int(np.round(ratio_points * n_points_contour))
@@ -1503,7 +1583,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                 pdx = 0
                 for idx in range(xx_mesh.shape[0]):
                     for jdx in range(xx_mesh.shape[1]):
-                        x_obs = xx_mesh[idx, jdx] * vect_op.xhat_dm() + aa_mesh[idx, jdx] * a_hat
+                        x_obs = xx_mesh[idx, jdx] * vect_op.xhat_dm() + aa_mesh[idx, jdx] * a_hat + position_shift
                         observation_points_concatenated = cas.horzcat(observation_points_concatenated, x_obs)
                         print_op.print_progress(pdx, total_progress)
                         pdx += 1
@@ -1527,16 +1607,21 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                 temp_cosmetics = copy.deepcopy(cosmetics)
                 temp_cosmetics['trajectory']['tethers'] = False
                 temp_cosmetics['trajectory']['colors'] = ['k'] * 20
-                tools.plot_trajectory_contents(ax, plot_dict, temp_cosmetics, side, plot_kites=True)
-                for kite in plot_dict['architecture'].kite_nodes:
-                    parent = plot_dict['architecture'].parent_map[kite]
-                    q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
-                    tools.basic_draw(ax, side, x_start=q_kite, x_end=q_kite, color='k', marker='o')
-    
+                temp_cosmetics['trajectory']['temporal_epigraph_length_to_span'] = 0.
+                tools.plot_trajectory_contents(ax, plot_dict, temp_cosmetics, side, plot_kites=True, linewidth=0.25, idx_at_eval=idx_at_eval)
+
                 ### draw the contour
-                general_levels = n_points_contour
+                u_min = 0
                 if this_is_haas_test:
-                    general_levels = np.linspace(0., 15, n_points_contour)
+                    u_max = 15.
+                else:
+                    _, vec_u_max = get_total_wind_at_observer_function(plot_dict, cosmetics, idx_at_eval=0,
+                                                                   direction_induction='wind',
+                                                                   x_obs=z_max * vect_op.zhat_dm())
+                    u_max = float(vec_u_max[0])
+
+                general_levels = np.linspace(u_min, u_max, n_points_contour)
+
                 cmap = 'viridis' #'YlGnBu_r'
                 cs = ax.contourf(xx_mesh, aa_mesh, uu, general_levels, cmap=cmap)
                 cbar = fig_new.colorbar(cs, ax=ax)

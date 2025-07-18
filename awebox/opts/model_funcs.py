@@ -942,6 +942,7 @@ def build_wind_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'wind', None, 'z_ref', z_ref, ('?????', None), 'x'))
     options_tree.append(('model', 'wind', 'log_wind', 'z0_air', z0_air, ('?????', None), 'x'))
     options_tree.append(('model', 'wind', 'power_wind', 'exp_ref', exp_ref, ('?????', None), 'x'))
+    options_tree.append(('model', 'wind', 'parallelization', 'type', options['model']['construction']['parallelization']['type'], ('?????', None), 'x'))
 
     options_tree.append(('solver', 'initialization', 'model', 'wind_u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model', 'wind_model', options['user_options']['wind']['model'], ('???', None), 'x'))

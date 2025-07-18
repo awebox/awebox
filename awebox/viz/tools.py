@@ -432,7 +432,7 @@ def test_basic_draw_offside():
 
 
 
-def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None):
+def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=None, linestyle='-', alpha=1., label=None, linewidth=1.):
 
     no_start = x_start is None
     no_end = x_end is None
@@ -475,13 +475,13 @@ def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=
 
 
     if side == 'xy':
-        ax.plot(x, y, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+        ax.plot(x, y, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
     elif side == 'xz':
-        ax.plot(x, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+        ax.plot(x, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
     elif side == 'yz':
-        ax.plot(y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+        ax.plot(y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
     elif side == 'isometric':
-        ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+        ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
 
     elif (isinstance(side, tuple)) and (len(side) == 4):
         center_valid = False
@@ -519,7 +519,7 @@ def basic_draw(ax, side, x_start=None, x_end=None, data=None, color='k', marker=
 
             a_valsi = np.array(shifted_data[0, :]).T
             b_valsi = np.array(shifted_data[1, :]).T
-            ax.plot(a_valsi, b_valsi, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label)
+            ax.plot(a_valsi, b_valsi, marker=marker, c=color, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
 
     else:
         message = 'basic_draw side ' + repr(side) + ' is not recognized'
@@ -699,7 +699,7 @@ def adjust_lightness(color, amount=0.5):
 
 
 
-def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None):
+def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=None, linestyle='-', alpha=1., label=None, linewidth=1):
 
     parent = plot_dict['architecture'].parent_map[node]
 
@@ -731,9 +731,9 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
         data_reel_in = data[idx_switch:, :]
 
         basic_draw(ax, side, data=data_reel_out, color=color, marker=marker, linestyle=linestyle_reel_out, alpha=alpha,
-                   label=label + label_reel_out)
+                   label=label + label_reel_out, linewidth=linewidth)
         basic_draw(ax, side, data=data_reel_in, color=color, marker=marker, linestyle=linestyle_reel_in, alpha=alpha,
-                   label=label + label_reel_in)
+                   label=label + label_reel_in, linewidth=linewidth)
 
     else:
 
@@ -744,7 +744,7 @@ def plot_path_of_node(ax, side, plot_dict, node, ref=False, color='k', marker=No
             message += 'skip that part of your request!'
             print_op.base_print(message, level='warning')
 
-        basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
+        basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label, linewidth=linewidth)
 
     return None
 
@@ -820,7 +820,7 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
 
 
 
-def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None):
+def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None, linewidth=1, idx_at_eval=0):
 
     # read in inputs
     model_options = plot_dict['options']['model']
@@ -844,16 +844,15 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
             local_color = init_colors
 
         if (cosmetics['trajectory']['kite_bodies'] and plot_kites):
-            local_index = 0
 
             q_local = []
             for dim in range(3):
-                local_val = plot_dict[search_name]['x']['q' + str(kite) + str(parent)][dim][local_index]
+                local_val = plot_dict[search_name]['x']['q' + str(kite) + str(parent)][dim][idx_at_eval]
                 q_local = cas.vertcat(q_local, local_val)
 
             r_local = []
             for dim in range(9):
-                local_val = plot_dict[search_name]['outputs']['aerodynamics']['r' + str(kite)][dim][local_index]
+                local_val = plot_dict[search_name]['outputs']['aerodynamics']['r' + str(kite)][dim][idx_at_eval]
                 r_local = cas.vertcat(r_local, local_val)
 
             draw_kite(ax, q_local, r_local, model_options, local_color, side, body_cross_sections_per_meter)
@@ -863,9 +862,9 @@ def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(Fa
 
         draw_trajectory_time_orientation_epigraphs(ax, side, plot_dict, kite, local_color, ref=False)
 
-        plot_path_of_node(ax, side, plot_dict, kite, ref=False, color=local_color, label=label)
+        plot_path_of_node(ax, side, plot_dict, kite, ref=False, color=local_color, label=label, linewidth=linewidth)
         if cosmetics['plot_ref']:
-            plot_path_of_node(ax, side, plot_dict, kite, ref=True, color=local_color, label=label, linestyle='--', alpha=0.5)
+            plot_path_of_node(ax, side, plot_dict, kite, ref=True, color=local_color, label=label, linestyle='--', alpha=0.5, linewidth=linewidth)
 
         old_label = label
 
@@ -1044,6 +1043,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['architecture'] = model.architecture
     plot_dict['variable_bounds'] = model.variable_bounds
     plot_dict['global_output_names'] = nlp.global_outputs.keys()
+    plot_dict['wind'] = model.wind #todo: this may not be picklable. find workaround if necessary
 
     plot_dict['Collocation'] = nlp.Collocation
 
@@ -1158,8 +1158,8 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
     return plot_dict
 
 def attach_wake_plotting_info_to_plot_dict(plot_dict, cosmetics):
+    plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict, si_or_scaled='scaled')
     if ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None):
-        plot_dict['parameters_plot'] = assemble_model_parameters(plot_dict, si_or_scaled='scaled')
 
         if 'interpolation_scaled' not in plot_dict.keys():
             plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')

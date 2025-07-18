@@ -68,11 +68,11 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
     V_init_si = struct_op.scaled_to_si(V_init_scaled, model.scaling)
     V_init_si = append_induced_velocities(init_options, V_init_si, p_fix_num, nlp, model)
 
-    check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, model.architecture)
-    check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
-
-    if model.options['aero']['vortex']['double_check_wingtip_fixing']:
-        vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(init_options, p_fix_num, Outputs_init, model, V_si=V_init_si)
+    if init_options['check_reference']:
+        check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, model.architecture)
+        check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+        if model.options['aero']['vortex']['double_check_wingtip_fixing']:
+            vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(init_options, p_fix_num, Outputs_init, model, V_si=V_init_si)
 
     return V_init_si
 

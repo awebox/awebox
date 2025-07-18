@@ -9,6 +9,7 @@
 import collections
 import copy
 import logging
+import pdb
 
 import awebox as awe
 
@@ -151,6 +152,12 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
     return None
 
 # 18
+def test_vortex_3_dof(final_homotopy_step='final', overwrite_options={}):
+    trial_name = 'vortex_3_dof_trial'
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+    return None
+
+# 19
 def test_segmented_tether(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'segmented_tether_trial'
     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
@@ -367,29 +374,29 @@ def generate_options_dict():
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
     vortex_options['visualization.cosmetics.induction.n_points_contour'] = 5
 
-    wake_nodes = 2
+    wake_nodes = 2 #vortex_options['nlp.n_k'] #2
     vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
     vortex_options['solver.max_cpu_time'] = 1.e7
     vortex_options['quality.raise_exception'] = False
 
 
 
-    # #################
-    # # remove this
-    # vortex_options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
-    # vortex_options['model.scaling.other.force_scaling_method'] = 'synthesized'
-    # vortex_options['model.scaling.other.flight_radius_estimate'] = 'synthesized'
-    # vortex_options['model.scaling.other.tension_estimate'] = 'synthesized'
-    # vortex_options['solver.weights.q'] = 1e0 #1e1: 181 steps, 5e0: maxout, 1e0: 89 steps
+    # # #################
+    # # # remove this
     # # vortex_options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
-    # vortex_options['solver.cost.psi.1'] = 1.e1
-    vortex_options['solver.cost_factor.power'] = 1e-1 #2: 6.9e10, 6.9e-7. #1e0
-    # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
-    # vortex_options['model.aero.vortex.wake_nodes'] = 1
-    # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
-    # vortex_options['visualization.cosmetics.temporal_epigraph_locations'] = ['switch', 0.25, 0.5, 0.75, 1.0]
-    # vortex_options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 5.
-    # ################
+    # # vortex_options['model.scaling.other.force_scaling_method'] = 'synthesized'
+    # # vortex_options['model.scaling.other.flight_radius_estimate'] = 'synthesized'
+    # # vortex_options['model.scaling.other.tension_estimate'] = 'synthesized'
+    # # vortex_options['solver.weights.q'] = 1e0 #1e1: 181 steps, 5e0: maxout, 1e0: 89 steps
+    # # # vortex_options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
+    # # vortex_options['solver.cost.psi.1'] = 1.e1
+    # vortex_options['solver.cost_factor.power'] = 1e-1 #2: 6.9e10, 6.9e-7. #1e0
+    # # vortex_options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    # # vortex_options['model.aero.vortex.wake_nodes'] = 1
+    # # vortex_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
+    # # vortex_options['visualization.cosmetics.temporal_epigraph_locations'] = ['switch', 0.25, 0.5, 0.75, 1.0]
+    # # vortex_options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 5.
+    # # ################
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
 
@@ -399,6 +406,9 @@ def generate_options_dict():
     vortex_force_zero_options['quality.raise_exception'] = True
 
     vortex_force_zero_basic_health_options = make_basic_health_variant(vortex_force_zero_options)
+
+    vortex_3_dof_options = copy.deepcopy(vortex_options)
+    vortex_3_dof_options['user_options.system_model.kite_dof'] = 3
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options.trajectory.type'] = 'tracking'
@@ -448,6 +458,7 @@ def generate_options_dict():
     options_dict['vortex_force_zero_basic_health_trial'] = vortex_force_zero_basic_health_options
     options_dict['vortex_trial'] = vortex_options
     options_dict['vortex_basic_health_trial'] = vortex_basic_health_options
+    options_dict['vortex_3_dof_trial'] = vortex_3_dof_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
@@ -473,14 +484,15 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     # compute trajectory solution
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
-    trial.optimize(final_homotopy_step=final_homotopy_step)
-    #
-    # #########################
-    # # remove this
-    # trial.optimize(final_homotopy_step='initial')
-    # trial.plot(['induction_contour_wind_wind', 'induction_contour_normal_wind', 'induction_contour_normal_normal', 'induction_wind_tunnel', 'projected_xy', 'projected_xz', 'projected_yz', 'power', 'constraints'])
-    # plt.show()
-    # #######################
+
+    # trial.optimize(final_homotopy_step=final_homotopy_step)
+    
+    #########################
+    # remove this
+    trial.optimize(final_homotopy_step='initial')
+    trial.plot(['velocity_deficits', 'wake_xy', 'wake_xz', 'induction_contour_wind_wind', 'induction_contour_normal_wind', 'induction_contour_normal_normal', 'induction_wind_tunnel', 'projected_xy', 'projected_xz', 'projected_yz', 'power', 'constraints'])
+    plt.show()
+    #######################
 
     if not trial.optimization.solve_succeeded:
         message = 'optimization of trial ' + trial_name + ' failed'
@@ -555,6 +567,7 @@ if __name__ == "__main__":
         # test_vortex_force_zero()
         # test_vortex_basic_health()
         test_vortex()
+        # test_vortex_3_dof()
 
         # test_actuator_qaxi_basic_health()
         # test_actuator_qaxi()

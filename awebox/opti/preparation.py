@@ -392,7 +392,7 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
         message = 'unfamiliar nlp solver (' + nlp_solver + ') requested'
         print_op.log_and_raise_error(message)
 
-    print_op.base_print('making non-hippo solvers...', level='info')
+    print_op.base_print('making non-hippo solver...', level='info')
     solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
 
     solvers = {}

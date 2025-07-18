@@ -43,21 +43,22 @@ import awebox.tools.print_operations as print_op
 
 
 def append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
-    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)
-    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period)
+    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
+
+    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, inputs, q_scaling, varrho_ref, winding_period)
+    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude)
     return options_tree
 
 
-def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
+def get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period):
     c_ref = geometry['c_ref']
     b_ref = geometry['b_ref']
 
-    u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
 
     flight_radius = varrho_ref * b_ref
     rotational_speed = 2. * np.pi * flight_radius / winding_period
-    axial_speed = u_ref * (1 - a_ref)
+    axial_speed = u_altitude * (1 - a_ref)
     airspeed = (rotational_speed**2. + axial_speed**2.)**0.5
 
     if not (options['model']['aero']['overwrite']['f_aero_rot'] is None):
@@ -70,10 +71,14 @@ def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
         # gamma = L / (b rho v) = (CL/2) (rho v^2 b c) / (b rho v) = (CL/2) (v c)
         filament_strength = 0.5 * CL * airspeed * c_ref
 
+    strength_dict = {'CL': CL, 'varrho_ref': varrho_ref, 'airspeed': airspeed, 'c_ref': c_ref, 'strength': filament_strength}
+    print_op.base_print('initialization values related to filament strength are:')
+    print_op.print_dict_as_table(strength_dict)
+
     return filament_strength
 
 
-def append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
+def append_geometric_scaling(options, geometry, options_tree, architecture, inputs, q_scaling, varrho_ref, winding_period):
     # the part that describes the wake nodes and consequent vortex rings
     wingtips = ['ext', 'int']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
@@ -81,9 +86,7 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     u_ref = options['user_options']['wind']['u_ref']
 
-    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
-
-    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
+    filament_strength = inputs['filament_strength_ref']
 
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
@@ -159,7 +162,7 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
+    filament_strength = get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period)
 
     inputs = {
         'u_ref': u_ref * a_ref,
@@ -173,11 +176,10 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
     return inputs
 
 
-def append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period):
+def append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude):
 
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
-    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
         architecture)

@@ -27,12 +27,14 @@ wind model for the awebox
 _python-3.5 / casadi-3.4.5
 - author: jochem de schutter, rachel leuthold, alu-fr 2018-20
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.lagr_interpol as lagr_interpol
+import matplotlib.pyplot as plt
 
 
 class Wind:
@@ -47,7 +49,7 @@ class Wind:
         self.__type_incompatibility_warning_already_given = False
         self.__suppress_type_incompatibility_warning = suppress_type_incompatibility_warning
 
-    def get_velocity(self, zz):
+    def get_velocity(self, zz, external_parameters=None):
 
         options = self.__options
 
@@ -56,7 +58,12 @@ class Wind:
         u_hat = self.get_wind_direction()
 
         if isinstance(zz, cas.SX):
-            params = self.__params.prefix['theta0', 'wind']
+
+            if external_parameters is None:
+                params = self.__params.prefix['theta0', 'wind']
+            else:
+                params = external_parameters.prefix['theta0', 'wind']
+
             u_ref = params['u_ref']
             z_ref = params['z_ref']
             z0_air = params['log_wind', 'z0_air']
@@ -82,6 +89,20 @@ class Wind:
             raise ValueError('unsupported atmospheric option chosen: %s', model)
 
         return u
+
+
+    def plot_velocity_profile(self, z_max=800.):
+        z0_air = self.__options['log_wind']['z0_air']
+        z_min = z0_air
+        z_vals = list(np.arange(z_min, z_max, 1).flatten())
+        u_vals = list(np.array([self.get_velocity(zz)[0] for zz in z_vals]).flatten())
+
+        fig = plt.figure()
+        plt.plot(list(u_vals), list(z_vals))
+        plt.xlabel('wind speed [m/s]')
+        plt.ylabel('altitude [m]')
+        plt.title('wind speed profile')
+        return None
 
     def get_wind_direction(self):
         return vect_op.xhat_dm()
@@ -187,7 +208,7 @@ def warn_about_importing_from_options():
 def get_speed(model, u_ref, z_ref, z0_air, exp_ref, zz):
 
     # approximates the maximum of (zz vs. 0)
-    epsilon = 1.
+    epsilon = 1.e-4
     z_cropped = vect_op.smooth_abs(zz, epsilon=epsilon)
 
     if model == 'log_wind':
