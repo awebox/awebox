@@ -230,6 +230,9 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
     initial_guess =  np.array([[-1],[0],[0]])
     params = 'p_near_{}'.format(kite)
     h = t_f / options['aero']['vortex_rings']['N'] / options['aero']['vortex_rings']['N_rings']
+
+    vortex_type = options['aero']['vortex_rings']['type']
+
     for k in range(options['aero']['vortex_rings']['N']):
         for i in range(options['aero']['vortex_rings']['N_rings']):
             for j in [2, 3]:
@@ -238,13 +241,17 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
                 dp_r = variables['x']['dp_ring_{}_{}_{}'.format(j, k, i)]
                 gamma_r = variables['x']['gamma_ring_{}_{}_{}'.format(j, k, i)]
                 n_r = variables['x']['n_ring_{}_{}_{}'.format(j, k, i)]
+                if vortex_type == 'dipole':
+                    e_c = None
+                elif vortex_type == 'rectangle':
+                    e_c = variables['x']['ec_ring_{}_{}_{}'.format(j, k, i)]
                 R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
                 param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)] * parameters[params, 'p_near_{}_{}'.format(j, k)]
-                w_ind_f += - h * param * vortex_rings.far_wake_ring_induction(q, p_r, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+                w_ind_f += - h * param * vortex_rings.far_wake_induction(q, p_r, n_r, e_c, gamma_r, R_ring, options['aero']['vortex_rings'])
                 for d in range(options['aero']['vortex_rings']['N_duplicates']):
                     param = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)]
                     p_r_dup = p_r + cas.vertcat(dp_r*(d+1)*t_f, 0, 0)
-                    w_ind_f += - h * param * vortex_rings.far_wake_ring_induction(q, p_r_dup, n_r, gamma_r, R_ring, options['aero']['vortex_rings'])
+                    w_ind_f += - h * param * vortex_rings.far_wake_induction(q, p_r_dup, n_r, e_c, gamma_r, R_ring, options['aero']['vortex_rings'])
 
                 u_induced = u_induced  + w_ind_f
 
