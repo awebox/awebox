@@ -195,6 +195,9 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                         'dgamma_ring_{}_{}_{}'.format(j, k, i),
                         'dn_ring_{}_{}_{}'.format(j, k, i)
                     ]
+                    if options['aero']['vortex_rings']['type'] == 'rectangle':
+                        names += ['dec_ring_{}_{}_{}'.format(j, k, i)]
+
                     for name in names:
                         cstr = system_variables['scaled']['xdot', name]
                         vortex_rings_dyn_cstr = cstr_op.Constraint(expr=cstr,

@@ -194,6 +194,8 @@ def generate_structure(options, architecture):
                     system_states.extend([('dp_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
                     system_states.extend([('gamma_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
                     system_states.extend([('n_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
+                    if options['aero']['vortex_rings']['type'] == 'rectangle':
+                        system_states.extend([('ec_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
 
     # system state derivatives
     system_derivatives = []
