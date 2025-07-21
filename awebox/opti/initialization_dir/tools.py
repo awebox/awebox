@@ -301,16 +301,16 @@ def insert_val(V_init, var_type, name, init_val, idx=0):
 
 def lissajous_curve(t, w, h, a=1, delta=0):
     b = 2*a
-    x = w*np.sin(a*t+delta)
-    y = h*np.sin(b*t)
-    return x, y
+    az = w*np.sin(a*t+delta)
+    el = h*np.sin(b*t)
+    return az, el
 
 
 def lissajous_dcurve(t, w, h, a=1, delta=0):
     b = 2*a
-    x = a*w*np.cos(a*t+delta)
-    y = b*h*np.cos(b*t)
-    return x, y
+    azdot = a*w*np.cos(a*t+delta)
+    eldot = b*h*np.cos(b*t)
+    return azdot, eldot
 
 
 def calc_cartesian_coords(az, el, r):

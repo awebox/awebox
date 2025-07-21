@@ -76,8 +76,9 @@ def guess_values_at_time(t, init_options, model):
 
     phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
     if 'arm_angle' in ret:
-        ret['arm_angle'] = np.pi * np.cos(t * phase_rate - np.pi/4)
-        ret['darm_angle'] = -np.pi * np.sin(t * phase_rate - np.pi/4) * phase_rate
+        arm_phase = t * phase_rate - np.pi/4
+        ret['arm_angle'] = -np.pi * np.cos(arm_phase)
+        ret['darm_angle'] = np.pi * np.sin(arm_phase) * phase_rate
         ret['active_torque'] = 0.0
 
     for node in range(1, number_of_nodes):
@@ -144,29 +145,28 @@ def guess_values_at_time(t, init_options, model):
                 # TODO: implement DCM initialization
                 w_lj = init_options['lemniscate']['az_width_deg']*np.pi/180.0
                 h_lj = init_options['lemniscate']['el_width_deg']*np.pi/180.0
+                if init_options['lemniscate']['rise_on_sides']:
+                    h_lj = -h_lj
                 el0 = init_options['inclination_deg']*np.pi/180.0
-                tether_length = init_options['l_t']
 
-                a_lissajous = 2*np.pi/(init_options['precompute']['time_final']/init_options['windings'])
-                az, el = tools.lissajous_curve(t, w_lj, h_lj, a = a_lissajous)
+                az, el = tools.lissajous_curve(t, w_lj, h_lj, a = phase_rate)
                 el = el + el0
-                x, y, z = tools.calc_cartesian_coords(az, el, tether_length)
-                q = cas.vertcat(x,y,z)
+                x, y, z = tools.calc_cartesian_coords(az, el, l_t)
+                q = parent_position + cas.vertcat(x,y,z)
                 ret['q' + str(node) + str(parent)] = q
 
-                azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a= a_lissajous)
-                dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, tether_length)
+                azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a = phase_rate)
+                dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, l_t)
                 ret['dq' + str(node) + str(parent)] = cas.vertcat(dx,dy,dz)
 
                 psi = np.arctan2(azdot, -eldot)
                 ret['yaw' +str(node) + str(parent)] = psi
 
-                l = init_options['l_t']
                 l12 = cas.norm_2(q[:2])
                 dcm_tau2e = cas.blockcat([
-                    [q[0]*q[2]/(l*l12), -q[1]/l12,   q[0]/l],
-                    [q[1]*q[2]/(l*l12),  q[0]/l12,   q[1]/l],
-                    [-l12/l,             0,          q[2]/l],
+                    [q[0]*q[2]/(l_t*l12), -q[1]/l12,   q[0]/l_t],
+                    [q[1]*q[2]/(l_t*l12),  q[0]/l12,   q[1]/l_t],
+                    [-l12/l_t,             0,          q[2]/l_t],
                 ])  # Transformation from tangential (to unit sphere surface) plane to earth frame
                 dcm_b2tau = cas.blockcat([
                     [cas.cos(psi), -cas.sin(psi),  0],

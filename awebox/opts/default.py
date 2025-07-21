@@ -41,6 +41,8 @@ def set_default_user_options():
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode', 'rocking_mode']), 't'),
         ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('possible options', [True, False]),'x'),
+        # Implement this, with corresponding bounds
+        ('user_options',    'trajectory',  'rocking_mode','arm_params_to_optimize',[],               ('zero or more of arm_length, arm_inertia, torque_slope', None),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -393,7 +395,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'lemniscate', 'az_width_deg',  20.,       ('lemniscate azimuth range [deg]', None), 's'),
         ('solver',  'initialization', 'lemniscate', 'el_width_deg',  8.,        ('lemniscate elevation range [deg]', None), 's'),
         # TODO: implement lemniscate orientation
-        # ('solver',  'initialization', 'lemniscate', 'drop_on_the_sides',True,   ('True: if the kite drops on the sides, False: if the kite rises on the sides', [True, False]), 's'),
+        ('solver',  'initialization', 'lemniscate', 'rise_on_sides', False,     ('True: if the kite rises on the sides, False: if the kite drops on the sides', [True, False]), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          20.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),

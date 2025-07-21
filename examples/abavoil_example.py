@@ -45,6 +45,7 @@ def rocking_mode_options(overwrite_options={}):
     options['model.model_bounds.tether_force.include'] = False
     options['model.model_bounds.airspeed.include'] = False
     options['model.model_bounds.rotation.include'] = False
+    options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])
 
     # indicate rocking mode options
     options['params.arm.arm_length'] = 2  # m
@@ -56,8 +57,9 @@ def rocking_mode_options(overwrite_options={}):
     # Test this later since the initialization is less complete than for 'circular'
     # # indicate initialization, cf. new lemniscate options
     options['solver.initialization.shape'] = 'lemniscate'
-    options['solver.initialization.lemniscate.az_width_deg'] = 40
-    options['solver.initialization.lemniscate.el_width_deg'] = 10
+    options['solver.initialization.lemniscate.az_width_deg'] = 20
+    options['solver.initialization.lemniscate.el_width_deg'] = 5
+    options['solver.initialization.groundspeed'] = 50.  # m/s
 
     # indicate desired environment
     # here: wind velocity profile according to power-law
@@ -80,6 +82,36 @@ def rocking_mode_options(overwrite_options={}):
         if option_val is not None:
             options[option_name] = option_val
 
+    return options
+
+"""
+longer tether with softer active control
+"""
+def example_1(options):
+    options['solver.initialization.l_t'] = 200.
+    options['params.arm.torque_slope'] = 1500
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
+    return options
+
+"""
+longer tether with no control constraint (torque indirectly constrained by tether constraints)
+"""
+def example_2(options):
+    options['solver.initialization.l_t'] = 200.
+    options['params.arm.torque_slope'] = 1500
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    return options
+
+"""
+smaller tether with active control
+"""
+def example_3(options):
+    options['model.system_bounds.x.q'] = [np.array([-np.inf, -np.inf, .20]), np.array([np.inf, np.inf, np.inf])]
+    options['solver.initialization.l_t'] = 50.
+    options['params.arm.torque_slope'] = 1000
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    options['model.system_bounds.u.dactive_torque'] = [-10000, 10000]
     return options
 
 def plot_arm_torques_and_energies(trial):
@@ -161,12 +193,6 @@ def plot_arm_states(trial):
     plt.grid()
 
 def main():
-    override_options = {}
-    override_options['params.arm.arm_inertia'] = None
-    override_options['params.arm.torque_slope'] = 1450  # This gives an average active power of 0 !
-    override_options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
-    override_options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
-
     # Opti 1: no arm control, find best torque_slope
     # Opti 2: no torque_slope, find best arm control
     # Opti 3: mixed, find best torque_slope and arm control st. avg of active power = 0
@@ -174,10 +200,12 @@ def main():
 
     # Add power balance check & fix todos in dynamics.py
 
-    options = rocking_mode_options(override_options)
+    options = rocking_mode_options()
+    options = example_2(options)
+    options['solver.initialization.lemniscate.rise_on_sides'] = True
     trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
     trial.build()
-    trial.optimize()  # final_homotopy_step=['final] to control when to stop
+    trial.optimize(final_homotopy_step='final')  # final_homotopy_step=['initial_guess', 'final'] to control when to stop the homotopy process
     trial.plot(['states', 'controls', 'invariants', 'quad'])
     plot_arm_torques_and_energies(trial)
     plot_arm_states(trial)
