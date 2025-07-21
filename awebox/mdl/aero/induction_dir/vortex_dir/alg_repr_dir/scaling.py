@@ -327,6 +327,9 @@ def get_convected_wake_node_position(options, architecture, properties_ref, u_al
     b_hat = properties_ref['b_hat']
     r_hat_when_associate_wake_node_was_shed = np.cos(psi_when_associate_wake_node_was_shed) * a_hat + np.sin(psi_when_associate_wake_node_was_shed) * b_hat
 
+
+    # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+    # Arm length IS available here, only arm angle.
     x_zero = cas.DM.zeros((3, 1))
     l_hat = vect_op.xhat_dm()
     x_center_convected_from_when_associate_wake_node_was_shed = x_zero + u_altitude * (time_current - time_when_associate_wake_node_was_shed) * l_hat

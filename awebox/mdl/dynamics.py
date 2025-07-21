@@ -415,6 +415,8 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
+            # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+            # Arm length IS available here, only arm angle.
             q_p = cas.SX.zeros((3, 1))
 
         # node velocity

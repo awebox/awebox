@@ -142,6 +142,8 @@ def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling)
     q_parent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(parent) + str(grandparent))
 
     if grandparent == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q_grandparent = cas.DM.zeros((3, 1))
 
         if '[x,l_t,0]' in scaling.labels():

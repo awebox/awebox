@@ -210,7 +210,7 @@ def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
     # Compute some outputs for analysis
     arm_length = arm_params['arm_length']
     arm_angle = x['arm_angle']
-    q_arm_tip = arm_length * cas.vertcat(np.cos(arm_angle), np.sin(arm_angle), 0)
+    q_arm_tip = arm_length * cas.vertcat(np.cos(arm_angle), np.sin(arm_angle), 0.0)
 
     segment_vector = x['q10'] - q_arm_tip
     ehat_tether = vect_op.normalize(segment_vector)

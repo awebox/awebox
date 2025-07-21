@@ -203,6 +203,8 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
 
     q_node = variables_si['x']['q' + str(upper_node) + str(lower_node)]
     if main_tether:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q_parent = cas.DM.zeros((3, 1))
     else:
         grandparent = architecture.parent_map[lower_node]

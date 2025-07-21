@@ -36,6 +36,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
+import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -60,6 +61,9 @@ def get_reelout_speed(variables_si):
 
     q_node = variables_si['x']['q10']
 
+    # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+    # Make sure that no reelout speed is calculated for rocking mode
+    # Are there other shortcuts like this one elsewhere ?
     # q_parent = cas.DM.zeros((3, 1))
     # segment_vector = q_node - q_parent
     segment_vector = q_node

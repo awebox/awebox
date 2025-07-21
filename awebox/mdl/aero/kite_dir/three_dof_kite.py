@@ -138,6 +138,8 @@ def tether_vector(variables, architecture, node):
         grandparent = parent_map[parent]
         q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
     else:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q_parent = np.zeros((3, 1))
 
     tether = q_node - q_parent

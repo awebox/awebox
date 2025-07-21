@@ -463,6 +463,8 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
         parent = architecture.parent_map[node]
 
         if parent == 0:
+            # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+            # Add a plot_arm function too ?
             x_start = cas.DM.zeros((3, 1))
         else:
             grandparent = architecture.parent_map[parent]

@@ -120,6 +120,8 @@ def get_upper_and_lower_pos_and_vel(variables, upper_node, architecture):
     dq_upper = variables['x']['dq' + str(upper_node) + str(lower_node)]
 
     if lower_node == 0:
+        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+        # Arm length is not available here, only arm angle.
         q_lower = cas.DM.zeros((3, 1))
         dq_lower = cas.DM.zeros((3, 1))
     else:

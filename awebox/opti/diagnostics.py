@@ -164,6 +164,7 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
     P_side_total = np.zeros((N))
     P_moment_total = np.zeros((N))
     P_gen_total = np.zeros((N))
+    # TODO: rocking mode?
 
     for name in list(power_outputs.keys()):
 
@@ -240,6 +241,8 @@ def compute_position_indicators(power_and_performance, plot_dict):
             position_kite = np.array(position_kite)
 
             if parent == 0:
+                # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+                # Arm length IS available here, only arm angle.
                 position_parent = np.zeros((3, 1))
                 average_tether_vector = []
                 for dim in range(3):
@@ -259,6 +262,8 @@ def compute_position_indicators(power_and_performance, plot_dict):
                 position_parent = np.array(position_parent)
 
                 if grandparent == 0:
+                    # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+                    # Arm length IS available here, only arm angle.
                     position_grandparent = np.zeros((3, 1))
                 else:
                     great_grandparent = architecture.parent_map[grandparent]
