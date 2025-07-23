@@ -10,6 +10,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -241,9 +242,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
 
         if node == 1:
             if options['trajectory']['system_type'] == 'rocking_mode':
-                arm_length =  parameters['theta0', 'arm', 'arm_length']
-                arm_angle = x_si['arm_angle']
-                previous_node = arm_length * cas.vertcat(cas.cos(arm_angle), cas.sin(arm_angle), 0.0)
+                previous_node = arm.get_q_arm_tip(x_si['arm_angle'], parameters['theta0', 'arm', 'arm_length'])
             else:
                 previous_node = cas.DM.zeros((3, 1))
 

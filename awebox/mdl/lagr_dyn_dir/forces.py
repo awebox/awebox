@@ -36,6 +36,7 @@ import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.indicators as indicators
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 import awebox.mdl.aero.tether_dir.coefficients as tether_drag_coeff
+import awebox.mdl.arm as arm
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
@@ -77,7 +78,7 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
 
     if options['trajectory']['system_type'] == 'rocking_mode':
         node_forces["T"] = cas.SX.zeros((1, 1))
-        tether_torque, outputs = generate_rocking_mode_forces(options, variables_si, outputs, architecture)
+        tether_torque, outputs = generate_rocking_mode_forces(variables_si, parameters, outputs, architecture)
         node_forces["T"] += tether_torque
 
     return node_forces, outputs
@@ -198,33 +199,9 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
     return outputs
 
 
-def generate_rocking_mode_forces(options, variables_si, outputs, architecture):
-    x = variables_si['x']
-    arm_params = options['params']['arm']
-
-    # Torque applied by generator to arm
-    passive_torque = -arm_params['torque_slope'] * x['darm_angle']
-    active_torque = x['active_torque']
+def generate_rocking_mode_forces(variables_si, parameters, outputs, architecture):
+    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
     generator_torque = passive_torque + active_torque
-
-    # Compute some outputs for analysis
-    arm_length = arm_params['arm_length']
-    arm_angle = x['arm_angle']
-    q_arm_tip = arm_length * cas.vertcat(np.cos(arm_angle), np.sin(arm_angle), 0.0)
-
-    segment_vector = x['q10'] - q_arm_tip
-    ehat_tether = vect_op.normalize(segment_vector)
-    tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
-    tension_force = tension * ehat_tether
-    tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
-
-    outputs.setdefault('arm', {})
-    outputs['arm']['tension'] = tension
-    outputs['arm']['ehat_tether'] = ehat_tether
-    outputs['arm']['q_arm_tip'] = q_arm_tip  # For 3D plot
-    outputs['arm']['tether_torque_on_arm'] = tether_torque_on_arm
-    outputs['arm']['passive_torque'] = passive_torque
-    outputs['arm']['active_torque'] = active_torque
 
     return generator_torque, outputs
 

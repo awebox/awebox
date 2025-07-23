@@ -42,6 +42,7 @@ from . import system
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 import awebox.mdl.aero.induction_dir.induction as induction
+import awebox.mdl.arm as arm
 
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
@@ -323,19 +324,42 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
-def get_arm_power(options, variables_si, outputs):
+def get_arm_powers(variables_si, parameters):
     darm_angle = variables_si['x']['darm_angle']
-    passive_torque = -options['params']['arm']['torque_slope'] * darm_angle
-    active_torque = variables_si['x']['active_torque']
+    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
     passive_power = -passive_torque * darm_angle
     active_power = -active_torque * darm_angle
+    return passive_power, active_power
+
+def rocking_mode_outputs(variables_si, parameters, outputs):
+    passive_power, active_power = get_arm_powers(variables_si, parameters)
+
+    # Compute some outputs for analysis
+    x = variables_si['x']
+    arm_length = parameters['theta0', 'arm', 'arm_length']
+    arm_angle = x['arm_angle']
+    q_arm_tip = arm.get_q_arm_tip(arm_angle, arm_length)
+
+    segment_vector = x['q10'] - q_arm_tip
+    ehat_tether = vect_op.normalize(segment_vector)
+    tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
+    tension_force = tension * ehat_tether
+    tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
+
+    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
 
     outputs.setdefault('arm', {})
+    outputs['arm']['tether_tension'] = tension
+    outputs['arm']['ehat_tether'] = ehat_tether
+    outputs['arm']['tether_torque_on_arm'] = tether_torque_on_arm
+    outputs['arm']['passive_torque'] = passive_torque
+    outputs['arm']['active_torque'] = active_torque
     outputs['arm']['passive_power'] = passive_power
     outputs['arm']['active_power'] = active_power
 
-    return passive_power + active_power
-
+    outputs['power_balance']['P_arm_tether'] = tether_torque_on_arm * x['darm_angle']
+    outputs['power_balance']['P_arm_gen'] = passive_power + active_power
+    return outputs
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
@@ -346,7 +370,8 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     elif options['trajectory']['system_type'] == 'rocking_mode':
-        power = get_arm_power(options, variables_si, outputs)
+        passive_power, active_power = get_arm_powers(variables_si, parameters)
+        power = passive_power + active_power
         outputs['performance']['p_current'] = power
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
@@ -371,6 +396,8 @@ def power_balance_outputs(options, outputs, system_variables, parameters, archit
     # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        outputs = rocking_mode_outputs(variables_si, parameters, outputs)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
     outputs = kinetic_power_outputs(outputs, system_variables, architecture, scaling)
@@ -415,8 +442,7 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
-            # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-            # Arm length IS available here, only arm angle.
+            # TODO: rocking mode : this seem to be P_arm_tether
             q_p = cas.SX.zeros((3, 1))
 
         # node velocity

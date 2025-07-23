@@ -54,8 +54,7 @@ def get_center_position(parent, variables, architecture):
         grandparent = parent_map[parent]
         q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
     else:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
+        # TODO: rocking mode : is this q_arm_tip or the origin ?
         q_parent = cas.DM.zeros((3, 1))
 
     center = q_parent
@@ -69,8 +68,7 @@ def get_center_velocity(parent, variables, architecture):
         grandparent = parent_map[parent]
         dq_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'dq' + str(parent) + str(grandparent))
     else:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
+        # TODO: rocking mode : cf. get_center_position
         dq_parent = cas.DM.zeros((3, 1))
 
     dcenter = dq_parent

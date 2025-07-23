@@ -39,6 +39,7 @@ import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+import awebox.mdl.arm as arm
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -86,8 +87,7 @@ def guess_values_at_time(t, init_options, model):
         parent = parent_map[node]
         if parent == 0:
             if 'arm_angle' in ret:
-                arm_length = init_options['arm']['arm_length']
-                parent_position = arm_length * np.array(cas.vertcat(np.cos(ret['arm_angle']), np.sin(ret['arm_angle']), cas.DM(0.0)))
+                parent_position = arm.get_q_arm_tip(ret['arm_angle'], init_options['arm']['arm_length'])
             else:
                 parent_position = np.zeros((3, 1))
         else:
@@ -152,7 +152,7 @@ def guess_values_at_time(t, init_options, model):
                 az, el = tools.lissajous_curve(t, w_lj, h_lj, a = phase_rate)
                 el = el + el0
                 x, y, z = tools.calc_cartesian_coords(az, el, l_t)
-                q = parent_position + cas.vertcat(x,y,z)
+                q = cas.vertcat(x,y,z)  # Could potentially add `q_parent`
                 ret['q' + str(node) + str(parent)] = q
 
                 azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a = phase_rate)

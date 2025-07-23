@@ -1,18 +1,13 @@
 #!/usr/bin/python3
 """
-Circular pumping trajectory for the Ampyx AP2 aircraft.
-Model and constraints as in:
+Using Ampyx AP2 model in rocking mode
 
-"Performance assessment of a rigid wing Airborne Wind Energy pumping system",
-G. Licitra, J. Koenemann, A. Bürger, P. Williams, R. Ruiterkamp, M. Diehl
-Energy, Vol.173, pp. 569-585, 2019.
-
-:author: Jochem De Schutter
-:edited: Rachel Leuthold
+:author: Antonin Bavoil
 """
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from copy import deepcopy
 
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
@@ -47,18 +42,19 @@ def rocking_mode_options(overwrite_options={}):
     options['model.model_bounds.rotation.include'] = False
     options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])
 
-    # indicate rocking mode options
+    # indicate rocking mode options (default values)
     options['params.arm.arm_length'] = 2  # m
     options['params.arm.arm_inertia'] = 2000  # kg m^2
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = False
     options['params.arm.torque_slope'] = 2000  # Nm / (rad/s)
-    options['solver.initialization.l_t'] = 200.  # m
 
     # Test this later since the initialization is less complete than for 'circular'
     # # indicate initialization, cf. new lemniscate options
+    options['solver.initialization.l_t'] = 200.  # m
     options['solver.initialization.shape'] = 'lemniscate'
     options['solver.initialization.lemniscate.az_width_deg'] = 20
     options['solver.initialization.lemniscate.el_width_deg'] = 5
+    options['solver.initialization.lemniscate.rise_on_sides'] = False
     options['solver.initialization.groundspeed'] = 50.  # m/s
 
     # indicate desired environment
@@ -114,15 +110,29 @@ def example_3(options):
     options['model.system_bounds.u.dactive_torque'] = [-10000, 10000]
     return options
 
-def plot_arm_torques_and_energies(trial):
-    plot_dict = trial.visualization.plot_dict
+"""
+Test: set torque_slope = 1 and dactive_torque bounds to [-1, 1] and verify that both passive and active power are positive
+If every power is integrated into work (I don't think so) verify that the arm received as much energy as it extracted
+"""
+def test_1(options):
+    options['solver.initialization.l_t'] = 200.
+    options['params.arm.torque_slope'] = 100
+    options['params.arm.arm_length'] = 2
+    options['params.arm.arm_inertia'] = 2000
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    options['model.system_bounds.u.dactive_torque'] = [-100, 100]
+
+    return options
+
+def plot_arm_torques_and_energies(plot_dict):
     arm_outputs = plot_dict['outputs']['arm']
+    power_balance = plot_dict['outputs']['power_balance']
     x = plot_dict['x']
     arm_angle = x['arm_angle'][0]
     darm_angle = x['darm_angle'][0]
-    dkinetic_energy = -plot_dict['outputs']['power_balance']['P_kin_arm_rot'][0]  # positive when energy is added to the system
-    tether_power_on_arm = arm_outputs['tether_torque_on_arm'][0] * darm_angle  # positive when energy is added to the system
-    generator_power = arm_outputs['passive_power'][0] + arm_outputs['active_power'][0]  # positive when energy is subtracted from the system
+    dkinetic_energy = -power_balance['P_kin_arm_rot'][0]  # positive when energy is added to the system
+    tether_power_on_arm = power_balance['P_arm_tether'][0]  # positive when energy is added to the system
+    generator_power = power_balance['P_arm_gen'][0]  # positive when energy is subtracted from the system
 
     plt.figure()
     plt.tight_layout()
@@ -158,8 +168,7 @@ def plot_arm_torques_and_energies(trial):
     plt.title("Active power output [W]")
     plt.grid()
 
-def plot_arm_states(trial):
-    plot_dict = trial.visualization.plot_dict
+def plot_arm_states(plot_dict):
     arm_outputs = plot_dict['outputs']['arm']
     x = plot_dict['x']
     u = plot_dict['u']
@@ -176,7 +185,7 @@ def plot_arm_states(trial):
     plt.title("d(arm angle)/dt [rad/s]")
     plt.grid()
     plt.subplot(n, m, (i := i + 1))
-    plt.plot(arm_outputs['tension'][0])
+    plt.plot(arm_outputs['tether_tension'][0])
     plt.title("Tether tension [N]")
     plt.grid()
     plt.subplot(n, m, (i := i + 1))
@@ -192,6 +201,17 @@ def plot_arm_states(trial):
     plt.title("d(active torque)/dt [Nm/s]")
     plt.grid()
 
+"""
+print min, median and max wind speed
+"""
+def print_wind_stats(plot_dict):
+    z_vec = plot_dict['x']['q10'][2]
+    u_vec = awe.opts.model_funcs.get_u_at_altitude(plot_dict['options'], z_vec)
+    u_min, u_med, u_max = np.quantile(u_vec, [0, 0.5, 1])
+    u_avg = np.mean(u_vec)
+    msg = f"Wind statistics (m/s): average={u_avg:.2f} (min={u_min:.2f} , median={u_med:.2f}, max={u_max:.2f})."
+    print_op.base_print(msg, level='info')
+
 def main():
     # Opti 1: no arm control, find best torque_slope
     # Opti 2: no torque_slope, find best arm control
@@ -201,19 +221,26 @@ def main():
     # Add power balance check & fix todos in dynamics.py
 
     options = rocking_mode_options()
-    options = example_2(options)
-    options['solver.initialization.lemniscate.rise_on_sides'] = True
+    options = example_1(options)
+    options['quality.test_param.check_energy_summation'] = True
     trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
     trial.build()
+    trial.optimize(final_homotopy_step='initial_guess')
+    plot_dict_init = deepcopy(trial.visualization.plot_dict)
     trial.optimize(final_homotopy_step='final')  # final_homotopy_step=['initial_guess', 'final'] to control when to stop the homotopy process
+    plot_dict = trial.visualization.plot_dict
+    print_wind_stats(plot_dict)
     trial.plot(['states', 'controls', 'invariants', 'quad'])
-    plot_arm_torques_and_energies(trial)
-    plot_arm_states(trial)
-    plt.show()
-    return trial
+    plot_dict = trial.visualization.plot_dict
+    plot_arm_torques_and_energies(plot_dict)
+    plot_arm_states(plot_dict)
+    # plt.show()
+    return trial, plot_dict_init, plot_dict
 
 if __name__ == "__main__":
-    trial = main()
+    trial, plot_dict_init, plot_dict = main()
+    xi = plot_dict_init['x']
+    x = plot_dict['x']
 
 # Test: set torque_slope to a small value (eg. 1 Nm/(rad/s)) and verify that
 # active_torque and passive_torque are of the same sign most of the time

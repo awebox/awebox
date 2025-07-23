@@ -37,6 +37,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -91,10 +92,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     if node == 1:
         if rocking_mode:
-            arm_length =  parameters['theta0', 'arm', 'arm_length']
-            arm_angle = variables_si['x']['arm_angle']
-            darm_angle =  variables_si['x']['darm_angle']
-            dq_parent = darm_angle * arm_length * cas.vertcat(-cas.sin(arm_angle), cas.cos(arm_angle), 0.0)
+            dq_parent = arm.get_dq_arm_tip(variables_si['x']['arm_angle'], variables_si['x']['darm_angle'], parameters['theta0', 'arm', 'arm_length'])
         else:
             q_parent = cas.DM.zeros((3, 1))
             segment_vector = q_node - q_parent
