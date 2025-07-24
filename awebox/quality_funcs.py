@@ -229,18 +229,51 @@ def test_power_balance(trial, test_param_dict, results, input_values):
             max_abs_system_power = np.max([max_abs_node_power, max_abs_system_power])
             system_net_power_timeseries += originating_power_timeseries
 
+        if 'arm_angle' in input_values['x']:
+            balance, system_net_power_timeseries, max_abs_system_power = \
+                power_balance_arm(tgrid, power_balance, balance, system_net_power_timeseries, max_abs_system_power)
+
         scaled_norm_system_net_power = np.linalg.norm(system_net_power_timeseries) / max_abs_system_power
         balance['total'] = scaled_norm_system_net_power
 
-        if balance['total'] > test_param_dict['power_balance_thresh']:
-            message = 'total energy balance of trial ' + trial.name + ' not consistent. ' \
-                      + str(balance['total']) + ' > ' + str(test_param_dict['power_balance_thresh'])
-            awelogger.logger.warning(message)
-            results['energy_balance' + 'total'] = False
-        else:
-            results['energy_balance' + 'total'] = True
+        for node in balance.keys():
+            if balance[node] > test_param_dict['power_balance_thresh']:
+                message = 'energy balance of node ' + str(node) + ' of trial ' + trial.name + ' not consistent. ' \
+                          + str(balance[node]) + ' > ' + str(test_param_dict['power_balance_thresh'])
+                awelogger.logger.warning(message)
+                results['energy_balance_' + str(node)] = False
+            else:
+                results['energy_balance_' + str(node)] = True
 
     return results
+
+def power_balance_arm(tgrid, power_balance, balance, system_net_power_timeseries, max_abs_system_power):
+    # Test conservation of energy for the arm
+    originating_power_timeseries = np.zeros(tgrid.shape)
+    max_abs_arm_power = 1.e-15
+    for keyname in ['P_kin_arm_rot', 'P_tether_arm', 'P_gen_arm']:
+        timeseries = power_balance[keyname][0]
+        originating_power_timeseries += timeseries
+        max_abs_arm_power = np.max([np.max(np.abs(timeseries)), max_abs_arm_power])
+
+    scaled_norm_net_power = np.linalg.norm(originating_power_timeseries) / max_abs_arm_power
+    balance['arm'] = scaled_norm_net_power
+
+    # Test that no energy is lost in the tether
+    originating_power_timeseries = np.zeros(tgrid.shape)
+    max_abs_tether_power = 1.e-15
+    for keyname in ['P_tether1', 'P_tether_arm']:
+        timeseries = power_balance[keyname][0]
+        originating_power_timeseries += timeseries
+        max_abs_tether_power = np.max([np.max(np.abs(timeseries)), max_abs_tether_power])
+
+    scaled_norm_net_power = np.linalg.norm(originating_power_timeseries) / max_abs_tether_power
+    balance['arm_main_tether'] = scaled_norm_net_power
+
+    max_abs_system_power = np.max([max_abs_arm_power, max_abs_tether_power, max_abs_system_power])
+    system_net_power_timeseries += originating_power_timeseries
+
+    return balance, system_net_power_timeseries, max_abs_system_power
 
 def summation_check_on_potential_and_kinetic_power(trial, thresh, results, input_values):
 

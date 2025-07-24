@@ -126,9 +126,9 @@ def plot_arm_torques_and_energies(plot_dict):
     x = plot_dict['x']
     arm_angle = x['arm_angle'][0]
     darm_angle = x['darm_angle'][0]
-    dkinetic_energy = -power_balance['P_kin_arm_rot'][0]  # positive when energy is added to the system
-    tether_power_on_arm = power_balance['P_arm_tether'][0]  # positive when energy is added to the system
-    generator_power = power_balance['P_arm_gen'][0]  # positive when energy is subtracted from the system
+    dkinetic_energy = -power_balance['P_kin_arm_rot'][0]  # positive when arm accelerates
+    tether_power_on_arm = power_balance['P_tether_arm'][0]  # positive when tether accelerates the arm
+    generator_power = -power_balance['P_gen_arm'][0]  # positive when generator decelerates the arm
 
     plt.figure()
     plt.tight_layout()
@@ -230,11 +230,11 @@ def main():
     trial.optimize(final_homotopy_step='final')  # final_homotopy_step=['initial_guess', 'final'] to control when to stop the homotopy process
     plot_dict = trial.visualization.plot_dict
     print_wind_stats(plot_dict)
-    trial.plot(['states', 'controls', 'invariants', 'quad'])
     plot_dict = trial.visualization.plot_dict
+    trial.plot(['states', 'controls', 'invariants', 'quad'])
     plot_arm_torques_and_energies(plot_dict)
     plot_arm_states(plot_dict)
-    # plt.show()
+    plt.show()
     return trial, plot_dict_init, plot_dict
 
 if __name__ == "__main__":

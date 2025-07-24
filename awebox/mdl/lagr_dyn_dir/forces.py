@@ -200,7 +200,7 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
 
 
 def generate_rocking_mode_forces(variables_si, parameters, outputs, architecture):
-    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
+    passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
     generator_torque = passive_torque + active_torque
 
     return generator_torque, outputs

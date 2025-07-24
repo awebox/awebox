@@ -324,15 +324,15 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
-def get_arm_powers(variables_si, parameters):
+def get_arm_passive_and_active_powers(variables_si, parameters):
     darm_angle = variables_si['x']['darm_angle']
-    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
+    passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
     passive_power = -passive_torque * darm_angle
     active_power = -active_torque * darm_angle
     return passive_power, active_power
 
 def rocking_mode_outputs(variables_si, parameters, outputs):
-    passive_power, active_power = get_arm_powers(variables_si, parameters)
+    passive_power, active_power = get_arm_passive_and_active_powers(variables_si, parameters)
 
     # Compute some outputs for analysis
     x = variables_si['x']
@@ -346,7 +346,7 @@ def rocking_mode_outputs(variables_si, parameters, outputs):
     tension_force = tension * ehat_tether
     tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
 
-    passive_torque, active_torque = arm.get_arm_torques(variables_si, parameters)
+    passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
 
     outputs.setdefault('arm', {})
     outputs['arm']['tether_tension'] = tension
@@ -357,8 +357,8 @@ def rocking_mode_outputs(variables_si, parameters, outputs):
     outputs['arm']['passive_power'] = passive_power
     outputs['arm']['active_power'] = active_power
 
-    outputs['power_balance']['P_arm_tether'] = tether_torque_on_arm * x['darm_angle']
-    outputs['power_balance']['P_arm_gen'] = passive_power + active_power
+    outputs['power_balance']['P_tether_arm'] = tether_torque_on_arm * x['darm_angle']
+    outputs['power_balance']['P_gen_arm'] = -1. * (passive_power + active_power)
     return outputs
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
@@ -370,7 +370,7 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     elif options['trajectory']['system_type'] == 'rocking_mode':
-        passive_power, active_power = get_arm_powers(variables_si, parameters)
+        passive_power, active_power = get_arm_passive_and_active_powers(variables_si, parameters)
         power = passive_power + active_power
         outputs['performance']['p_current'] = power
     else:
@@ -441,7 +441,6 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
-            # TODO: rocking mode : this seems to be P_arm_tether
             if 'arm_angle' in variables_si['x'].keys():
                 q_p = arm.get_q_arm_tip(variables_si['x']['arm_angle'], variables_si['theta']['arm_length'])
             else:
