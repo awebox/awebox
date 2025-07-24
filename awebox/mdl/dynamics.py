@@ -393,7 +393,6 @@ def power_balance_outputs(options, outputs, system_variables, parameters, archit
     # all aerodynamic forces have already been added to power balance, by this point.
     # outputs['power_balance'] is not empty!
 
-    # TODO: rocking mode
     if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
     elif options['trajectory']['system_type'] == 'rocking_mode':
@@ -442,7 +441,12 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
-            # TODO: rocking mode : this seem to be P_arm_tether
+            # TODO: rocking mode : this seems to be P_arm_tether
+            # TODO: rocking mode : Arm length is not available here, only arm angle.
+            # solution: add `arm_angle` to `variables['theta']
+            # if 'arm_angle' in variables['x']:
+            #     q_p = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
+            # else:
             q_p = cas.SX.zeros((3, 1))
 
         # node velocity
@@ -1000,8 +1004,8 @@ def get_roll_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
+        # TODO: rocking mode : Arm length is not available here, only arm angle.
+        # solution: add `parameters` as an argument
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
@@ -1024,8 +1028,8 @@ def get_pitch_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
+        # TODO: rocking mode : Arm length is not available here, only arm angle.
+        # solution: add `parameters` as an argument
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
@@ -1051,9 +1055,10 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     r_wtip = cas.vertcat(0.0, -parameters['theta0', 'geometry', 'b_ref'] / 2, 0.0)
 
     if n1 == 0:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length IS available here
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in variables['x']:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], parameters['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
         r1 = cas.reshape(x['r{}{}'.format(n1, parent_map[n1])], (3, 3))
@@ -1090,8 +1095,8 @@ def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
+        # TODO: rocking mode : Arm length is not available here, only arm angle.
+        # solution: add `parameters` as an argument
         q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
