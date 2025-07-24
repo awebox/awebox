@@ -32,7 +32,6 @@ def rocking_mode_options(overwrite_options={}):
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'rocking_mode'
-    # options['user_options.trajectory.lift_mode.windings'] = 1  # TODO: rocking mode, make sure that 2+ changes nothing
 
     # Bounds on tether stress instead of tether force, no bounds on airspeed and rotation
     # Why does this give a better solution?
@@ -43,10 +42,10 @@ def rocking_mode_options(overwrite_options={}):
     options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])
 
     # indicate rocking mode options (default values)
-    options['params.arm.arm_length'] = 2  # m
-    options['params.arm.arm_inertia'] = 2000  # kg m^2
+    options['solver.initialization.theta.arm_length'] = 2  # m
+    options['solver.initialization.theta.arm_inertia'] = 2000  # kg m^2
+    options['solver.initialization.theta.torque_slope'] = 1500  # Nm / (rad/s)
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = False
-    options['params.arm.torque_slope'] = 2000  # Nm / (rad/s)
 
     # Test this later since the initialization is less complete than for 'circular'
     # # indicate initialization, cf. new lemniscate options
@@ -84,8 +83,6 @@ def rocking_mode_options(overwrite_options={}):
 longer tether with softer active control
 """
 def example_1(options):
-    options['solver.initialization.l_t'] = 200.
-    options['params.arm.torque_slope'] = 1500
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
     return options
@@ -94,18 +91,15 @@ def example_1(options):
 longer tether with no control constraint (torque indirectly constrained by tether constraints)
 """
 def example_2(options):
-    options['solver.initialization.l_t'] = 200.
-    options['params.arm.torque_slope'] = 1500
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     return options
 
 """
-smaller tether with active control
+smaller tether with strong active control
 """
 def example_3(options):
     options['model.system_bounds.x.q'] = [np.array([-np.inf, -np.inf, .20]), np.array([np.inf, np.inf, np.inf])]
     options['solver.initialization.l_t'] = 50.
-    options['params.arm.torque_slope'] = 1000
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['model.system_bounds.u.dactive_torque'] = [-10000, 10000]
     return options
@@ -116,9 +110,9 @@ If every power is integrated into work (I don't think so) verify that the arm re
 """
 def test_1(options):
     options['solver.initialization.l_t'] = 200.
-    options['params.arm.torque_slope'] = 100
-    options['params.arm.arm_length'] = 2
-    options['params.arm.arm_inertia'] = 2000
+    options['initialization.theta.torque_slope'] = 100
+    options['initialization.theta.arm_length'] = 2
+    options['initialization.theta.arm_inertia'] = 2000
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['model.system_bounds.u.dactive_torque'] = [-100, 100]
 

@@ -195,7 +195,10 @@ def generate_structure(options, architecture):
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
     if options['trajectory']['system_type'] in ['drag_mode', 'rocking_mode']:
-        system_parameters.extend([('l_t', (1, 1))])
+        system_parameters += [('l_t', (1, 1))]
+
+    if options['trajectory']['system_type'] == 'rocking_mode':
+        system_parameters += [('arm_length', (1, 1)), ('arm_inertia', (1, 1)), ('torque_slope', (1, 1))]
 
     if (architecture.number_of_nodes - architecture.number_of_kites) > 1:
         system_parameters += [('l_s', (1, 1)), ('diam_s', (1, 1))]

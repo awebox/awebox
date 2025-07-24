@@ -336,7 +336,7 @@ def rocking_mode_outputs(variables_si, parameters, outputs):
 
     # Compute some outputs for analysis
     x = variables_si['x']
-    arm_length = parameters['theta0', 'arm', 'arm_length']
+    arm_length = variables_si['theta']['arm_length']
     arm_angle = x['arm_angle']
     q_arm_tip = arm.get_q_arm_tip(arm_angle, arm_length)
 

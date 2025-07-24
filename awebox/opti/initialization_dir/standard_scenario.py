@@ -87,7 +87,7 @@ def guess_values_at_time(t, init_options, model):
         parent = parent_map[node]
         if parent == 0:
             if 'arm_angle' in ret:
-                parent_position = arm.get_q_arm_tip(ret['arm_angle'], init_options['arm']['arm_length'])
+                parent_position = arm.get_q_arm_tip(ret['arm_angle'], init_options['theta']['arm_length'])
             else:
                 parent_position = np.zeros((3, 1))
         else:

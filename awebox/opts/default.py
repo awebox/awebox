@@ -188,11 +188,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
-        ## arm model
-        ('params',    'arm', None,          'arm_length',           2.,         ('length of the arm [m]', None),'s'),
-        ('params',    'arm', None,          'arm_inertia',          2000.,      ('inertia of the arm [kg m^2]', None),'s'),
-        ('params',    'arm', None,          'torque_slope',         2000.,      ('slope of the linear torque function [Nm / (rad/s)]', None),'s'),
-
 
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
@@ -212,10 +207,13 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                                 ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
 
 
-        ('model',  'system_bounds', 'x',           'arm_angle',         [-3 * np.pi / 4, 3 * np.pi / 4],            ('arm angle bounds [rad]', None), 'x'),
-        ('model',  'system_bounds', 'x',           'darm_angle',        [-4 * np.pi, 4 * np.pi],                    ('arm angular velocity bounds [rad/s]', None), 'x'),
-        ('model',  'system_bounds', 'x',           'active_torque',[-cas.inf, cas.inf],                         ('arm active torque [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
-        ('model',  'system_bounds', 'u',           'dactive_torque',[-cas.inf, cas.inf],                        ('variation of arm active torque [Nm/s]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'arm_angle',         [-3 * np.pi / 4, 3 * np.pi / 4],('arm angle bounds [rad]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'darm_angle',        [-4 * np.pi, 4 * np.pi],        ('arm angular velocity bounds [rad/s]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'active_torque',     [-cas.inf, cas.inf],            ('arm active torque bounds [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
+        ('model',  'system_bounds', 'u',           'dactive_torque',    [-cas.inf, cas.inf],            ('variation of arm active torque bounds [Nm/s]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'arm_length',        [1e-3, 1e2],                    ('arm length bounds [Nm]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'arm_inertia',       [1e-3, cas.inf],                 ('arm inertia bounds [kg/m^2]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'torque_slope',      [0.0, cas.inf],                 ('passive torque slope bounds [Nm/(rad/s)]', None), 'x'),
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
@@ -424,6 +422,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'arm_length',   2.,     ('length of the arm [m]', None),'s'),
+        ('solver',  'initialization', 'theta',  'arm_inertia',  2000.,  ('inertia of the arm [kg m^2]', None),'s'),
+        ('solver',  'initialization', 'theta',  'torque_slope', 1500.,  ('slope of the linear torque function [Nm / (rad/s)]', None),'s'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 1e0,       ('factor used in generating the power cost [-]', None), 'x'),
@@ -435,11 +436,6 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'weights',      None,   'dl_t',     1e-3,       ('optimization weight for all dl_t variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'ddl_t',    2e4,        ('optimization weight for all ddl_t variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'dddl_t',   2e2,        ('optimization weight for all ddl_t variables [-]', None), 'x'),
-        ('solver',  'weights',      None,   'arm_angle',1e-2,       ('optimization weight for the arm_angle variable [-]', None), 's'),
-        ('solver',  'weights',      None,   'darm_angle',1e0,       ('optimization weight for the darm_angle variable [-]', None), 's'),
-        ('solver',  'weights',      None,   'ddarm_angle',1e2,      ('optimization weight for the ddarm_angle variable [-]', None), 's'),
-        ('solver',  'weights',      None,   'active_torque',1e4,    ('optimization weight for the active_torque variable [-]', None), 's'),
-        ('solver',  'weights',      None,   'dactive_torque',1e3,   ('optimization weight for the dactive_torque variable [-]', None), 's'),
         ('solver',  'weights',      None,   'l_s',      1e0,        ('optimization weight for the l_s variable [-]', None), 's'),
         ('solver',  'weights',      None,   'r',        1e1,        ('optimization weight for all r variables [-]', None), 'x'),
         ('solver',  'weights',      None,   'omega',    1e-1,       ('optimization weight for all omega variables [-]', None),'x'),
@@ -455,6 +451,14 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'weights',      None,   'P_max',    0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
         ('solver',  'weights',      None,   'diam_s',   1e0,        ('optimization weight for the diam_s variable [-]', None),'s'),
         ('solver',  'weights',      None,   'diam_t',   1e0,        ('optimization weight for the diam_t variable [-]', None),'s'),
+        ('solver',  'weights',      None,   'arm_angle',      1e-2, ('optimization weight for the arm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'darm_angle',     1e0,  ('optimization weight for the darm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'ddarm_angle',    1e2,  ('optimization weight for the ddarm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'active_torque',  1e4,  ('optimization weight for the active_torque variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'dactive_torque', 1e3,  ('optimization weight for the dactive_torque variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'arm_inertia',    1e0,  ('optimization weight for the arm_inertia variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'arm_length',     1e0,  ('optimization weight for the arm_length variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'torque_slope',   1e0,  ('optimization weight for the torque_slope variable [-]', None), 's'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-6,       ('starting cost for u_regularisation', None),'s'),

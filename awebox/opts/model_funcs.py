@@ -922,8 +922,6 @@ def build_arm_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
 
-        options_tree.append(('solver', 'initialization', 'arm', 'arm_length', options['params']['arm']['arm_length'], ('length of the arm [m]', None),'s'))  # To access arm_length during initialization since model.params['theta0', 'arm', 'arm_length'] is nan
-
     return options_tree, fixed_params
 
 ######## arm control
@@ -935,7 +933,7 @@ def build_arm_control_options(options, options_tree, fixed_params, architecture)
         tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
         length = options['solver']['initialization']['l_t']
         tension = tension_per_unit_length * length
-        arm_length = options['params']['arm']['arm_length']
+        arm_length = options['solver']['initialization']['theta']['arm_length']
         torque = 0.7 * tension * arm_length  # Assumes a 45° angle in the horizontal plane, with sin(45°) = 0.7
 
         options_tree.append(('model', 'scaling', 'x', 'active_torque', torque, ('???', None), 'x'))

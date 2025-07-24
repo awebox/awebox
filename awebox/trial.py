@@ -277,7 +277,7 @@ class Trial(object):
             'a': ('Average induction', 1, '-'),
             'arm_length': ('Arm length', 1, 'm'),
             'arm_inertia': ('Arm inertia', 1, 'kg.m^2'),
-            'torque_slope': ('Torque variation w.r.t. speed', 1, 'N.m/(rad/s)'),
+            'torque_slope': ('Torque slope', 1, 'N.m/(rad/s)'),
         }
 
         for theta in self.model.variables_dict['theta'].keys():
