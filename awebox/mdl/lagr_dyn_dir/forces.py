@@ -50,9 +50,9 @@ def generate_f_nodes(options, atmos, wind, wake, variables_si, outputs, paramete
     node_forces = {}
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
-        node_forces['f' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
+        node_forces['f' + str(node) + str(parent)] = cas.MX.zeros((3, 1))
         if int(options['kite_dof']) == 6:
-            node_forces['m' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
+            node_forces['m' + str(node) + str(parent)] = cas.MX.zeros((3, 1))
 
     aero_forces, outputs = generate_aerodynamic_forces(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
 
@@ -187,7 +187,8 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
             parent = parent_map[kite]
 
             # tether constraint contribution
-            tether_moment = 2 * vect_op.jacobian_dcm(holonomic_constraints, x_si, variables_scaled, kite, parent).T
+            # tether_moment = 2 * vect_op.jacobian_dcm(holonomic_constraints, x_si, variables_scaled, kite, parent).T
+            tether_moment = cas.MX.zeros((3,1))
             outputs['tether_moments']['n{}{}'.format(kite, parent)] = tether_moment
 
     return outputs

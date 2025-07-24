@@ -60,7 +60,7 @@ def get_uapp(q_upper, q_lower, dq_upper, dq_lower, wind):
 
 def get_element_drag_fun(wind, atmos, cd_tether_fun, parameters):
 
-    info_sym = cas.SX.sym('info_sym', (13, 1))
+    info_sym = cas.MX.sym('info_sym', (13, 1))
 
     q_upper = info_sym[:3]
     q_lower = info_sym[3:6]

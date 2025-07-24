@@ -462,14 +462,14 @@ def generate_system_parameters(options, architecture):
             cas.entry('p_far_3', struct = parameters_dict['p_far_3'])
         ]
 
-    parameters = cas.struct_symSX(entry_list)
+    parameters = cas.struct_symMX(entry_list)
 
     return parameters, parameters_dict
 
 def generate_optimization_parameters():
 
     # variable system parameters
-    p_dec = cas.struct_symSX([(
+    p_dec = cas.struct_symMX([(
         cas.entry('gamma'),  # force homotopy variable
         cas.entry('tau'),   # tether drag homotopy variable
         cas.entry('iota'),  # induction homotopy variable

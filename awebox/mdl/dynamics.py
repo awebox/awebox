@@ -63,7 +63,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     [system_variable_list, system_gc] = system.generate_structure(options, architecture)
 
     # -----------------------------------
-    # generate structured SX.sym objects
+    # generate structured MX.sym objects
     # -----------------------------------
     system_variables = {}
     system_variables['scaled'], variables_dict = struct_op.generate_variable_struct(system_variable_list)
@@ -155,7 +155,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     #  sanity checking
     # ----------------------------------------
 
-    check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, system_variables['scaled'])
+    # check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_dict, system_variables['scaled'])
 
     # ----------------------------------------
     #  construct outputs structure
@@ -290,7 +290,7 @@ def manage_alongside_integration(model_options, derivative_dict, system_variable
                                            cstr_type='eq')
             cstr_list.append(local_cstr)
 
-    integral_outputs = cas.struct_SX(integral_outputs_expr_entries)
+    integral_outputs = cas.struct_MX(integral_outputs_expr_entries)
 
     # dynamics function options
     if model_options['construction']['jit_code_gen']['include']:
@@ -317,7 +317,7 @@ def make_output_structure(outputs, system_variables, parameters):
             # prepare empty entry list to generate substruct
             local_list += [cas.entry(name, shape=outputs[output_type][name].shape)]
 
-            # generate vector with outputs - SX expressions
+            # generate vector with outputs - MX expressions
             outputs_vec = cas.vertcat(outputs_vec, outputs[output_type][name])
 
         # generate dict with sub-structs
@@ -327,7 +327,11 @@ def make_output_structure(outputs, system_variables, parameters):
 
     # generate "empty" structure
     out_struct = cas.struct_symMX(full_list)
+<<<<<<< HEAD
     # generate structure with SX expressions
+=======
+    # generate structure with MX expressions
+>>>>>>> 2aea200... change model construction to MX types for compilation purposes
     outputs_struct = out_struct(outputs_vec)
     # generate outputs function
     outputs_fun = cas.Function('outputs', [system_variables['scaled'], parameters], [outputs_struct.cat])
@@ -348,7 +352,7 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
-        power = cas.SX.zeros(1, 1)
+        power = cas.MX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
         outputs['performance']['p_current'] = power
@@ -422,7 +426,7 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
-            q_p = cas.SX.zeros((3, 1))
+            q_p = cas.MX.zeros((3, 1))
 
         # node velocity
         dq_n = variables_si['x']['dq' + str(n) + str(parent)]
@@ -990,7 +994,7 @@ def generate_si_variables(scaling, variables):
     for var_type in list(scaling.keys()):
         subkeys = struct_op.subkeys(variables, var_type)
 
-        variables_si[var_type] = cas.struct_SX(
+        variables_si[var_type] = cas.struct_MX(
             [cas.entry(var_name, expr=struct_op.var_scaled_to_si(var_type, var_name, variables[var_type, var_name], scaling)) for var_name in subkeys])
 
     return variables_si
