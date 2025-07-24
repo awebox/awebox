@@ -910,19 +910,20 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
 def build_arm_options(options, options_tree, fixed_params, architecture):
     user_options = options['user_options']
-    # scaling and bounds of arm_angle, darm_angle
-    arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
-    darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
 
-    options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('angle of attack', None), 'x'))
-    options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('angle of attack rate', None), 'x'))
+    if user_options['trajectory']['system_type'] == 'rocking_mode':
+        # scaling and bounds of the state of the arm
+        arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
+        darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
 
-    t_f_guess = estimate_time_period(options, architecture)
+        options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('arm angle bounds [rad]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('arm angular velocity bounds [rad/s]', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
-    options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
 
-    options_tree.append(('solver', 'initialization', 'arm', 'arm_length', options['params']['arm']['arm_length'], ('length of the arm [m]', None),'s'))  # To access arm_length during initialization since model.params['theta0', 'arm', 'arm_length'] is nan
+        options_tree.append(('solver', 'initialization', 'arm', 'arm_length', options['params']['arm']['arm_length'], ('length of the arm [m]', None),'s'))  # To access arm_length during initialization since model.params['theta0', 'arm', 'arm_length'] is nan
+
     return options_tree, fixed_params
 
 ######## arm control
@@ -950,10 +951,8 @@ def build_arm_control_options(options, options_tree, fixed_params, architecture)
             active_torque_bounds = [-0.0, 0.0]
             dactive_torque_bounds = [-0.0, 0.0]
 
-        options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('arm angle bounds [rad]', None), 'x'))
-        options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('arm angular velocity bounds [rad/s]', None), 'x'))
-        options_tree.append(('model', 'system_bounds', 'x', 'active_torque', active_torque_bounds, ('arm active torque [Nm]', None), 'x'))
-        options_tree.append(('model', 'system_bounds', 'u', 'dactive_torque', dactive_torque_bounds, ('variation of arm active torque [Nm/s]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'active_torque', active_torque_bounds, ('arm active torque bounds [Nm]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'u', 'dactive_torque', dactive_torque_bounds, ('variation of arm active torque bounds [Nm/s]', None), 'x'))
 
     return options_tree, fixed_params
 

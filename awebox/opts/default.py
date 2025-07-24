@@ -41,7 +41,7 @@ def set_default_user_options():
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode', 'rocking_mode']), 't'),
         ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('possible options', [True, False]),'x'),
-        # Implement this, with corresponding bounds
+        # TODO: rocking mode : Implement this, with corresponding bounds
         ('user_options',    'trajectory',  'rocking_mode','arm_params_to_optimize',[],               ('zero or more of arm_length, arm_inertia, torque_slope', None),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
