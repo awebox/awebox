@@ -32,6 +32,7 @@ import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
+import awebox.tools.cached_functions as cf
 
 
 
@@ -90,6 +91,7 @@ def get_element_drag_fun(wind, atmos, cd_tether_fun, parameters):
     drag = cd * 0.5 * density * ua_norm * diam * length_perp_to_wind * ua
 
     element_drag_fun = cas.Function('element_drag_fun', [info_sym, parameters], [drag])
+    element_drag_fun = cf.CachedFunction('element_drag_fun', element_drag_fun, do_compile=True)
 
     return element_drag_fun
 

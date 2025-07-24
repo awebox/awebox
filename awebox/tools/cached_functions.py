@@ -56,17 +56,38 @@ def get_compiler():
 
     return _COMPILER
 
-def compile(input_file, output_file, options=None):
+def compile(input_file, output_file, linked_files = None, intermediate_file =  None, options=None):
     """Compile a c file to an so file."""
     compiler = get_compiler()
 
-    _CXX_FLAGS = ["-fPIC", "-shared", "-fno-omit-frame-pointer", "-O1"] # add "-v" for verbose
-    call([compiler] + _CXX_FLAGS + ["-o", output_file, input_file])
+    _CXX_FLAGS = ["-fPIC", "-shared", "-fno-omit-frame-pointer", "-O0"] # add "-v" for verbose
+    if linked_files is None:
+        call([compiler] + _CXX_FLAGS + ["-o", output_file, input_file])
+    else:
+        _CXX_FLAGS = ["-fPIC", "-fno-omit-frame-pointer", "-O1"]
+        call([compiler] + _CXX_FLAGS + ["-c", input_file] + ["-o", intermediate_file])
+        call([compiler] + ["-shared"] + ["-o", output_file, intermediate_file] + linked_files)
+
+def fix_code(path):
+    import re
+    # Define the pattern to find and the replacement pattern
+    pattern = re.compile(r'if \((mid = (.*?))flag\) return 1;', re.MULTILINE | re.DOTALL)
+    # pattern = re.compile(r'if \((mid(.*?))flag\) return 1;', re.MULTILINE | re.DOTALL)
+    replacement = r'\1if (flag) return 1;'
+
+    # Read the file
+    with open(path, 'r') as file:
+        file_contents = file.read()
+    
+    # Apply the correction
+    corrected_contents = re.sub(pattern, replacement, file_contents)
+    with open(path, 'w') as file:
+        file.write(corrected_contents)
 
 class CachedFunction:
     """A cached function."""
 
-    def __init__(self, name, func, filename=None, do_compile=None):
+    def __init__(self, name, func, filename=None, do_compile=None, linked_files = None):
         """Load or create a cached function."""
         if do_compile is None:
             do_compile = True
@@ -84,7 +105,7 @@ class CachedFunction:
             self.f = func
             if do_compile:
                 logger.debug(f"Compiling function {self.name}")
-                self._save_so()
+                self._save_so(linked_files)
                 self._load_so()
 
     def _create(self, func):
@@ -95,9 +116,10 @@ class CachedFunction:
         """Check if the file exist."""
         return path.exists(self.filename + ".json")
 
-    def _save_so(self):
+    def _save_so(self, linked_files):
         """Save as so file."""
         data = {
+            "intermediate_file": self.filename + ".o",
             "lib_file": self.filename + ".so",
             "c_file": self.filename + ".c",
             "func_name": self.f.name()
@@ -110,7 +132,8 @@ class CachedFunction:
         cg.add(self.f.jacobian().jacobian())
         cg.generate()
         rename(tmp_file, data["c_file"])
-        compile(data["c_file"], data["lib_file"])
+        fix_code(data["c_file"])
+        compile(data["c_file"], data["lib_file"], linked_files = linked_files, intermediate_file = data['intermediate_file'])
         write_json(data, self.filename + ".json")
 
     def _load_so(self):

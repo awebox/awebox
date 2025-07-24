@@ -242,7 +242,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation, Integra
 
     mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
     if nlp_options['compile_subfunctions']:
-        mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
+        mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions']) #, linked_files= ['element_drag_fun_element_drag_fun.so'])
 
     # evaluate constraint functions
     if nlp_options['parallelization']['map_type'] == 'for-loop':
