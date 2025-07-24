@@ -38,7 +38,7 @@ import awebox.tools.vector_operations as vect_op
 
 def get_tether_cd_fun(model_options, parameters):
 
-    reynolds = cas.MX.sym('reynolds')
+    reynolds = cas.SX.sym('reynolds')
 
     smoothing = model_options['tether']['reynolds_smoothing']
     if model_options['tether']['cd_model'] == 'polyfit':

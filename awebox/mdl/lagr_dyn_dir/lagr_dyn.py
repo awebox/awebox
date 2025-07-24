@@ -24,8 +24,8 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     # generalized coordinates, velocities and accelerations
     generalized_coordinates = {}
-    generalized_coordinates['scaled'], generalized_coordinates_indeces = generate_generalized_coordinates(system_variables['scaled'], system_gc)
-    generalized_coordinates['SI'], _ = generate_generalized_coordinates(system_variables['SI'], system_gc)
+    generalized_coordinates['scaled'] = generate_generalized_coordinates(system_variables['scaled'], system_gc)
+    generalized_coordinates['SI'] = generate_generalized_coordinates(system_variables['SI'], system_gc)
 
     # --------------------------------
     # tether and ground station masses
@@ -69,11 +69,10 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     xgcdot_scaled = generalized_coordinates['scaled']['xgcdot']
 
     # lhs of lagrange equations
-    dlagr_dqdot = cas.jacobian(lag, system_variables['scaled'].cat)[*generalized_coordinates_indeces['xgcdot']].T
-    # dlagr_dqdot = cas.jacobian(lag, xgcdot_scaled.cat).T
+    dlagr_dqdot = cas.jacobian(lag, xgcdot_scaled.cat).T
     dlagr_dqdot_dt = tools.time_derivative(dlagr_dqdot, system_variables['scaled'], architecture, scaling)
 
-    dlagr_dq = cas.jacobian(lag, system_variables['scaled'].cat)[*generalized_coordinates_indeces['xgc']].T
+    dlagr_dq = cas.jacobian(lag, xgc_scaled.cat).T
 
     xgcdot_scaling_factors = []
     xgc_scaling_factors = []
@@ -90,7 +89,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_lhs_translation = dlagr_dqdot_si_dt - dlagr_dq_si
 
     # lagrangian momentum correction
-    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, generalized_coordinates_indeces,  system_variables, parameters, outputs, architecture, scaling)
+    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling)
 
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
@@ -210,7 +209,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     return cstr_list, outputs
 
 
-def momentum_correction(options, generalized_coordinates, generalized_coordinates_indeces, system_variables, parameters, outputs, architecture, scaling):
+def momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
@@ -237,7 +236,7 @@ def momentum_correction(options, generalized_coordinates, generalized_coordinate
 
     # generalization
     xgcdot_scaled = generalized_coordinates['scaled']['xgcdot']
-    partial_local_qdot_partial_all_qdots = cas.jacobian(xgcdot_scaled['dq10'], system_variables['scaled'])[*generalized_coordinates_indeces['xgcdot']].T
+    partial_local_qdot_partial_all_qdots = cas.jacobian(xgcdot_scaled['dq10'], xgcdot_scaled.cat).T
     generalized_momentum_transfer_rate = mass_flow * cas.mtimes(partial_local_qdot_partial_all_qdots, velocity)
 
     return generalized_momentum_transfer_rate
@@ -299,31 +298,23 @@ def generate_generalized_coordinates(system_variables, system_gc):
 
     if struct_flag == 1:
         generalized_coordinates = {}
-        generalized_coordinates_indeces = {'xgc': [], 'xgcdot': []}
-        generalized_coordinates['xgc'] = cas.struct_MX(
+        generalized_coordinates['xgc'] = cas.struct_SX(
             [cas.entry(name, expr=system_variables['x', name]) for name in system_gc])
-        for name in system_gc:
-            generalized_coordinates_indeces['xgc'] += system_variables.f['x', name]
-            generalized_coordinates_indeces['xgcdot'] += system_variables.f['x', 'd' + name]
-
-        generalized_coordinates['xgcdot'] = cas.struct_MX(
+        generalized_coordinates['xgcdot'] = cas.struct_SX(
             [cas.entry('d' + name, expr=system_variables['x', 'd' + name])
              for name in system_gc])
-
-        # generalized_coordinates['xgcddot'] = cas.struct_MX(
+        # generalized_coordinates['xgcddot'] = cas.struct_SX(
         #     [cas.entry('dd' + name, expr=system_variables['xdot', 'dd' + name])
         #      for name in system_gc])
     else:
         generalized_coordinates = {}
-        generalized_coordinates_indeces = {'xgc': [], 'xgcdot': []}
-
-        generalized_coordinates['xgc'] = cas.struct_MX(
+        generalized_coordinates['xgc'] = cas.struct_SX(
             [cas.entry(name, expr=system_variables['x'][name]) for name in system_gc])
-        generalized_coordinates['xgcdot'] = cas.struct_MX(
+        generalized_coordinates['xgcdot'] = cas.struct_SX(
             [cas.entry('d' + name, expr=system_variables['x']['d' + name])
              for name in system_gc])
-        # generalized_coordinates['xgcddot'] = cas.struct_MX(
+        # generalized_coordinates['xgcddot'] = cas.struct_SX(
         #     [cas.entry('dd' + name, expr=system_variables['xdot']['dd' + name])
         #      for name in system_gc])
 
-    return generalized_coordinates, generalized_coordinates_indeces
+    return generalized_coordinates

@@ -77,7 +77,7 @@ def distribute_tether_drag_forces(options, variables_si, architecture, outputs):
     tether_drag_forces = {}
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
-        tether_drag_forces['f' + str(node) + str(parent)] = cas.MX.zeros((3, 1))
+        tether_drag_forces['f' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
     for node in range(1, architecture.number_of_nodes):
         parent = architecture.parent_map[node]
@@ -89,7 +89,7 @@ def distribute_tether_drag_forces(options, variables_si, architecture, outputs):
         if node > 1:
             grandparent = architecture.parent_map[parent]
             tether_drag_forces['f' + str(parent) + str(grandparent)] += drag_parent
-
+    
         # attribute portion of segment drag to node
         tether_drag_forces['f' + str(node) + str(parent)] += drag_node
 

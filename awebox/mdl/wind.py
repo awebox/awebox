@@ -55,7 +55,7 @@ class Wind:
 
         u_hat = self.get_wind_direction()
 
-        if isinstance(zz, cas.MX):
+        if isinstance(zz, cas.SX):
             params = self.__params.prefix['theta0', 'wind']
             u_ref = params['u_ref']
             z_ref = params['z_ref']
