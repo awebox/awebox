@@ -421,12 +421,12 @@ class Collocation(object):
                 elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '2'):
                     idx = struct_op.get_idx_from_state(state)
                     g_continuity.append(
-                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed2']
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed2'] + outputs_list[idx]['aerodynamics', 'u_induced_near2']
                     )
                 elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '3'):
                     idx = struct_op.get_idx_from_state(state)
                     g_continuity.append(
-                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed3']
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed3'] + outputs_list[idx]['aerodynamics', 'u_induced_near3']
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '2'):

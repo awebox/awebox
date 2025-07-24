@@ -230,6 +230,7 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
         outputs['aerodynamics']['n_dipole' + str(kite)] = - outputs['aerodynamics']['ehat_up{}'.format(kite)]
         outputs['aerodynamics']['gamma_rectangle' + str(kite)] = 2 * parameters['theta0', 'geometry', 'b_ref'] * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar']) * outputs['aerodynamics']['airspeed' + str(kite)]**2 / 100**3
         outputs['aerodynamics']['ec_rectangle' + str(kite)] = - air_velocity / outputs['aerodynamics']['airspeed' + str(kite)]
+        outputs['aerodynamics']['u_induced_near' + str(kite)] = outputs['aerodynamics']['airspeed' + str(kite)] * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar'])
 
     return outputs
 
