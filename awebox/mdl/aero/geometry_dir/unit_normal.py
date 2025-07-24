@@ -39,6 +39,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.geometry_dir.frenet_geometry as frenet_geom
+import awebox.mdl.arm as arm
 
 def get_n_vec(options, parent, variables, architecture, scaling):
 
@@ -142,12 +143,10 @@ def get_tether_parallel_multi_n_vec(parent, variables_si, architecture, scaling)
     q_parent = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'q' + str(parent) + str(grandparent))
 
     if grandparent == 0:
-        # TODO: rocking mode : Arm length is not available here, only arm angle.
-        # solution: add `arm_angle` to `variables['theta']
-        # if 'arm_angle' in variables_si['x']:
-        #     q_grandparent = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
-        # else:
-        q_grandparent = cas.DM.zeros((3, 1))
+        if 'arm_angle' in variables_si['x'].keys():
+            q_grandparent = arm.get_q_arm_tip(variables_si['x']['arm_angle'], variables_si['theta']['arm_length'])
+        else:
+            q_grandparent = cas.DM.zeros((3, 1))
 
         if '[x,l_t,0]' in scaling.labels():
             scale = scaling['x', 'l_t']

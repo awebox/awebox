@@ -201,8 +201,6 @@ def initial_guess_actuator_support(init_options, model, V_init):
         dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
 
         if parent == 0:
-            # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-            # Is arm length available here ? What about arm angle ?
             parent_position = np.zeros((3, 1))
         else:
             grandparent = model.architecture.parent_map[parent]

@@ -78,6 +78,8 @@ def guess_values_at_time(t, init_options, model):
     phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
     if 'arm_angle' in ret:
         arm_phase = t * phase_rate - np.pi/4
+        if init_options['shape'] == 'circular':
+            arm_phase += -np.pi/2
         ret['arm_angle'] = -np.pi * np.cos(arm_phase)
         ret['darm_angle'] = np.pi * np.sin(arm_phase) * phase_rate
         ret['active_torque'] = 0.0

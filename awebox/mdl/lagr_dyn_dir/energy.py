@@ -60,11 +60,9 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture, sca
 
 def get_reelout_speed(variables_si):
 
+    # Rocking mode : never called in rocking mode, no need to define q_parent
     q_node = variables_si['x']['q10']
 
-    # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-    # Make sure that no reelout speed is calculated for rocking mode
-    # Are there other shortcuts like this one elsewhere ?
     # q_parent = cas.DM.zeros((3, 1))
     # segment_vector = q_node - q_parent
     segment_vector = q_node

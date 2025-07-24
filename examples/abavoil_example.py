@@ -27,11 +27,14 @@ def rocking_mode_options(overwrite_options={}):
     options['user_options.system_model.kite_dof'] = 3
     options['model.system_bounds.theta.t_f'] = [1, 6]
     options['quality.test_param.t_f_min'] =  1
+    options['quality.test_param.z_min'] = -np.inf
 
     # indicate desired operation mode
     # here: lift-mode system with pumping-cycle operation, with a one winding trajectory
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'rocking_mode'
+    options.setdefault('user_options.trajectory.fixed_params', {})
+    options['user_options.trajectory.fixed_params'] |= {'arm_length': 2.0}
 
     # Bounds on tether stress instead of tether force, no bounds on airspeed and rotation
     # Why does this give a better solution?
@@ -39,7 +42,7 @@ def rocking_mode_options(overwrite_options={}):
     options['model.model_bounds.tether_force.include'] = False
     options['model.model_bounds.airspeed.include'] = False
     options['model.model_bounds.rotation.include'] = False
-    options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10.0]), np.array([np.inf, np.inf, np.inf])
+    options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 50.0]), np.array([np.inf, np.inf, np.inf])
 
     # indicate rocking mode options (default values)
     options['solver.initialization.theta.arm_length'] = 2  # m
@@ -67,10 +70,9 @@ def rocking_mode_options(overwrite_options={}):
     # here: nlp discretization, with a zero-order-hold control parametrization, and
     # a simple phase-fixing routine. also, specify a linear solver to perform the Newton-steps
     # within ipopt.
-    options['nlp.n_k'] = 40
+    options['nlp.n_k'] = 20
     options['nlp.collocation.u_param'] = 'zoh'
-    options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
-    options['solver.linear_solver'] = 'mumps'  # if HSL is installed, otherwise 'mumps'
+    options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
     options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
 
     for option_name, option_val in overwrite_options.items():
@@ -98,7 +100,7 @@ def example_2(options):
 smaller tether with strong active control
 """
 def example_3(options):
-    options['model.system_bounds.x.q'] = [np.array([-np.inf, -np.inf, .20]), np.array([np.inf, np.inf, np.inf])]
+    options['model.system_bounds.x.q'] = [np.array([-np.inf, -np.inf, 7]), np.array([np.inf, np.inf, np.inf])]
     options['solver.initialization.l_t'] = 50.
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['model.system_bounds.u.dactive_torque'] = [-10000, 10000]
@@ -211,6 +213,10 @@ def main():
     # Opti 2: no torque_slope, find best arm control
     # Opti 3: mixed, find best torque_slope and arm control st. avg of active power = 0
     # What about arm length and inertia ?
+
+    # --->
+    # Always: avg(active_torque) = 0, because the arm does not perform full rotations. It should avoid suboptimal solutions
+    # If optimizing for torque_slope, then avg(active_power) = 0, to avoid trading passive for active torque
 
     # Add power balance check & fix todos in dynamics.py
 

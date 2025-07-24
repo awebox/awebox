@@ -41,6 +41,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
 import awebox.mdl.aero.tether_dir.segment as segment
 import awebox.mdl.aero.tether_dir.element as element
+import awebox.mdl.arm as arm
 
 
 
@@ -203,9 +204,10 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
 
     q_node = variables_si['x']['q' + str(upper_node) + str(lower_node)]
     if main_tether:
-        # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-        # Arm length is not available here, only arm angle.
-        q_parent = cas.DM.zeros((3, 1))
+        if 'arm_angle' in variables_si['x'].keys():
+            q_parent = arm.get_q_arm_tip(variables_si['x']['arm_angle'], variables_si['theta']['arm_length'])
+        else:
+            q_parent = cas.DM.zeros((3, 1))
     else:
         grandparent = architecture.parent_map[lower_node]
         q_parent = variables_si['x']['q' + str(lower_node) + str(grandparent)]

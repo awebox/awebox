@@ -442,12 +442,10 @@ def tether_power_outputs(variables_si, outputs, architecture):
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
             # TODO: rocking mode : this seems to be P_arm_tether
-            # TODO: rocking mode : Arm length is not available here, only arm angle.
-            # solution: add `arm_angle` to `variables['theta']
-            # if 'arm_angle' in variables['x']:
-            #     q_p = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
-            # else:
-            q_p = cas.SX.zeros((3, 1))
+            if 'arm_angle' in variables_si['x'].keys():
+                q_p = arm.get_q_arm_tip(variables_si['x']['arm_angle'], variables_si['theta']['arm_length'])
+            else:
+                q_p = cas.SX.zeros((3, 1))
 
         # node velocity
         dq_n = variables_si['x']['dq' + str(n) + str(parent)]
@@ -992,9 +990,10 @@ def generate_si_variables(scaling, variables):
 
 
 
-def get_roll_expr(x, n0, n1, parent_map):
+def get_roll_expr(x, theta, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle roll angle via roll = atan(expr),
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -1004,9 +1003,10 @@ def get_roll_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        # TODO: rocking mode : Arm length is not available here, only arm angle.
-        # solution: add `parameters` as an argument
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -1016,9 +1016,10 @@ def get_roll_expr(x, n0, n1, parent_map):
     return cas.mtimes(q_hat.T, r[:, 1]) / cas.mtimes(q_hat.T, r[:, 2])
 
 
-def get_pitch_expr(x, n0, n1, parent_map):
+def get_pitch_expr(x, theta, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle pitch angle via pitch = asin(expr),
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -1028,9 +1029,10 @@ def get_pitch_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        # TODO: rocking mode : Arm length is not available here, only arm angle.
-        # solution: add `parameters` as an argument
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -1040,9 +1042,10 @@ def get_pitch_expr(x, n0, n1, parent_map):
     return cas.mtimes(q_hat.T, r[:, 0]) / vect_op.norm(q_hat)
 
 
-def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
+def get_span_angle_expr(options, x, theta, n0, n1, parent_map, parameters):
     """ Return the expression that allows to compute the cross-tether vs. body span-vector angle and related inequality,
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
@@ -1056,7 +1059,7 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
 
     if n1 == 0:
         if 'arm_angle' in variables['x']:
-            q1 = arm.get_q_arm_tip(x['arm_angle'], parameters['arm_length'])
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
         else:
             q1 = np.zeros((3, 1))
     else:
@@ -1083,9 +1086,10 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     return span_ineq, span_angle
 
 
-def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
+def get_yaw_expr(options, x, theta, n0, n1, parent_map, gamma_max):
     """ Compute angle between kite yaw vector and tether, including corresponding inequality.
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
@@ -1095,9 +1099,10 @@ def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
-        # TODO: rocking mode : Arm length is not available here, only arm angle.
-        # solution: add `parameters` as an argument
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -1124,6 +1129,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     parent_map = architecture.parent_map
 
     x = variables['x']
+    theta = variables['theta']
 
     cstr_list = cstr_op.MdlConstraintList()
 
@@ -1143,8 +1149,8 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
             if options['model_bounds']['rotation']['type'] == 'roll_pitch':
                 rotation_angles = cas.vertcat(
-                    get_roll_expr(x, kite, parent_map[kite], parent_map),
-                    get_pitch_expr(x, kite, parent_map[kite], parent_map)
+                    get_roll_expr(x, theta, kite, parent_map[kite], parent_map),
+                    get_pitch_expr(x, theta, kite, parent_map[kite], parent_map)
                 )
 
                 if options['model_bounds']['rotation']['include']:
@@ -1170,7 +1176,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
             elif options['model_bounds']['rotation']['type'] == 'yaw':
 
                 yaw_expr, yaw_angle = get_yaw_expr(
-                    options, x, kite, parent_map[kite], parent_map,
+                    options, x, theta, kite, parent_map[kite], parent_map,
                     parameters['theta0', 'model_bounds', 'rot_angles', 2]
                 )
 
@@ -1198,12 +1204,12 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     if options['tether']['cross_tether']['attachment'] != 'wing_tip':
 
                         yaw_expr, yaw_angle = get_yaw_expr(
-                            options, x, kites[k], kites[(k + 1) % len(kites)], parent_map,
+                            options, x, theta, kites[k], kites[(k + 1) % len(kites)], parent_map,
                             parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
 
                         yaw_expr2, yaw_angle2 = get_yaw_expr(
-                            options, x, kites[(k + 1) % len(kites)], kites[k], parent_map,
+                            options, x, theta, kites[(k + 1) % len(kites)], kites[k], parent_map,
                             parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
 
@@ -1224,9 +1230,9 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     else:
 
                         # get angle between body span vector and cross-tether and related inequality
-                        rotation_angle_expr, span = get_span_angle_expr(options, x, kites[k], kites[(k + 1) % len(kites)],
+                        rotation_angle_expr, span = get_span_angle_expr(options, x, theta, kites[k], kites[(k + 1) % len(kites)],
                                                                         parent_map, parameters)
-                        rotation_angle_expr2, span2 = get_span_angle_expr(options, x, kites[(k + 1) % len(kites)],
+                        rotation_angle_expr2, span2 = get_span_angle_expr(options, x, theta, kites[(k + 1) % len(kites)],
                                                                           kites[k], parent_map, parameters)
 
                         if options['model_bounds']['rotation']['include']:

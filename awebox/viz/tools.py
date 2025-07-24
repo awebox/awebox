@@ -38,6 +38,7 @@ import awebox.tools.vector_operations as vect_op
 import awebox.opti.diagnostics as diagnostics
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
+import awebox.mdl.arm as arm
 
 def get_naca_airfoil_coordinates(s, m, p, t):
 
@@ -463,9 +464,10 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
         parent = architecture.parent_map[node]
 
         if parent == 0:
-            # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
-            # Add a plot_arm function too ?
-            x_start = cas.DM.zeros((3, 1))
+            if 'arm_angle' in x_vals:
+                x_start = arm.get_q_arm_tip(x_vals['arm_angle'][0][index], plot_dict['theta']['arm_length'])
+            else:
+                x_start = cas.DM.zeros((3, 1))
         else:
             grandparent = architecture.parent_map[parent]
             x_start = []

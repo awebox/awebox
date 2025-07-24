@@ -121,17 +121,12 @@ def get_upper_and_lower_pos_and_vel(variables, upper_node, architecture):
     dq_upper = variables['x']['dq' + str(upper_node) + str(lower_node)]
 
     if lower_node == 0:
-        # TODO: rocking mode : Arm length is not available here, only arm angle.
-        # solution: add `arm_angle` to `variables['theta']
-        # if 'arm_angle' in variables['x']:
-        #     q_lower = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
-        #     dq_lower = arm.get_dq_arm_tip(variables['x']['darm_angle'], variables['theta']['arm_length'])
-        # else:
-        q_lower = cas.DM.zeros((3, 1))
-        dq_lower = cas.DM.zeros((3, 1))
-    elif lower_node in architecture.kite_nodes:
-        q_lower = cas.DM.zeros((3, 1))
-        dq_lower = cas.DM.zeros((3, 1))
+        if 'arm_angle' in variables['x'].keys():
+            q_lower = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
+            dq_lower = arm.get_dq_arm_tip(variables['x']['arm_angle'], variables['x']['darm_angle'], variables['theta']['arm_length'])
+        else:
+            q_lower = cas.DM.zeros((3, 1))
+            dq_lower = cas.DM.zeros((3, 1))
     else:
         grandparent = parent_map[lower_node]
         q_lower = variables['x']['q' + str(lower_node) + str(grandparent)]
