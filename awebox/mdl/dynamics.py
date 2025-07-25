@@ -221,11 +221,22 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
             beta_si += outputs['aerodynamics']['beta{}'.format(kite)]**2
         beta_si = beta_si / len(architecture.kite_nodes)
         derivative_dict['beta_cost'] =  (beta_si, beta_scaling)
-    # TODO: rocking mode
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.
         power_derivative_sq = outputs['performance']['power_derivative']**2
         derivative_dict['power_derivative_sq'] = (power_derivative_sq, power_derivative_sq_scaling)
+
+    elif model_options['trajectory']['system_type'] == 'rocking_mode':
+        # integrate active_torque and darm_angle * active_torque for constraints
+        torque_scaling = model_options['scaling']['x']['active_torque']
+        active_torque_si = outputs['arm']['active_torque']
+
+        if model_options['arm']['zero_avg_active_torque']:
+            derivative_dict['active_torque_int'] = (active_torque_si, torque_scaling)
+
+        if model_options['arm']['zero_avg_active_power']:
+            active_power_si = system_variables['SI']['x']['darm_angle'] * active_torque_si
+            derivative_dict['active_power_int'] = (active_power_si, energy_scaling)
 
     induction_derivative_dict = induction.get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture)
     for local_key, local_val in induction_derivative_dict.items():
@@ -334,31 +345,13 @@ def get_arm_passive_and_active_powers(variables_si, parameters):
 def rocking_mode_outputs(variables_si, parameters, outputs):
     passive_power, active_power = get_arm_passive_and_active_powers(variables_si, parameters)
 
-    # Compute some outputs for analysis
-    x = variables_si['x']
-    arm_length = variables_si['theta']['arm_length']
-    arm_angle = x['arm_angle']
-    q_arm_tip = arm.get_q_arm_tip(arm_angle, arm_length)
+    outputs['power_balance']['P_tether_arm'] = outputs['arm']['tether_torque_on_arm'] * variables_si['x']['darm_angle']
+    outputs['power_balance']['P_gen_arm'] = -1. * (passive_power + active_power)
 
-    segment_vector = x['q10'] - q_arm_tip
-    ehat_tether = vect_op.normalize(segment_vector)
-    tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
-    tension_force = tension * ehat_tether
-    tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
-
-    passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
-
-    outputs.setdefault('arm', {})
-    outputs['arm']['tether_tension'] = tension
-    outputs['arm']['ehat_tether'] = ehat_tether
-    outputs['arm']['tether_torque_on_arm'] = tether_torque_on_arm
-    outputs['arm']['passive_torque'] = passive_torque
-    outputs['arm']['active_torque'] = active_torque
+    # For later analysis
     outputs['arm']['passive_power'] = passive_power
     outputs['arm']['active_power'] = active_power
 
-    outputs['power_balance']['P_tether_arm'] = tether_torque_on_arm * x['darm_angle']
-    outputs['power_balance']['P_gen_arm'] = -1. * (passive_power + active_power)
     return outputs
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):

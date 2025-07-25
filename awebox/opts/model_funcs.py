@@ -952,6 +952,14 @@ def build_arm_control_options(options, options_tree, fixed_params, architecture)
         options_tree.append(('model', 'system_bounds', 'x', 'active_torque', active_torque_bounds, ('arm active torque bounds [Nm]', None), 'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'dactive_torque', dactive_torque_bounds, ('variation of arm active torque bounds [Nm/s]', None), 'x'))
 
+        zero_avg_active_torque = options['model']['arm']['zero_avg_active_torque']
+        zero_avg_active_power = options['model']['arm']['zero_avg_active_power']
+        if zero_avg_active_power is None:
+            zero_avg_active_power = 'torque_slope' not in user_options['trajectory']['fixed_params']
+
+        options_tree.append(('model', 'arm', None, 'zero_avg_active_torque', zero_avg_active_torque, ('enforce zero average active torque, to enforce some symmetry', [True, False]), 'x'))
+        options_tree.append(('model', 'arm', None, 'zero_avg_active_power', zero_avg_active_power, ('enforce zero average active power, so that the arm control has zero net effect. Defaults to True if torque_slope is being optimized', [True, False]), 'x'))
+
     return options_tree, fixed_params
 
 ######## wind

@@ -200,8 +200,30 @@ def generate_tether_moments(options, variables_si, variables_scaled, holonomic_c
 
 
 def generate_rocking_mode_forces(variables_si, parameters, outputs, architecture):
+    # Compute the "force", aka the generator torque
     passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
     generator_torque = passive_torque + active_torque
+
+    # Fill the outputs for:
+    # 1. possibly integrating active_torque and darm_angle * active_torque (cf. dynamics.get_dictionary_of_derivatives)
+    # and 2. for having everything related to the arm in one place for later analysis
+    x = variables_si['x']
+    arm_length = variables_si['theta']['arm_length']
+    arm_angle = x['arm_angle']
+    q_arm_tip = arm.get_q_arm_tip(arm_angle, arm_length)
+
+    segment_vector = x['q10'] - q_arm_tip
+    ehat_tether = vect_op.normalize(segment_vector)
+    tension = variables_si['theta']['l_t'] * variables_si['z']['lambda10']
+    tension_force = tension * ehat_tether
+    tether_torque_on_arm = vect_op.cross(q_arm_tip, tension_force)[2]
+
+    outputs.setdefault('arm', {})
+    outputs['arm']['tether_tension'] = tension
+    outputs['arm']['ehat_tether'] = ehat_tether
+    outputs['arm']['tether_torque_on_arm'] = tether_torque_on_arm
+    outputs['arm']['passive_torque'] = passive_torque
+    outputs['arm']['active_torque'] = active_torque
 
     return generator_torque, outputs
 

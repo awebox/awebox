@@ -125,6 +125,11 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         ocp_cstr_list.append(cstr_list)
         ocp_cstr_entry_list.append(cas.entry('avg_induction', shape=(1, 1)))
 
+    if (nlp_options['system_type'] == 'rocking_mode'):
+        rocking_mode_cstr_list = get_rocking_mode_constraints(nlp_options, Integral_outputs, model.options)
+        shape = rocking_mode_cstr_list.get_expression_list('eq').shape
+        ocp_cstr_list.append(rocking_mode_cstr_list)
+        ocp_cstr_entry_list.append(cas.entry('rocking_mode', shape=shape))
 
     if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
         t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
@@ -145,6 +150,25 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
     assert test_shapes, f'Mismatch in dimension between constraint vector ({vec_length}) and constraint structure ({struct_length})!'
 
     return ocp_cstr_list, ocp_cstr_struct
+
+def get_rocking_mode_constraints(nlp_options, Integral_outputs, model_options):
+    cstr_list = cstr_op.OcpConstraintList()
+
+    if model_options['arm']['zero_avg_active_torque']:
+        avg_active_torque_expr = Integral_outputs['int_out', -1, 'active_torque_int']  # / t_f
+        avg_active_torque_cstr = cstr_op.Constraint(expr=avg_active_torque_expr,
+                                        name='average_active_torque',
+                                        cstr_type='eq')
+        cstr_list.append(avg_active_torque_cstr)
+
+    if model_options['arm']['zero_avg_active_power']:
+        avg_active_power_expr = Integral_outputs['int_out', -1, 'active_power_int']  # / t_f
+        avg_active_power_cstr = cstr_op.Constraint(expr=avg_active_power_expr,
+                                    name='average_active_power',
+                                    cstr_type='eq')
+        cstr_list.append(avg_active_power_cstr)
+
+    return cstr_list
 
 def get_t_f_bounds_contraints(nlp_options, V, model):
     phase_fix_reelout = nlp_options['phase_fix_reelout']

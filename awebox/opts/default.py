@@ -40,7 +40,7 @@ def set_default_user_options():
         ## user options
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode', 'rocking_mode']), 't'),
-        ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('possible options', [True, False]),'x'),
+        ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('enable arm control', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -166,6 +166,10 @@ def set_default_options(default_user_options, help_options):
         ('model',  'aero', 'overwrite', 'alpha_min_deg', None,    ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_max_deg', None,     ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_min_deg', None,     ('aerodynamic parameter', None),'t'),
+
+        ## arm model (NOTE: is there a better place for these?)
+        ('model',  'arm', None, 'zero_avg_active_torque', True, ('enforce zero average active torque, to enforce some symmetry', [True, False]), 'x'),
+        ('model',  'arm', None, 'zero_avg_active_power',  None, ('enforce zero average active power, so that the arm control has zero net effect. Defaults to True if torque_slope is being optimized', [True, False, None]), 'x'),
 
         ## kite model
         #### tether properties

@@ -107,7 +107,7 @@ def example_3(options):
     return options
 
 """
-Test: set torque_slope = 1 and dactive_torque bounds to [-1, 1] and verify that both passive and active power are positive
+Visual test: set torque_slope = 1 and dactive_torque bounds to [-1, 1] and verify that both passive and active power are positive
 If every power is integrated into work (I don't think so) verify that the arm received as much energy as it extracted
 """
 def test_1(options):
@@ -222,7 +222,7 @@ def main():
 
     options = rocking_mode_options()
     options = example_1(options)
-    options['quality.test_param.check_energy_summation'] = True
+    options['user_options.trajectory.fixed_params']['torque_slope'] = 1500
     trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
     trial.build()
     trial.optimize(final_homotopy_step='initial_guess')
@@ -234,7 +234,7 @@ def main():
     trial.plot(['states', 'controls', 'invariants', 'quad'])
     plot_arm_torques_and_energies(plot_dict)
     plot_arm_states(plot_dict)
-    plt.show()
+    # plt.show()
     return trial, plot_dict_init, plot_dict
 
 if __name__ == "__main__":
