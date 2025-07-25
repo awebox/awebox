@@ -207,11 +207,11 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                         V_init_si['x', :, 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
                         V_init_si['coll_var', :, :, 'x', 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
 
-                    for d in range(N_rings):
-                        q_0_convected = tf_guess * d / n_k * v_init
-                        V_init_si['x', (k+d)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                    for kk in range(N):
+                        q_0_convected = tf_guess * kk / n_k * v_init
+                        V_init_si['x', (k+kk)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
                         for ddx in range(d):
-                            V_init_si['coll_var', (k+d)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                            V_init_si['coll_var', (k+kk)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
 
     return V_init_si
 
