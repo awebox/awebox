@@ -270,7 +270,11 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
                     p_r_dup = p_r + cas.vertcat(dp_r*convection_idx*t_f, 0, 0)
 
                     # add duplicate windows downstream
-                    w_ind_f += - h * p_far * vortex_rings.far_wake_induction(q, p_r_dup, n_r, e_c, 0.8 * R_ring * gamma_r, R_ring, dipole_opts)
+                    if vortex_type == 'dipole':
+                        gamma_dup = gamma_r
+                    elif vortex_type == 'rectangle':
+                        gamma_dup = 0.8 * R_ring * gamma_r # dipole approximation
+                    w_ind_f += - h * p_far * vortex_rings.far_wake_induction(q, p_r_dup, n_r, e_c, gamma_dup, R_ring, dipole_opts)
 
                 u_induced = u_induced  + w_ind_f
 
