@@ -36,6 +36,7 @@ import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 import casadi as cas
@@ -164,6 +165,7 @@ def compute_efficiency_measures(power_and_performance, plot_dict):
     P_side_total = np.zeros((N))
     P_moment_total = np.zeros((N))
     P_gen_total = np.zeros((N))
+    # TODO: rocking mode?
 
     for name in list(power_outputs.keys()):
 
@@ -240,7 +242,10 @@ def compute_position_indicators(power_and_performance, plot_dict):
             position_kite = np.array(position_kite)
 
             if parent == 0:
-                position_parent = np.zeros((3, 1))
+                if 'arm_angle' in interpolated_x_si.keys():
+                    position_parent = arm.get_q_arm_tip(interpolated_x_si['arm_angle'][0][idx], plot_dict['theta']['arm_length'])
+                else:
+                    position_parent = np.zeros((3, 1))
                 average_tether_vector = []
                 for dim in range(3):
                     local_position = np.mean(np.array(interpolated_x_si['q10'][dim]))
@@ -259,6 +264,7 @@ def compute_position_indicators(power_and_performance, plot_dict):
                 position_parent = np.array(position_parent)
 
                 if grandparent == 0:
+                    # Rocking mode will never get here
                     position_grandparent = np.zeros((3, 1))
                 else:
                     great_grandparent = architecture.parent_map[grandparent]

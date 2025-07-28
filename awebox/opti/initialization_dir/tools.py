@@ -297,3 +297,36 @@ def insert_val(V_init, var_type, name, init_val, idx=0):
             print_op.log_and_raise_error(message)
 
     return V_init
+
+
+def lissajous_curve(t, w, h, a=1, delta=0):
+    b = 2*a
+    az = w*np.sin(a*t+delta)
+    el = h*np.sin(b*t)
+    return az, el
+
+
+def lissajous_dcurve(t, w, h, a=1, delta=0):
+    b = 2*a
+    azdot = a*w*np.cos(a*t+delta)
+    eldot = b*h*np.cos(b*t)
+    return azdot, eldot
+
+
+def calc_cartesian_coords(az, el, r):
+    z = np.sin(el)*r
+    l12 = (r**2 - z**2)**.5
+    x = np.cos(az)*l12
+    y = np.sin(az)*l12
+    return (x, y, z)
+
+
+def calc_cartesian_speed(az, el, azdot, eldot, r):
+    z = np.sin(el)*r
+    dz = np.cos(el)*r*eldot
+    l12 = (r**2 - z**2)**.5
+    dl12 = - z*dz / l12
+    dx = - np.sin(az)*azdot*l12 + np.cos(az)*dl12
+    dy = np.cos(az)*azdot*l12 + np.sin(az)*dl12 
+
+    return (dx, dy, dz)

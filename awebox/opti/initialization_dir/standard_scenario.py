@@ -24,8 +24,8 @@
 #
 '''
 initialization functions specific to the standard path scenario
-_python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+:author: mark schelbergen (TU Delft, 2021)
 '''
 
 
@@ -39,6 +39,7 @@ import awebox.opti.initialization_dir.tools as tools
 
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
+import awebox.mdl.arm as arm
 
 def get_normalized_time_param_dict(ntp_dict, formulation):
     n_min = 0
@@ -74,11 +75,23 @@ def guess_values_at_time(t, init_options, model):
 
     kite_dof = model.kite_dof
 
+    phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
+    if 'arm_angle' in ret:
+        arm_phase = t * phase_rate - np.pi/4
+        if init_options['shape'] == 'circular':
+            arm_phase += -np.pi/2
+        ret['arm_angle'] = -np.pi/2 * np.cos(arm_phase)
+        ret['darm_angle'] = np.pi/2 * np.sin(arm_phase) * phase_rate
+        ret['active_torque'] = 0.0
+
     for node in range(1, number_of_nodes):
 
         parent = parent_map[node]
         if parent == 0:
-            parent_position = np.zeros((3, 1))
+            if 'arm_angle' in ret:
+                parent_position = arm.get_q_arm_tip(ret['arm_angle'], init_options['theta']['arm_length'])
+            else:
+                parent_position = np.zeros((3, 1))
         else:
             grandparent = parent_map[parent]
             parent_position = ret['q' + str(parent) + str(grandparent)]
@@ -89,46 +102,81 @@ def guess_values_at_time(t, init_options, model):
             ret['ddq' + str(node) + str(parent)] = np.zeros((3, 1))
 
         else:
-            height = init_options['precompute']['height']
-            radius = init_options['precompute']['radius']
+            if init_options['shape'] == 'circular':
+                height = init_options['precompute']['height']
+                radius = init_options['precompute']['radius']
 
-            ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
+                ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
 
-            tether_vector = ehat_radial * radius + ehat_normal * height
+                tether_vector = ehat_radial * radius + ehat_normal * height
 
-            position = parent_position + tether_vector
-            velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
-            acceleration = tools.get_acceleration_vector(t, init_options, model, node, ret)
-            ret['q' + str(node) + str(parent)] = position
-            ret['dq' + str(node) + str(parent)] = velocity
-            ret['ddq' + str(node) + str(parent)] = acceleration
+                position = parent_position + tether_vector
+                velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
+                acceleration = tools.get_acceleration_vector(t, init_options, model, node, ret)
+                ret['q' + str(node) + str(parent)] = position
+                ret['dq' + str(node) + str(parent)] = velocity
+                ret['ddq' + str(node) + str(parent)] = acceleration
 
-            rho = init_options['sys_params_num']['atmosphere']['rho_ref']
-            diam = init_options['theta']['diam_s']
-            cd_tether = init_options['sys_params_num']['tether']['cd']
-            if 'CD' in init_options['sys_params_num']['aero'].keys():
-                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
-            elif 'CX' in init_options['sys_params_num']['aero'].keys():
-                cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
-            else:
-                cd_aero = 0.1
-            planform_area = init_options['sys_params_num']['geometry']['s_ref']
-            u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
-            approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
-            ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
-            ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
+                rho = init_options['sys_params_num']['atmosphere']['rho_ref']
+                diam = init_options['theta']['diam_s']
+                cd_tether = init_options['sys_params_num']['tether']['cd']
+                if 'CD' in init_options['sys_params_num']['aero'].keys():
+                    cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CD']['0'])
+                elif 'CX' in init_options['sys_params_num']['aero'].keys():
+                    cd_aero = vect_op.norm(init_options['sys_params_num']['aero']['CX']['0'])
+                else:
+                    cd_aero = 0.1
+                planform_area = init_options['sys_params_num']['geometry']['s_ref']
+                u_eff = init_options['sys_params_num']['wind']['u_ref'] * vect_op.xhat_np() - velocity
+                approx_dyn_pressure = 0.5 * rho * vect_op.norm(u_eff) * u_eff
+                ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
+                ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
 
-            dcm = tools.get_kite_dcm(init_options, model, node, ret)
-            if init_options['cross_tether']:
-                if init_options['cross_tether_attachment'] in ['com','stick']:
-                    dcm = get_cross_tether_dcm(init_options, dcm)
-            dcm_column = cas.reshape(dcm, (9, 1))
+                dcm = tools.get_kite_dcm(init_options, model, node, ret)
+                if init_options['cross_tether']:
+                    if init_options['cross_tether_attachment'] in ['com','stick']:
+                        dcm = get_cross_tether_dcm(init_options, dcm)
+                dcm_column = cas.reshape(dcm, (9, 1))
 
-            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
+                omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
-            if int(kite_dof) == 6:
-                ret['omega' + str(node) + str(parent)] = omega_vector
-                ret['r' + str(node) + str(parent)] = dcm_column
+                if int(kite_dof) == 6:
+                    ret['omega' + str(node) + str(parent)] = omega_vector
+                    ret['r' + str(node) + str(parent)] = dcm_column
+            elif init_options['shape'] == 'lemniscate':
+                # TODO: implement DCM initialization
+                w_lj = init_options['lemniscate']['az_width_deg']*np.pi/180.0
+                h_lj = init_options['lemniscate']['el_width_deg']*np.pi/180.0
+                if init_options['lemniscate']['rise_on_sides']:
+                    h_lj = -h_lj
+                el0 = init_options['inclination_deg']*np.pi/180.0
+
+                az, el = tools.lissajous_curve(t, w_lj, h_lj, a = phase_rate)
+                el = el + el0
+                x, y, z = tools.calc_cartesian_coords(az, el, l_t)
+                q = cas.vertcat(x,y,z)  # Could potentially add `q_parent`
+                ret['q' + str(node) + str(parent)] = q
+
+                azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a = phase_rate)
+                dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, l_t)
+                ret['dq' + str(node) + str(parent)] = cas.vertcat(dx,dy,dz)
+
+                psi = np.arctan2(azdot, -eldot)
+                ret['yaw' +str(node) + str(parent)] = psi
+
+                l12 = cas.norm_2(q[:2])
+                dcm_tau2e = cas.blockcat([
+                    [q[0]*q[2]/(l_t*l12), -q[1]/l12,   q[0]/l_t],
+                    [q[1]*q[2]/(l_t*l12),  q[0]/l12,   q[1]/l_t],
+                    [-l12/l_t,             0,          q[2]/l_t],
+                ])  # Transformation from tangential (to unit sphere surface) plane to earth frame
+                dcm_b2tau = cas.blockcat([
+                    [cas.cos(psi), -cas.sin(psi),  0],
+                    [cas.sin(psi),  cas.cos(psi),  0],
+                    [0,             0,             1],
+                ])
+                kite_dcm = cas.mtimes(dcm_tau2e, dcm_b2tau)
+                ret['dcm' + str(node) + str(parent)] = cas.reshape(kite_dcm, 9, 1)
 
     return ret
 
@@ -169,6 +217,7 @@ def precompute_path_parameters(init_options, model):
     # clipping and adjusting
     if init_options['init_clipping']:
         for step in range(adjustment_steps):
+            # TODO: update all these function for the lemniscate, for now, have to disable this
             init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
             init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
             init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
@@ -223,9 +272,21 @@ def set_user_radius(init_options):
 def set_user_winding_period(init_options):
 
     ground_speed = init_options['groundspeed']
-    windings = init_options['windings']
-    radius = init_options['precompute']['radius']
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+
+    if init_options['shape'] == 'circular':
+        radius = init_options['precompute']['radius']
+        time_period = (2. * np.pi * radius) / ground_speed
+
+    elif init_options['shape'] == 'lemniscate':
+        # TODO: put this in a function (copy paste)
+        elevation = np.pi / 180 * init_options['inclination_deg']
+        az_width = np.pi / 180 * init_options['lemniscate']['az_width_deg']
+        length = init_options['l_t']
+        # TODO: better path length approximation : np.pi * np.sqrt(2 * (a**2 + 4 * b**2)), instead of 2 * az_width
+        lemniscate_width = np.cos(elevation) * 2 * az_width * length
+        time_period = 2 * lemniscate_width / ground_speed  # Accurate only for relatively flat lemniscates
+        time_period = 5
+
     init_options['precompute']['winding_period'] = time_period
 
     return init_options

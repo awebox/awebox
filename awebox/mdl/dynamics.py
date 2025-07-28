@@ -42,6 +42,7 @@ from . import system
 import awebox.mdl.aero.kite_dir.kite_aero as kite_aero
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 import awebox.mdl.aero.induction_dir.induction as induction
+import awebox.mdl.arm as arm
 
 import awebox.mdl.lagr_dyn_dir.lagr_dyn as lagr_dyn
 import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
@@ -225,6 +226,18 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
         power_derivative_sq = outputs['performance']['power_derivative']**2
         derivative_dict['power_derivative_sq'] = (power_derivative_sq, power_derivative_sq_scaling)
 
+    elif model_options['trajectory']['system_type'] == 'rocking_mode':
+        # integrate active_torque and darm_angle * active_torque for constraints
+        torque_scaling = model_options['scaling']['x']['active_torque']
+        active_torque_si = outputs['arm']['active_torque']
+
+        if model_options['arm']['zero_avg_active_torque']:
+            derivative_dict['active_torque_int'] = (active_torque_si, torque_scaling)
+
+        if model_options['arm']['zero_avg_active_power']:
+            active_power_si = system_variables['SI']['x']['darm_angle'] * active_torque_si
+            derivative_dict['active_power_int'] = (active_power_si, energy_scaling)
+
     induction_derivative_dict = induction.get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture)
     for local_key, local_val in induction_derivative_dict.items():
         if not local_key in derivative_dict.keys():
@@ -322,6 +335,24 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
+def get_arm_passive_and_active_powers(variables_si, parameters):
+    darm_angle = variables_si['x']['darm_angle']
+    passive_torque, active_torque = arm.get_arm_passive_and_active_torques(variables_si, parameters)
+    passive_power = -passive_torque * darm_angle
+    active_power = -active_torque * darm_angle
+    return passive_power, active_power
+
+def rocking_mode_outputs(variables_si, parameters, outputs):
+    passive_power, active_power = get_arm_passive_and_active_powers(variables_si, parameters)
+
+    outputs['power_balance']['P_tether_arm'] = outputs['arm']['tether_torque_on_arm'] * variables_si['x']['darm_angle']
+    outputs['power_balance']['P_gen_arm'] = -1. * (passive_power + active_power)
+
+    # For later analysis
+    outputs['arm']['passive_power'] = passive_power
+    outputs['arm']['active_power'] = active_power
+
+    return outputs
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
@@ -331,6 +362,10 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
             power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        passive_power, active_power = get_arm_passive_and_active_powers(variables_si, parameters)
+        power = passive_power + active_power
+        outputs['performance']['p_current'] = power
     else:
         power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
         outputs['performance']['p_current'] = power
@@ -353,6 +388,8 @@ def power_balance_outputs(options, outputs, system_variables, parameters, archit
 
     if options['trajectory']['system_type'] == 'drag_mode':
         outputs = drag_mode_outputs(variables_si, parameters, outputs, architecture)
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        outputs = rocking_mode_outputs(variables_si, parameters, outputs)
 
     outputs = tether_power_outputs(variables_si, outputs, architecture)
     outputs = kinetic_power_outputs(outputs, system_variables, architecture, scaling)
@@ -397,7 +434,10 @@ def tether_power_outputs(variables_si, outputs, architecture):
             grandparent = architecture.parent_map[parent]
             q_p = variables_si['x']['q' + str(parent) + str(grandparent)]
         else:
-            q_p = cas.SX.zeros((3, 1))
+            if 'arm_angle' in variables_si['x'].keys():
+                q_p = arm.get_q_arm_tip(variables_si['x']['arm_angle'], variables_si['theta']['arm_length'])
+            else:
+                q_p = cas.SX.zeros((3, 1))
 
         # node velocity
         dq_n = variables_si['x']['dq' + str(n) + str(parent)]
@@ -420,7 +460,6 @@ def kinetic_power_outputs(outputs, system_variables, architecture, scaling):
     # but scaled variables are the decision variables, for which cas.jacobian is defined
     # whereas SI values are multiples of the base values, for which cas.jacobian cannot be computed
 
-    # kinetic and potential energy in the system
     for n in range(1, architecture.number_of_nodes):
         for source in outputs['e_kinetic'].keys():
 
@@ -943,9 +982,10 @@ def generate_si_variables(scaling, variables):
 
 
 
-def get_roll_expr(x, n0, n1, parent_map):
+def get_roll_expr(x, theta, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle roll angle via roll = atan(expr),
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -955,7 +995,10 @@ def get_roll_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -965,9 +1008,10 @@ def get_roll_expr(x, n0, n1, parent_map):
     return cas.mtimes(q_hat.T, r[:, 1]) / cas.mtimes(q_hat.T, r[:, 2])
 
 
-def get_pitch_expr(x, n0, n1, parent_map):
+def get_pitch_expr(x, theta, n0, n1, parent_map):
     """ Return the expression that allows to compute the bridle pitch angle via pitch = asin(expr),
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node 
     :param parent_map: architecture parent map
@@ -977,7 +1021,10 @@ def get_pitch_expr(x, n0, n1, parent_map):
     # node + parent position
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
     if n1 == 0:
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -987,9 +1034,10 @@ def get_pitch_expr(x, n0, n1, parent_map):
     return cas.mtimes(q_hat.T, r[:, 0]) / vect_op.norm(q_hat)
 
 
-def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
+def get_span_angle_expr(options, x, theta, n0, n1, parent_map, parameters):
     """ Return the expression that allows to compute the cross-tether vs. body span-vector angle and related inequality,
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
@@ -1002,7 +1050,10 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     r_wtip = cas.vertcat(0.0, -parameters['theta0', 'geometry', 'b_ref'] / 2, 0.0)
 
     if n1 == 0:
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in variables['x']:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
         r1 = cas.reshape(x['r{}{}'.format(n1, parent_map[n1])], (3, 3))
@@ -1027,9 +1078,10 @@ def get_span_angle_expr(options, x, n0, n1, parent_map, parameters):
     return span_ineq, span_angle
 
 
-def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
+def get_yaw_expr(options, x, theta, n0, n1, parent_map, gamma_max):
     """ Compute angle between kite yaw vector and tether, including corresponding inequality.
     :param x: system variables
+    :param theta: system parameters
     :param n0: node number of kite node
     :param n1: node number of tether attachment node
     :param parent_map: architecture parent map
@@ -1039,7 +1091,10 @@ def get_yaw_expr(options, x, n0, n1, parent_map, gamma_max):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
-        q1 = np.zeros((3, 1))
+        if 'arm_angle' in x:
+            q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
+        else:
+            q1 = np.zeros((3, 1))
     else:
         q1 = x['q{}{}'.format(n1, parent_map[n1])]
 
@@ -1066,6 +1121,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
     parent_map = architecture.parent_map
 
     x = variables['x']
+    theta = variables['theta']
 
     cstr_list = cstr_op.MdlConstraintList()
 
@@ -1085,8 +1141,8 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
 
             if options['model_bounds']['rotation']['type'] == 'roll_pitch':
                 rotation_angles = cas.vertcat(
-                    get_roll_expr(x, kite, parent_map[kite], parent_map),
-                    get_pitch_expr(x, kite, parent_map[kite], parent_map)
+                    get_roll_expr(x, theta, kite, parent_map[kite], parent_map),
+                    get_pitch_expr(x, theta, kite, parent_map[kite], parent_map)
                 )
 
                 if options['model_bounds']['rotation']['include']:
@@ -1112,7 +1168,7 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
             elif options['model_bounds']['rotation']['type'] == 'yaw':
 
                 yaw_expr, yaw_angle = get_yaw_expr(
-                    options, x, kite, parent_map[kite], parent_map,
+                    options, x, theta, kite, parent_map[kite], parent_map,
                     parameters['theta0', 'model_bounds', 'rot_angles', 2]
                 )
 
@@ -1140,12 +1196,12 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     if options['tether']['cross_tether']['attachment'] != 'wing_tip':
 
                         yaw_expr, yaw_angle = get_yaw_expr(
-                            options, x, kites[k], kites[(k + 1) % len(kites)], parent_map,
+                            options, x, theta, kites[k], kites[(k + 1) % len(kites)], parent_map,
                             parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
 
                         yaw_expr2, yaw_angle2 = get_yaw_expr(
-                            options, x, kites[(k + 1) % len(kites)], kites[k], parent_map,
+                            options, x, theta, kites[(k + 1) % len(kites)], kites[k], parent_map,
                             parameters['theta0', 'model_bounds', 'rot_angles_cross', 2]
                         )
 
@@ -1166,9 +1222,9 @@ def rotation_inequality(options, variables, parameters, architecture, outputs):
                     else:
 
                         # get angle between body span vector and cross-tether and related inequality
-                        rotation_angle_expr, span = get_span_angle_expr(options, x, kites[k], kites[(k + 1) % len(kites)],
+                        rotation_angle_expr, span = get_span_angle_expr(options, x, theta, kites[k], kites[(k + 1) % len(kites)],
                                                                         parent_map, parameters)
-                        rotation_angle_expr2, span2 = get_span_angle_expr(options, x, kites[(k + 1) % len(kites)],
+                        rotation_angle_expr2, span2 = get_span_angle_expr(options, x, theta, kites[(k + 1) % len(kites)],
                                                                           kites[k], parent_map, parameters)
 
                         if options['model_bounds']['rotation']['include']:

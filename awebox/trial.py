@@ -275,6 +275,9 @@ class Trial(object):
             'ell_elevation': ('Ellipse elevation', 180.0/np.pi, 'deg'),
             'ell_theta': ('Ellipse division angle', 180.0/np.pi, 'deg'), 
             'a': ('Average induction', 1, '-'),
+            'arm_length': ('Arm length', 1, 'm'),
+            'arm_inertia': ('Arm inertia', 1, 'kg.m^2'),
+            'torque_slope': ('Torque slope', 1, 'N.m/(rad/s)'),
         }
 
         for theta in self.model.variables_dict['theta'].keys():

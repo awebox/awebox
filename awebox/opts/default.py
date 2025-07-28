@@ -39,7 +39,8 @@ def set_default_user_options():
 
         ## user options
         ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
-        ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode']), 't'),
+        ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode', 'rocking_mode']), 't'),
+        ('user_options',    'trajectory',  'rocking_mode','enable_arm_control',  False,              ('enable arm control', [True, False]),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
         ('user_options',    'trajectory',  'lift_mode', 'max_l_t',               None,               ('set maximum main tether length', None),'s'),
@@ -166,6 +167,10 @@ def set_default_options(default_user_options, help_options):
         ('model',  'aero', 'overwrite', 'beta_max_deg', None,     ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'beta_min_deg', None,     ('aerodynamic parameter', None),'t'),
 
+        ## arm model (NOTE: is there a better place for these?)
+        ('model',  'arm', None, 'zero_avg_active_torque', True, ('enforce zero average active torque, to enforce some symmetry', [True, False]), 'x'),
+        ('model',  'arm', None, 'zero_avg_active_power',  None, ('enforce zero average active power, so that the arm control has zero net effect. Defaults to True if torque_slope is being optimized', [True, False, None]), 'x'),
+
         ## kite model
         #### tether properties
         ('params',  'tether', None,         'kappa',                10.,        ('Baumgarte stabilization constant for constraint formulation[-]', None),'s'),
@@ -185,6 +190,7 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
+
         #### system bounds and limits (physical)
         ('model',  'system_bounds', 'theta',       'diam_t',       [1.0e-4, 1.0e-1],                                                                ('main tether diameter bounds [m]', None),'x'),
         ('model',  'system_bounds', 'theta',       'diam_s',       [1.0e-4, 1.0e-1],                                                  ('secondary tether diameter bounds [m]', None),'x'),
@@ -201,6 +207,15 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'z',          'lambda',       [0., cas.inf],                                                                    ('multiplier bounds', None),'x'),
         ('model',  'system_bounds', 'u',           'dkappa',       [-1000.0, 1000.0],                                                               ('generator braking constant [kg/m/s]', None),'x'),
         ('model',  'system_bounds', 'u',           'dddl_t',       [-100.0, 100.0],                                                                 ('reel-in/out jerk limit on the tether [m/s^2]', None), 'x'),
+
+
+        ('model',  'system_bounds', 'x',           'arm_angle',         [-3 * np.pi / 4, 3 * np.pi / 4],('arm angle bounds [rad]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'darm_angle',        [-4 * np.pi, 4 * np.pi],        ('arm angular velocity bounds [rad/s]', None), 'x'),
+        ('model',  'system_bounds', 'x',           'active_torque',     [-cas.inf, cas.inf],            ('arm active torque bounds [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
+        ('model',  'system_bounds', 'u',           'dactive_torque',    [-cas.inf, cas.inf],            ('variation of arm active torque bounds [Nm/s]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'arm_length',        [1e-3, 1e2],                    ('arm length bounds [Nm]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'arm_inertia',       [1e-3, cas.inf],                ('arm inertia bounds [kg/m^2]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'torque_slope',      [0.0, cas.inf],                 ('passive torque slope bounds [Nm/(rad/s)]', None), 'x'),
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
@@ -376,6 +391,10 @@ def set_default_options(default_user_options, help_options):
         ('solver',  None,   None,   'acceptable_iter_hippo',5,          ('number of iterations below tolerance for ipopt to consider the solution converged [int]', None),'x'),
 
         ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', ['default', 'modular']), 't'),
+        ('solver',  'initialization', None, 'shape',                'circular', ('set initialization shape ', ['circular', 'lemniscate']), 's'),
+        ('solver',  'initialization', 'lemniscate', 'az_width_deg',  20.,       ('lemniscate azimuth range [deg]', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'el_width_deg',  5.,        ('lemniscate elevation range [deg]', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'rise_on_sides', False,     ('True: if the kite rises on the sides, False: if the kite drops on the sides', [True, False]), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),
         ('solver',  'initialization', None, 'groundspeed',          20.,        ('initial guess of kite speed (magnitude) as measured by earth-fixed observer [m/s]', None),'x'),
@@ -405,6 +424,9 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'initialization', 'theta',  'diam_c',   5e-3,     ('cross-tether diameter initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'a',        0.1,      ('average induction factor initialization [m]', None),'x'),
         ('solver',  'initialization', 'theta',  'ell_theta', 0.0,      ('average induction factor initialization [m]', None),'x'),
+        ('solver',  'initialization', 'theta',  'arm_length',   2.,     ('length of the arm [m]', None),'s'),
+        ('solver',  'initialization', 'theta',  'arm_inertia',  2000.,  ('inertia of the arm [kg m^2]', None),'s'),
+        ('solver',  'initialization', 'theta',  'torque_slope', 1500.,  ('slope of the linear torque function [Nm / (rad/s)]', None),'s'),
 
         ('solver',   'tracking',       None,   'stagger_distance',      0.1,       ('distance between tracking trajectory and initial guess [m]', None),'x'),
         ('solver',   'cost_factor',    None,   'power',                 1e0,       ('factor used in generating the power cost [-]', None), 'x'),
@@ -431,6 +453,14 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'weights',      None,   'P_max',    0.0,        ('optimization weight for parameter variable P_max [-]', None),'s'),
         ('solver',  'weights',      None,   'diam_s',   1e0,        ('optimization weight for the diam_s variable [-]', None),'s'),
         ('solver',  'weights',      None,   'diam_t',   1e0,        ('optimization weight for the diam_t variable [-]', None),'s'),
+        ('solver',  'weights',      None,   'arm_angle',      1e-2, ('optimization weight for the arm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'darm_angle',     1e0,  ('optimization weight for the darm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'ddarm_angle',    1e2,  ('optimization weight for the ddarm_angle variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'active_torque',  1e4,  ('optimization weight for the active_torque variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'dactive_torque', 1e3,  ('optimization weight for the dactive_torque variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'arm_inertia',    1e0,  ('optimization weight for the arm_inertia variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'arm_length',     1e0,  ('optimization weight for the arm_length variable [-]', None), 's'),
+        ('solver',  'weights',      None,   'torque_slope',   1e0,  ('optimization weight for the torque_slope variable [-]', None), 's'),
 
         ('solver',  'cost',             'tracking',             0,  1e-1,       ('starting cost for tracking', None),'s'),
         ('solver',  'cost',             'u_regularisation',     0,  1e-6,       ('starting cost for u_regularisation', None),'s'),

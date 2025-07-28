@@ -61,10 +61,10 @@ def generate_structure(options, architecture):
     # _states, generalized coordinates and controls related to kites
 
     kite_states = [('q', (3, 1)), ('dq', (3, 1))]
+    kite_gc = ['q']
     kite_controls = [('f_fict', (3, 1))]
     kite_multipliers = [('lambda', (1, 1))]
 
-    kite_gc = ['q']
 
     if int(kite_dof) == 3:
         kite_states = kite_states + [('coeff', (2, 1))]
@@ -91,12 +91,7 @@ def generate_structure(options, architecture):
 
     else:
         raise ValueError('kite dof option %s not inluded at present', str(kite_dof))
-
-    # add drag mode states and controls
-    if options['trajectory']['system_type'] == 'drag_mode':
-        kite_states += [('kappa', (1, 1))]
-        kite_controls += [('dkappa', (1, 1))]
-
+    
     # _list states, generalized coordinates and controls of all the nodes
     # together
     system_states = []
@@ -105,6 +100,17 @@ def generate_structure(options, architecture):
     system_multipliers = []
 
     system_lifted = []
+
+    # add drag mode states and controls
+    if options['trajectory']['system_type'] == 'drag_mode':
+        kite_states += [('kappa', (1, 1))]
+        kite_controls += [('dkappa', (1, 1))]
+    elif options['trajectory']['system_type'] == 'rocking_mode':
+        system_states += [('arm_angle', (1, 1))]  # arm angle w.r.t. x-axis
+        system_states += [('darm_angle', (1, 1))]
+        system_states += [('active_torque', (1, 1))]  # torque applied to the arm to extract energy
+        system_controls += [('dactive_torque', (1, 1))]
+        system_gc += ['arm_angle']
 
     for n in range(1, number_of_nodes):
         parent = parent_map[n]
@@ -115,24 +121,19 @@ def generate_structure(options, architecture):
             system_controls.extend(
                 [(kite_controls[i][0] + str(n) + str(parent), kite_controls[i][1]) for i in range(len(kite_controls))])
             system_multipliers.extend(
-                [(kite_multipliers[i][0] + str(n) + str(parent), kite_multipliers[i][1]) for i in
-                 range(len(kite_multipliers))])
+                [(kite_multipliers[i][0] + str(n) + str(parent), kite_multipliers[i][1]) for i in range(len(kite_multipliers))])
 
-            system_gc.extend([kite_gc[i] + str(n) + str(parent)
-                              for i in range(len(kite_gc))])
+            system_gc.extend([kite_gc[i] + str(n) + str(parent) for i in range(len(kite_gc))])
 
         else:
             system_states.extend(
                 [(tether_states[i][0] + str(n) + str(parent), tether_states[i][1]) for i in range(len(tether_states))])
             system_controls.extend(
-                [(tether_controls[i][0] + str(n) + str(parent), tether_controls[i][1]) for i in
-                 range(len(tether_controls))])
+                [(tether_controls[i][0] + str(n) + str(parent), tether_controls[i][1]) for i in range(len(tether_controls))])
             system_multipliers.extend(
-                [(tether_multipliers[i][0] + str(n) + str(parent), tether_multipliers[i][1]) for i in
-                 range(len(tether_multipliers))])
+                [(tether_multipliers[i][0] + str(n) + str(parent), tether_multipliers[i][1]) for i in range(len(tether_multipliers))])
 
-            system_gc.extend([tether_gc[i] + str(n) + str(parent)
-                              for i in range(len(tether_gc))])
+            system_gc.extend([tether_gc[i] + str(n) + str(parent) for i in range(len(tether_gc))])
 
     # add cross-tethers
     if options['cross_tether'] and len(kite_nodes) > 1:
@@ -193,8 +194,11 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
-    if options['trajectory']['system_type'] == 'drag_mode':
-        system_parameters.extend([('l_t', (1, 1))])
+    if options['trajectory']['system_type'] in ['drag_mode', 'rocking_mode']:
+        system_parameters += [('l_t', (1, 1))]
+
+    if options['trajectory']['system_type'] == 'rocking_mode':
+        system_parameters += [('arm_length', (1, 1)), ('arm_inertia', (1, 1)), ('torque_slope', (1, 1))]
 
     if (architecture.number_of_nodes - architecture.number_of_kites) > 1:
         system_parameters += [('l_s', (1, 1)), ('diam_s', (1, 1))]

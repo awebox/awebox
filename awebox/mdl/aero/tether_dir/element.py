@@ -32,6 +32,7 @@ import awebox.tools.vector_operations as vect_op
 import casadi.tools as cas
 
 import awebox.mdl.aero.tether_dir.reynolds as reynolds
+import awebox.mdl.arm as arm
 
 
 
@@ -120,8 +121,12 @@ def get_upper_and_lower_pos_and_vel(variables, upper_node, architecture):
     dq_upper = variables['x']['dq' + str(upper_node) + str(lower_node)]
 
     if lower_node == 0:
-        q_lower = cas.DM.zeros((3, 1))
-        dq_lower = cas.DM.zeros((3, 1))
+        if 'arm_angle' in variables['x'].keys():
+            q_lower = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
+            dq_lower = arm.get_dq_arm_tip(variables['x']['arm_angle'], variables['x']['darm_angle'], variables['theta']['arm_length'])
+        else:
+            q_lower = cas.DM.zeros((3, 1))
+            dq_lower = cas.DM.zeros((3, 1))
     else:
         grandparent = parent_map[lower_node]
         q_lower = variables['x']['q' + str(lower_node) + str(grandparent)]

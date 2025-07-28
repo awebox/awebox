@@ -68,6 +68,8 @@ def get_distributed_segment_forces(n_elements, variables, upper_node, architectu
 
 def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun, parameters):
 
+    # TODO: rocking mode : define q1 of tether attachment node in the model, and choose between arm or fixed
+    # Why lower always 0?
     force_lower = cas.DM.zeros((3, 1))
     force_upper = cas.DM.zeros((3, 1))
 

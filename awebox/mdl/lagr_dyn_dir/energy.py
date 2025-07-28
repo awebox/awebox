@@ -36,6 +36,8 @@ import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
+import awebox.mdl.lagr_dyn_dir.tools as lagr_tools
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -58,6 +60,7 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture, sca
 
 def get_reelout_speed(variables_si):
 
+    # Rocking mode : never called in rocking mode, no need to define q_parent
     q_node = variables_si['x']['q10']
 
     # q_parent = cas.DM.zeros((3, 1))
@@ -75,6 +78,7 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
 
+    rocking_mode = options['trajectory']['system_type'] == 'rocking_mode'
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
 
@@ -83,12 +87,16 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     q_node = variables_si['x']['q' + label]
     dq_node = variables_si['x']['dq' + label]
+
     if node == 1:
-        q_parent = cas.DM.zeros((3, 1))
-        segment_vector = q_node - q_parent
-        ehat_tether = vect_op.normalize(segment_vector)
-        reelout_speed = get_reelout_speed(variables_si)
-        dq_parent = reelout_speed * ehat_tether
+        if rocking_mode:
+            dq_parent = arm.get_dq_arm_tip(variables_si['x']['arm_angle'], variables_si['x']['darm_angle'], variables_si['theta']['arm_length'])
+        else:
+            q_parent = cas.DM.zeros((3, 1))
+            segment_vector = q_node - q_parent
+            ehat_tether = vect_op.normalize(segment_vector)
+            reelout_speed = get_reelout_speed(variables_si)
+            dq_parent = reelout_speed * ehat_tether
     else:
         dq_parent = variables_si['x']['dq' + parent_label]
 
@@ -110,6 +118,13 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
 
     outputs['e_kinetic']['kite_rot' + label] = e_kinetic_kite_rot
 
+    e_kinetic_arm_rot = cas.DM(0.)
+    if rocking_mode:
+        arm_inertia = variables_si['theta']['arm_inertia']
+        darm_angle = variables_si['x']['darm_angle']
+        e_kinetic_arm_rot = 0.5 * arm_inertia * darm_angle**2
+    outputs['e_kinetic']['arm_rot'] = e_kinetic_arm_rot
+
     return outputs
 
 
@@ -124,6 +139,7 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
 
     q_node = variables_si['x']['q' + label]
     if node == 1:
+        # For rocking mode: even if wrong, q_parent = origin is fine because only q_mean[2] (z component) is used
         q_parent = cas.DM.zeros((3, 1))
     else:
         q_parent = variables_si['x']['q' + parent_label]

@@ -142,7 +142,7 @@ class Quality(object):
         fail_label = 'FAILED'
 
         pass_fail_dict = {}
-        for name, value in results.key():
+        for name, value in results.items():
             if value:
                 pass_fail_dict[name] = pass_label
             else:

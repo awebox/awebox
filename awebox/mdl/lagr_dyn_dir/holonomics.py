@@ -10,6 +10,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 
 import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -212,6 +213,7 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
     parent_map = architecture.parent_map
     kite_nodes = architecture.kite_nodes
 
+    rocking_mode = (options['trajectory']['system_type'] == 'rocking_mode')
     com_attachment = (options['tether']['attachment'] == 'com')
     stick_attachment = (options['tether']['attachment'] == 'stick')
     kite_has_6dof = (int(options['kite_dof']) == 6)
@@ -239,7 +241,11 @@ def get_tether_length_constraint(options, vars_si, parameters, architecture):
             current_node = q_si
 
         if node == 1:
-            previous_node = cas.DM.zeros((3, 1))
+            if options['trajectory']['system_type'] == 'rocking_mode':
+                previous_node = arm.get_q_arm_tip(x_si['arm_angle'], theta_si['arm_length'])
+            else:
+                previous_node = cas.DM.zeros((3, 1))
+
             if 'l_t' in x_si.keys():
                 segment_length = x_si['l_t']
             else:

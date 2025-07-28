@@ -24,8 +24,9 @@ import csv
 import sys
 import os
 import matplotlib
-matplotlib.use('Qt5Agg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 import matplotlib.pyplot as plt
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 # ----------------- import results from AWEbox ----------------- #
 def csv2dict(fname):

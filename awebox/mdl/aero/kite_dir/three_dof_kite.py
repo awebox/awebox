@@ -29,6 +29,7 @@ _python-3.5 / casadi-3.4.5
 - edited: jochem de schutter, rachel leuthold, alu-fr 2017-20
 '''
 
+import numpy as np
 import casadi.tools as cas
 
 import awebox.tools.vector_operations as vect_op
@@ -39,8 +40,7 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.indicators as indicators
-import numpy as np
-
+import awebox.mdl.arm as arm
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -138,7 +138,10 @@ def tether_vector(variables, architecture, node):
         grandparent = parent_map[parent]
         q_parent = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(parent) + str(grandparent))
     else:
-        q_parent = np.zeros((3, 1))
+        if 'arm_angle' in variables['x'].keys():
+            q_parent = arm.get_q_arm_tip(variables['x']['arm_angle'], variables['theta']['arm_length'])
+        else:
+            q_parent = np.zeros((3, 1))
 
     tether = q_node - q_parent
 

@@ -168,7 +168,7 @@ def share_trajectory_type(options, options_tree=[]):
     if trajectory_type in ['transition','launch']:
         options_tree.append(('formulation', 'trajectory', 'transition', 'terminal_trajectory', user_options['trajectory']['transition']['terminal_trajectory'], ('possible options', ['lift_mode', 'transition']),'x'))
 
-    if system_type == 'drag_mode':
+    if system_type in ['drag_mode', 'rocking_mode']:
         options_tree.append(('model', 'system_bounds', 'theta', 'l_t', options['model']['system_bounds']['x']['l_t'], ('user input for maximum main tether length', None),'x'))
 
     return options_tree
@@ -185,10 +185,10 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     else:
         if user_options['trajectory']['system_type'] == 'lift_mode':
             phase_fix = user_options['trajectory']['lift_mode']['phase_fix']
-        elif user_options['trajectory']['system_type'] == 'drag_mode':
+        else:
             phase_fix = False
     options_tree.append(('nlp', None, None, 'phase_fix', phase_fix,  ('lift-mode phase fix', (True, False)),'x'))
-    options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
+    options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode', 'rocking_mode')),'x'))
 
     n_k = options['nlp']['n_k']
     N_n = architecture.number_of_nodes
@@ -331,10 +331,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     acc_max = options['model']['model_bounds']['acceleration']['acc_max'] * options['model']['scaling']['other']['g']
     options_tree.append(('solver', 'initialization', None, 'acc_max', acc_max, ('maximum acceleration allowed within hardware constraints [m/s^2]', None),'x'))
 
-    if user_options['trajectory']['system_type'] == 'drag_mode':
-        windings = 1
-    else:
-        windings = user_options['trajectory']['lift_mode']['windings']
+    windings = model_funcs.get_windings(user_options)
 
     options_tree.append(('solver', 'initialization',  None, 'windings', windings, ('number of windings [int]', None),'x'))
     options_tree.append(('solver', 'homotopy', None, 'phase_fix_reelout', options['nlp']['phase_fix_reelout'], ('time fraction of reel-out phase', None),'x'))

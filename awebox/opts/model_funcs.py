@@ -70,6 +70,10 @@ def build_model_options(options, help_options, user_options, options_tree, fixed
     options_tree, fixed_params = build_tether_stress_options(options, options_tree, fixed_params, architecture)
     options_tree, fixed_params = build_tether_control_options(options, options_tree, fixed_params)
 
+    # arm
+    options_tree, fixed_params = build_arm_options(options, options_tree, fixed_params, architecture)
+    options_tree, fixed_params = build_arm_control_options(options, options_tree, fixed_params, architecture)
+
     # environment
     options_tree, fixed_params = build_wind_options(options, options_tree, fixed_params)
     options_tree, fixed_params = build_atmosphere_options(options, options_tree, fixed_params)
@@ -418,10 +422,10 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
 
 def get_windings(user_options):
-    if user_options['trajectory']['system_type'] == 'drag_mode':
-        windings = 1
-    else:
+    if user_options['trajectory']['system_type'] == 'lift_mode':
         windings = user_options['trajectory']['lift_mode']['windings']
+    else:
+        windings = 1
     return windings
 
 ###### integral_outputs
@@ -877,14 +881,13 @@ def build_tether_stress_options(options, options_tree, fixed_params, architectur
 def build_tether_control_options(options, options_tree, fixed_params):
 
     user_options = options['user_options']
-    in_drag_mode_operation = user_options['trajectory']['system_type'] == 'drag_mode'
 
     ddl_t_bounds = options['model']['system_bounds']['x']['ddl_t']
     dddl_t_bounds = options['model']['system_bounds']['u']['dddl_t']
 
     control_name = options['model']['tether']['control_var']
 
-    if in_drag_mode_operation:
+    if user_options['trajectory']['system_type'] in ['drag_mode', 'rocking_mode']:
         options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:
@@ -900,6 +903,68 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
         else:
             raise ValueError('invalid tether control variable chosen')
+
+    return options_tree, fixed_params
+
+######## arm
+
+def build_arm_options(options, options_tree, fixed_params, architecture):
+    user_options = options['user_options']
+
+    if user_options['trajectory']['system_type'] == 'rocking_mode':
+        # scaling and bounds of the state of the arm
+        arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
+        darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
+
+        options_tree.append(('model', 'system_bounds', 'x', 'arm_angle', arm_angle_bounds, ('arm angle bounds [rad]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'x', 'darm_angle', darm_angle_bounds, ('arm angular velocity bounds [rad/s]', None), 'x'))
+
+        options_tree.append(('model', 'scaling', 'x', 'arm_angle', np.pi/4, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'darm_angle', np.max(np.array(darm_angle_bounds))/2., ('???', None), 'x'))
+
+    return options_tree, fixed_params
+
+######## arm control
+
+def build_arm_control_options(options, options_tree, fixed_params, architecture):
+    user_options = options['user_options']
+
+    if user_options['trajectory']['system_type'] == 'rocking_mode':
+        tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
+        length = options['solver']['initialization']['l_t']
+        tension = tension_per_unit_length * length
+        arm_length = options['solver']['initialization']['theta']['arm_length']
+        torque = 0.7 * tension * arm_length  # Assumes a 45° angle in the horizontal plane, with sin(45°) = 0.7
+
+        options_tree.append(('model', 'scaling', 'x', 'active_torque', torque, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'u', 'dactive_torque', torque, ('???', None), 'x'))
+
+        arm_angle_bounds = options['model']['system_bounds']['x']['arm_angle']
+        darm_angle_bounds = options['model']['system_bounds']['x']['darm_angle']
+
+        if user_options['trajectory']['rocking_mode']['enable_arm_control'] == True:
+            active_torque_bounds = options['model']['system_bounds']['x']['active_torque']
+            dactive_torque_bounds = options['model']['system_bounds']['u']['dactive_torque']
+        else:
+            active_torque_bounds = [-0.0, 0.0]
+            dactive_torque_bounds = [-0.0, 0.0]
+
+        options_tree.append(('model', 'system_bounds', 'x', 'active_torque', active_torque_bounds, ('arm active torque bounds [Nm]', None), 'x'))
+        options_tree.append(('model', 'system_bounds', 'u', 'dactive_torque', dactive_torque_bounds, ('variation of arm active torque bounds [Nm/s]', None), 'x'))
+
+        zero_avg_active_torque = options['model']['arm']['zero_avg_active_torque']
+        zero_avg_active_power = options['model']['arm']['zero_avg_active_power']
+        if zero_avg_active_power is None:
+            # Any arm_angle dynamics can be obtained with the right control `t -> active_torque(t)`
+            # Thus, by default, if some arm parameters are optimized, a constraint of zero net energy through active torque is imposed
+            zero_avg_active_power = False
+            parameters_that_can_be_emulated = ['torque_slope', 'arm_inertia']
+            for theta in parameters_that_can_be_emulated:
+                if theta not in user_options['trajectory']['fixed_params']:
+                    zero_avg_active_power = True
+
+        options_tree.append(('model', 'arm', None, 'zero_avg_active_torque', zero_avg_active_torque, ('enforce zero average active torque, to enforce some symmetry', [True, False]), 'x'))
+        options_tree.append(('model', 'arm', None, 'zero_avg_active_power', zero_avg_active_power, ('enforce zero average active power, so that the arm control has zero net effect. Defaults to True if torque_slope is being optimized', [True, False]), 'x'))
 
     return options_tree, fixed_params
 
