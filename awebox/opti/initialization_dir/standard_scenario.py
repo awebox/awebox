@@ -80,8 +80,8 @@ def guess_values_at_time(t, init_options, model):
         arm_phase = t * phase_rate - np.pi/4
         if init_options['shape'] == 'circular':
             arm_phase += -np.pi/2
-        ret['arm_angle'] = -np.pi * np.cos(arm_phase)
-        ret['darm_angle'] = np.pi * np.sin(arm_phase) * phase_rate
+        ret['arm_angle'] = -np.pi/2 * np.cos(arm_phase)
+        ret['darm_angle'] = np.pi/2 * np.sin(arm_phase) * phase_rate
         ret['active_torque'] = 0.0
 
     for node in range(1, number_of_nodes):
@@ -217,6 +217,7 @@ def precompute_path_parameters(init_options, model):
     # clipping and adjusting
     if init_options['init_clipping']:
         for step in range(adjustment_steps):
+            # TODO: update all these function for the lemniscate, for now, have to disable this
             init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
             init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
             init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
@@ -271,9 +272,21 @@ def set_user_radius(init_options):
 def set_user_winding_period(init_options):
 
     ground_speed = init_options['groundspeed']
-    windings = init_options['windings']
-    radius = init_options['precompute']['radius']
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+
+    if init_options['shape'] == 'circular':
+        radius = init_options['precompute']['radius']
+        time_period = (2. * np.pi * radius) / ground_speed
+
+    elif init_options['shape'] == 'lemniscate':
+        # TODO: put this in a function (copy paste)
+        elevation = np.pi / 180 * init_options['inclination_deg']
+        az_width = np.pi / 180 * init_options['lemniscate']['az_width_deg']
+        length = init_options['l_t']
+        # TODO: better path length approximation : np.pi * np.sqrt(2 * (a**2 + 4 * b**2)), instead of 2 * az_width
+        lemniscate_width = np.cos(elevation) * 2 * az_width * length
+        time_period = 2 * lemniscate_width / ground_speed  # Accurate only for relatively flat lemniscates
+        time_period = 5
+
     init_options['precompute']['winding_period'] = time_period
 
     return init_options

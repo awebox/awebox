@@ -955,7 +955,13 @@ def build_arm_control_options(options, options_tree, fixed_params, architecture)
         zero_avg_active_torque = options['model']['arm']['zero_avg_active_torque']
         zero_avg_active_power = options['model']['arm']['zero_avg_active_power']
         if zero_avg_active_power is None:
-            zero_avg_active_power = 'torque_slope' not in user_options['trajectory']['fixed_params']
+            # Any arm_angle dynamics can be obtained with the right control `t -> active_torque(t)`
+            # Thus, by default, if some arm parameters are optimized, a constraint of zero net energy through active torque is imposed
+            zero_avg_active_power = False
+            parameters_that_can_be_emulated = ['torque_slope', 'arm_inertia']
+            for theta in parameters_that_can_be_emulated:
+                if theta not in user_options['trajectory']['fixed_params']:
+                    zero_avg_active_power = True
 
         options_tree.append(('model', 'arm', None, 'zero_avg_active_torque', zero_avg_active_torque, ('enforce zero average active torque, to enforce some symmetry', [True, False]), 'x'))
         options_tree.append(('model', 'arm', None, 'zero_avg_active_power', zero_avg_active_power, ('enforce zero average active power, so that the arm control has zero net effect. Defaults to True if torque_slope is being optimized', [True, False]), 'x'))

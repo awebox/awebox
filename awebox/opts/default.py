@@ -214,7 +214,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'system_bounds', 'x',           'active_torque',     [-cas.inf, cas.inf],            ('arm active torque bounds [Nm]', None), 'x'),  # Already constrained, together with passive torque, by bounds on tether tension
         ('model',  'system_bounds', 'u',           'dactive_torque',    [-cas.inf, cas.inf],            ('variation of arm active torque bounds [Nm/s]', None), 'x'),
         ('model',  'system_bounds', 'theta',       'arm_length',        [1e-3, 1e2],                    ('arm length bounds [Nm]', None), 'x'),
-        ('model',  'system_bounds', 'theta',       'arm_inertia',       [1e-3, cas.inf],                 ('arm inertia bounds [kg/m^2]', None), 'x'),
+        ('model',  'system_bounds', 'theta',       'arm_inertia',       [1e-3, cas.inf],                ('arm inertia bounds [kg/m^2]', None), 'x'),
         ('model',  'system_bounds', 'theta',       'torque_slope',      [0.0, cas.inf],                 ('passive torque slope bounds [Nm/(rad/s)]', None), 'x'),
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
