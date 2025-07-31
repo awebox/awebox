@@ -45,6 +45,7 @@ def geometry():
     # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
     geometry['s_ref'] = 200  # [m^2]
     geometry['ar'] = 10.0
+    geometry['e'] =  1 / (0.0425 * np.pi * 10)
 
     geometry['b_ref'] = np.sqrt(geometry['ar'] * geometry['s_ref'])  # [m]
     geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m]
