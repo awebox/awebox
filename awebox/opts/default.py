@@ -168,6 +168,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 'tail',        None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'wing_profile',None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'r_tether',    None,     ('geometrical parameter', None),'s'),
+        ('model',  'geometry', 'overwrite', 'e',           None,     ('geometrical parameter', None),'s'),
 
         ('model',  'aero', 'overwrite', 'alpha_max_deg', None,    ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'alpha_min_deg', None,    ('aerodynamic parameter', None),'t'),
