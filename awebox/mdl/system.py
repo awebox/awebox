@@ -197,6 +197,9 @@ def generate_structure(options, architecture):
                     if options['aero']['vortex_rings']['type'] == 'rectangle':
                         system_states.extend([('ec_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
 
+        for j in [2,3]:
+            system_lifted.extend([('u_induced_far_wake{}'.format(j), (3, 1))])
+
     # system state derivatives
     system_derivatives = []
     for i in range(len(system_states)):

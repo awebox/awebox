@@ -107,6 +107,7 @@ def get_force_from_u_sym_in_earth_frame(vec_u, options, variables, kite, atmos, 
         if local_parameter_label in parameters.labels():
             CD0 = vect_op.abs(parameters['theta0', 'aero', poss_drag_label, '0'][0])
 
+    # CD = CD0 + 0.0425 * CL **2
     CD = CD0 +  CL ** 2  / (np.pi * parameters['theta0', 'geometry', 'ar'] * parameters['theta0', 'geometry', 'e'])
 
     s_ref = parameters['theta0', 'geometry', 's_ref']

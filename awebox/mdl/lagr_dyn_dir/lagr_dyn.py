@@ -206,6 +206,17 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
                         cstr_list.append(vortex_rings_dyn_cstr)
 
+        # -------------------------
+        # lifted induced velocities
+        # -------------------------
+
+        for j in [2,3]:
+            cstr = system_variables['SI']['z'][f'u_induced_far_wake{j}'] - outputs['aerodynamics'][f'u_induced_far_wake{j}']
+            u_induced_lifted_cstr = cstr_op.Constraint(expr=cstr,
+                                                    cstr_type='eq',
+                                                    name=f'u_induced_far_wake{j}_constraint')
+            cstr_list.append(u_induced_lifted_cstr)
+
     return cstr_list, outputs
 
 

@@ -213,7 +213,9 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind
     uw_infty = wind.get_velocity(q[2])
 
     if 'dp_ring_2_0_0' in variables['x'].keys() and kite in [2,3]:
-        u_induced = u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+        u_induced = variables['z'][f'u_induced_far_wake{kite}']#u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+        #u_induced = u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+
     else:
         u_induced = np.array([0,0,0])
 
