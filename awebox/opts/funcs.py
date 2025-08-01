@@ -232,6 +232,7 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('model', 'aero', 'vortex_rings', 'N', options['nlp']['n_k'],  ('...', None),'x'))
         options_tree.append(('nlp', None, None, 'N_rings', options['model']['aero']['vortex_rings']['N_rings'],  ('...', None),'x'))
         options_tree.append(('nlp', None, None, 'vortex_type', options['model']['aero']['vortex_rings']['type'],  ('...', None),'x'))
+        options_tree.append(('nlp', None, None, 'vortex_convection_type', options['model']['aero']['vortex_rings']['convection_type'],  ('...', None),'x'))
 
     if options['nlp']['compile_subfunctions']:
 
@@ -248,12 +249,9 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             options['model']['tether']['control_var']
         )
         if user_options['trajectory']['type'] == 'aaa':
-            compilation_file_name += '_Nrings{}_N_ell_int{}_ell_method_{}_Ndup{}_Nfar{}_type_{}'.format(
+            compilation_file_name += '_Nrings{}_Ndup{}_type_{}'.format(
                 options['model']['aero']['vortex_rings']['N_rings'],
-                options['model']['aero']['vortex_rings']['N_elliptic_int'],
-                options['model']['aero']['vortex_rings']['elliptic_method'],
                 options['model']['aero']['vortex_rings']['N_duplicates'],
-                options['model']['aero']['vortex_rings']['N_far'],
                 options['model']['aero']['vortex_rings']['type'],
             )
 

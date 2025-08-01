@@ -147,6 +147,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex_rings', 'N_elliptic_int',  5,           ('Number of summands in elliptic integral summation', None), 'x'),
         ('model', 'aero', 'vortex_rings', 'elliptic_method',  'power',     ('Computation of elliptic integrands', ['power', 'AGM']), 'x'),
         ('model', 'aero', 'vortex_rings', 'type',  'rectangle',     ('Vortex element type', ['dipole', 'rectangle']), 'x'),
+        ('model', 'aero', 'vortex_rings', 'convection_type',  'far',     ('Vortex induced convection speed type', ['free', 'near', 'far']), 'x'),
 
         ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 

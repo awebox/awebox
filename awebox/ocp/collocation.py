@@ -387,10 +387,14 @@ class Collocation(object):
             # pin the end of the control interval to the start of the new control interval
             g_continuity = []
             lfcns = self.__coeff_fun
+            lfcns_u = self.__coeff_fun_u
+
             N_rings = nlp_options['N_rings']
             tgrid = [k/N_rings + 1/(2*N_rings) for k in range(N_rings)]
             convection_times = [t_f / nlp_options['n_k'] * (1 - tau) for tau in tgrid]
             x_list = [model.variables_dict['x'](lfcns(tau)[0]*V['x', kdx] + sum([lfcns(tau)[ddx+1]*V['coll_var', kdx, ddx, 'x'] for ddx in range(self.__d)])) for tau in tgrid]
+            z_list = [model.variables_dict['z'](sum([lfcns_u(tau)[ddx]*V['coll_var', kdx, ddx, 'z'] for ddx in range(self.__d)])) for tau in tgrid]
+
             outputs_list = []
             for idx in range(N_rings):
                 var_list = []
@@ -406,27 +410,52 @@ class Collocation(object):
 
                 if struct_op.is_state_for_kdx(state, kdx, 'p', 'ring', '2'):
                     idx = struct_op.get_idx_from_state(state)
-                    p_ring_2_next = x_list[idx]['q21'] * model.scaling['x', 'q21'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed2'], 0, 0)
+                    if nlp_options['vortex_convection_type'] == 'free':
+                        induced_convection = 0
+                    elif nlp_options['vortex_convection_type'] == 'near':
+                        induced_convection = outputs_list[idx]['aerodynamics', 'u_induced_near2']
+                    elif nlp_options['vortex_convection_type'] == 'far':
+                        induced_convection = - z_list[idx]['u_induced_far_wake2'][0]
+                    p_ring_2_next = x_list[idx]['q21'] * model.scaling['x', 'q21'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed2'] - induced_convection, 0, 0)
                     g_continuity.append(
                         V['x', kdx + 1, state] -  p_ring_2_next
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'p', 'ring', '3'):
+                    if nlp_options['vortex_convection_type'] == 'free':
+                        induced_convection = 0
+                    elif nlp_options['vortex_convection_type'] == 'near':
+                        induced_convection = outputs_list[idx]['aerodynamics', 'u_induced_near3']
+                    elif nlp_options['vortex_convection_type'] == 'far':
+                        induced_convection = - z_list[idx]['u_induced_far_wake3'][0]
                     idx = struct_op.get_idx_from_state(state)
-                    p_ring_3_next = x_list[idx]['q31'] * model.scaling['x', 'q31'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed3'], 0, 0)
+                    p_ring_3_next = x_list[idx]['q31'] * model.scaling['x', 'q31'] + convection_times[idx] * cas.vertcat(outputs_list[idx]['environment','windspeed3'] - induced_convection, 0, 0)
                     g_continuity.append(
                         V['x', kdx + 1, state] -  p_ring_3_next
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '2'):
                     idx = struct_op.get_idx_from_state(state)
+
+                    if nlp_options['vortex_convection_type'] == 'free':
+                        induced_convection = 0
+                    elif nlp_options['vortex_convection_type'] == 'near':
+                        induced_convection = outputs_list[idx]['aerodynamics', 'u_induced_near2']
+                    elif nlp_options['vortex_convection_type'] == 'far':
+                        induced_convection = - z_list[idx]['u_induced_far_wake2'][0]
                     g_continuity.append(
-                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed2'] + outputs_list[idx]['aerodynamics', 'u_induced_near2']
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed2'] + induced_convection
                     )
                 elif struct_op.is_state_for_kdx(state, kdx, 'dp', 'ring', '3'):
                     idx = struct_op.get_idx_from_state(state)
+                    if nlp_options['vortex_convection_type'] == 'free':
+                        induced_convection = 0
+                    elif nlp_options['vortex_convection_type'] == 'near':
+                        induced_convection = outputs_list[idx]['aerodynamics', 'u_induced_near3']
+                    elif nlp_options['vortex_convection_type'] == 'far':
+                        induced_convection = - z_list[idx]['u_induced_far_wake3'][0]
                     g_continuity.append(
-                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed3'] + outputs_list[idx]['aerodynamics', 'u_induced_near3']
+                        V['x', kdx + 1, state] - outputs_list[idx]['environment','windspeed3'] + induced_convection
                     )
 
                 elif struct_op.is_state_for_kdx(state, kdx, 'gamma', 'ring', '2'):

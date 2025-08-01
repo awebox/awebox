@@ -229,7 +229,7 @@ def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
     q = variables['x']['q' + str(kite) + str(parent)]
     t_f = variables['theta']['t_f']
     u_induced = np.zeros((3,1))
-    initial_guess =  np.array([[-1],[0],[0]])
+    initial_guess =  np.array([[-2],[0],[0]])
     params = 'p_near_{}'.format(kite)
     h = t_f / options['aero']['vortex_rings']['N'] / options['aero']['vortex_rings']['N_rings']
     N_dup = options['aero']['vortex_rings']['N_duplicates']
