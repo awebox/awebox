@@ -873,8 +873,19 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
 
     if this_is_haas2019_test:
         diam = 280
+        z0_planned = 260.
+        z_planned_under = z0_planned - diam / 2.
+        z_planned_over = z0_planned + diam / 2.
+        z0_current = kite_plane_induction_params['center'][2]
+        # z0_current + z_offset = z_planned
+        z_offset_under = z_planned_under - z0_current
+        z_offset_over = z_planned_over - z0_current
+        z_offset_dict = {0: 0., 1: z_offset_under, 2: z_offset_over}
+        y_labels_dict = {0: 'z [m] (y=0)', 1: 'y [m] (z=' + str(z_planned_under) + ')', 2: 'y [m] (z=' + str(z_planned_over) + ')'}
     else:
         diam = kite_plane_induction_params['average_radius'] * 2.
+        z_offset_dict = {0: 0., 1: -diam/2., 2: diam/2.}
+        y_labels_dict = {0: 'z [m] (y=0)', 1: 'y [m] (z=1r below z_center)', 2: 'y [m] (z=1r above z_center)'}
 
     plot_table_r = 3
     plot_table_c = len(x_over_d_vals)
@@ -885,8 +896,6 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
         fig, axes = plt.subplots(num=fig_num, nrows=plot_table_r, ncols=plot_table_c)
 
     slice_axes_dict = {0: vect_op.zhat_dm(), 1: vect_op.yhat_dm(), 2: vect_op.yhat_dm()}
-    z_offset_dict = {0: 0., 1: -diam/2., 2: diam/2.}
-    y_labels_dict = {0: 'z [m] (y=0)', 1: 'y [m] (z=1r below z_center)', 2: 'y [m] (z=1r above z_center)'}
 
     total_subplots = len(list(slice_axes_dict.keys())) * len(x_over_d_vals)
     pdx = 0
@@ -903,7 +912,10 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
             add_label_legends = (idx == len(x_over_d_vals) - 1)
             suppress_wind_options_import_warning = (pdx > 0)
 
-            ax = axes[rdx, idx]
+            try:
+                ax = axes[rdx, idx]
+            except:
+                pdb.set_trace()
             make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_offset=x_offset, z_offset=z_offset_local,
                                                                    slice_axes=slice_axes_dict[rdx],
                                                                    add_legend_labels=add_label_legends,
@@ -1503,7 +1515,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
         for tau_at_eval in tau_style_dict.keys():
             tau_rounded = np.round(tau_at_eval, 2)
 
-            n_points_contour = 100
+            n_points_contour = plot_dict['cosmetics']['induction']['n_points_contour']
             n_points_interpolation = plot_dict['cosmetics']['interpolation']['n_points']
 
             print_op.base_print('generating_induction_factor_casadi_function...')
@@ -1602,14 +1614,6 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                         ldx += 1
                 print_op.close_progress()
 
-                ### draw the trajectory
-                print_op.base_print('drawing trajectory...')
-                temp_cosmetics = copy.deepcopy(cosmetics)
-                temp_cosmetics['trajectory']['tethers'] = False
-                temp_cosmetics['trajectory']['colors'] = ['k'] * 20
-                temp_cosmetics['trajectory']['temporal_epigraph_length_to_span'] = 0.
-                tools.plot_trajectory_contents(ax, plot_dict, temp_cosmetics, side, plot_kites=True, linewidth=0.25, idx_at_eval=idx_at_eval)
-
                 ### draw the contour
                 u_min = 0
                 if this_is_haas_test:
@@ -1625,11 +1629,19 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                 cmap = 'viridis' #'YlGnBu_r'
                 cs = ax.contourf(xx_mesh, aa_mesh, uu, general_levels, cmap=cmap)
                 cbar = fig_new.colorbar(cs, ax=ax)
-                tick_locator = ticker.MaxNLocator(nbins=7)
+                clines = ax.contour(xx_mesh, aa_mesh, uu, general_levels, cmap=cmap)
+                tick_locator = ticker.MaxNLocator(nbins=6)
                 cbar.locator = tick_locator
                 cbar.update_ticks()
                 cbar.ax.set_ylabel('u [m/s]', rotation=90)
-    
+
+                ### draw the trajectory
+                print_op.base_print('drawing trajectory...')
+                temp_cosmetics = copy.deepcopy(cosmetics)
+                temp_cosmetics['trajectory']['tethers'] = False
+                temp_cosmetics['trajectory']['colors'] = ['k'] * 20
+                tools.plot_trajectory_contents(ax, plot_dict, temp_cosmetics, side, plot_kites=True, linewidth=0.25, idx_at_eval=idx_at_eval)
+
                 # title
                 ax.set_xlabel(side[0] + " [m]")
                 ax.set_ylabel(side[1] + " [m]")

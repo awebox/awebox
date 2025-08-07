@@ -43,6 +43,8 @@ matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.save_operations as save_op
+
 from awebox.logger.logger import Logger as awelogger
 
 #todo: compare to initial guess for all plots as option
@@ -247,8 +249,10 @@ class Visualization(object):
                 os.mkdir(directory)
 
             save_name = directory + '/' + name_rep + '_' + flag
-            for format in cosmetics['save']['format_list']:
-                plt.savefig(save_name + '.' + format, bbox_inches='tight', format=format, dpi=1000)
+
+            if save_op.is_filename_acceptable_length(save_name):
+                for format in cosmetics['save']['format_list']:
+                    plt.savefig(save_name + '.' + format, bbox_inches='tight', format=format, dpi=1000)
 
         return None
 

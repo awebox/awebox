@@ -27,6 +27,8 @@ file to provide vector operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: rachel leuthold, jochem de schutter alu-fr 2017-19
 '''
+import pdb
+
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
@@ -939,7 +941,7 @@ def test_is_unit_vector():
     return None
 
 def is_scalar(val):
-    if isinstance(val, float):
+    if isinstance(val, float) or isinstance(val, int):
         return True
     elif hasattr(val, 'len') and len(val) == 1:
         return True
@@ -950,8 +952,23 @@ def is_scalar(val):
 
 
 def is_numeric_scalar(val):
-    return is_scalar(val) and is_numeric(val)
+    return is_scalar(val) and is_numeric(val) and np.isfinite(float(val))
 
+def test_is_numeric_scalar():
+    test_dict ={
+        'float': {'val': 32.0, 'expected': True},
+        'int': {'val': 3, 'expected': True},
+        'negative': {'val': -23.6, 'expected': True},
+        'dm': {'val': cas.DM(3.5), 'expected': True},
+        'inf': {'val': cas.inf, 'expected': False},
+        'vector': {'val': xhat_np(), 'expected': False},
+        'string': {'val': 'apples', 'expected': False}
+    }
+    for test_name, test in test_dict.items():
+        if is_numeric_scalar(test['val']) != test['expected']:
+            message = 'is_numeric_scalar test fails at test ' + test_name
+            print_op.log_and_raise_error(message)
+    return None
 
 def is_strictly_increasing(array):
 
@@ -1104,6 +1121,7 @@ def test():
     test_spline_interpolation()
     test_is_strictly_increasing()
     test_is_unit_vector()
+    test_is_numeric_scalar()
     return None
 
 if __name__ == "__main__":

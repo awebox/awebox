@@ -85,6 +85,11 @@ class Options:
         for key, value in seed.items():
             keys = key.split(".")
             err_msg = f'Unknown option: {key}'
+
+            if len(keys) not in [2, 3, 4]:
+                print(repr(keys))
+            #print_op.warn_about_temporary_functionality_alteration
+
             assert len(keys) in [2,3,4], err_msg
             assert keys[0] in self.__keys_list, err_msg
             assert keys[1] in self.__options_dict[keys[0]], err_msg

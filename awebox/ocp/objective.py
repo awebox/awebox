@@ -29,6 +29,7 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
+import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -264,19 +265,17 @@ def find_homotopy_parameter_costs(component_costs, V, P):
 
 
 def find_time_cost(nlp_options, V, P):
-    # this deliberately penalizes deviations in all t_f values, not just the final time.
-    # otherwise, you end up with situations where (when trying to match t_f), the optimizer
-    # adjusts the size of the control intervals on each side of t_switch.
-    diff = V['theta', 't_f'] - P['p', 'ref', 'theta', 't_f']
-    size_correction = float(V['theta', 't_f'].shape[0])
-    total_period_ref = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
-    normalization = total_period_ref**2.
-    time_cost = P['cost', 't_f'] * cas.mtimes(diff.T, diff) / (size_correction * normalization)
+
+    time_period = ocp_outputs.find_time_period(nlp_options, V)
+    tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
+
+    time_cost = P['cost', 't_f'] * (time_period - tf_init) * (time_period - tf_init)
 
     return time_cost
 
 
-def find_power_cost(nlp_options, model, V, P, Integral_outputs):
+
+def get_average_power(nlp_options, V, Integral_outputs):
 
     # maximization term for average power
     time_period = ocp_outputs.find_time_period(nlp_options, V)
@@ -287,6 +286,12 @@ def find_power_cost(nlp_options, model, V, P, Integral_outputs):
         total_energy_scaled = Integral_outputs['int_out', -1, 'e']
 
     average_scaled_power = total_energy_scaled / time_period
+
+    return average_scaled_power
+
+def find_power_cost(nlp_options, V, P, Integral_outputs):
+
+    average_scaled_power = get_average_power(nlp_options, V, Integral_outputs)
 
     if nlp_options['cost']['P_max']:
         max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
@@ -337,11 +342,9 @@ def find_transition_problem_cost(component_costs, P):
     return transition_cost
 
 
-def find_tracking_problem_cost(component_costs, P):
-
+def find_tracking_problem_cost(component_costs):
     tracking_cost = component_costs['tracking_cost']
     tracking_problem_cost = tracking_cost
-
     return tracking_problem_cost
 
 
@@ -421,7 +424,7 @@ def find_beta_cost(nlp_options, model, Outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V, V_ref, nlp_options):
+def find_objective(component_costs, V, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
@@ -457,23 +460,23 @@ def find_objective(component_costs, V, V_ref, nlp_options):
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, xdot, Outputs, model, Integral_outputs):
 
     component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
-    component_costs['power_cost'] = find_power_cost(nlp_options, model, V, P, Integral_outputs)
+    component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Outputs, P)
-    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs, P)
+    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-    component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
+    component_costs['objective'] = find_objective(component_costs, V, nlp_options)
 
     return component_costs
 
@@ -497,9 +500,9 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, xdot, Outputs, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, xdot, Outputs, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)

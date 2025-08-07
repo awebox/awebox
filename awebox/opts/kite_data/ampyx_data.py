@@ -61,7 +61,9 @@ def geometry():
 
     geometry['length'] = geometry['b_ref']  # only for plotting
     geometry['height'] = geometry['b_ref'] / 5.  # only for plotting
-    # geometry['delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
+
+    # the below delta_max and ddelta_max will be used for scaling. if you want to set these bounds to cas.inf,
+    # please use options['model.geometry.overwrite.delta_max'] and options['model.geometry.overwrite.ddelta_max']
     geometry['delta_max'] = np.array([5., 10., 5.]) * np.pi / 180.
     geometry['ddelta_max'] = np.array([2., 2., 2.])
 

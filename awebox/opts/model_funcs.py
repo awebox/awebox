@@ -45,6 +45,7 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.scaling as vortex_alg_repr_scaling
 
 import awebox.mdl.wind as wind
+from awebox.tools.vector_operations import is_numeric_scalar
 
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
@@ -316,8 +317,24 @@ def build_kite_dof_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
 
-        options_tree.append(('model', 'scaling', 'x', 'delta', cas.DM(delta_max)/2., ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'u', 'ddelta', cas.DM(ddelta_max)/2., ('???', None), 'x'))
+        standard_geometry = load_kite_geometry(options['user_options']['kite_standard'])
+        delta_scaling = []
+        ddelta_scaling = []
+        for idx in range(delta_max.shape[0]):
+            if vect_op.is_numeric_scalar(delta_max[idx]):
+                local_delta = delta_max[idx]/2.
+            else:
+                local_delta = standard_geometry['delta_max'][idx] / 2.
+            delta_scaling = cas.vertcat(delta_scaling, local_delta)
+
+            if vect_op.is_numeric_scalar(ddelta_max[idx]):
+                local_ddelta = ddelta_max[idx]/2.
+            else:
+                local_ddelta = standard_geometry['ddelta_max'][idx] / 2.
+            ddelta_scaling = cas.vertcat(ddelta_scaling, local_ddelta)
+
+        options_tree.append(('model', 'scaling', 'x', 'delta', delta_scaling, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'u', 'ddelta', ddelta_scaling, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'omega', omega_guess, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'r', cas.DM.ones((9, 1)), ('descript', None), 'x'))
 
@@ -344,10 +361,18 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
 
         coeff_max = cas.DM(options['model']['system_bounds']['x']['coeff'][1])
         coeff_scaling = coeff_max
+        if not vect_op.is_numeric_scalar(coeff_scaling[0]):
+            coeff_scaling[0] = estimate_CL(options)
+        if not vect_op.is_numeric_scalar(coeff_scaling[1]):
+            coeff_scaling[1] = 20. * np.pi / 180.
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
         dcoeff_max = cas.DM(options['model']['system_bounds']['u']['dcoeff'][1])
         dcoeff_scaling = dcoeff_max
+        if not vect_op.is_numeric_scalar(dcoeff_scaling[0]):
+            dcoeff_scaling[0] = 2.5 #todo: currently taken from default values, find better approx.
+        if not vect_op.is_numeric_scalar(dcoeff_scaling[1]):
+            dcoeff_scaling[1] = 40. #todo: currently taken from default values, find better approx.
         options_tree.append(('model', 'scaling', 'u', 'dcoeff', dcoeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds', 'aero_validity', 'include', False,
@@ -906,19 +931,28 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
     control_name = options['model']['tether']['control_var']
 
+    gravity = options['model']['scaling']['other']['g']
+    ddl_t_scaling = ddl_t_bounds[1] / 2.
+    if not vect_op.is_numeric_scalar(ddl_t_scaling):
+        ddl_t_scaling = gravity
+
+    dddl_t_scaling = dddl_t_bounds[1] / 2.
+    if not vect_op.is_numeric_scalar(dddl_t_scaling):
+        dddl_t_scaling = 2. * gravity #todo: this is arbitrary. find something more physics-based.
+
     if in_drag_mode_operation:
         options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:
         if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
-            options_tree.append(('model', 'scaling', 'u', 'ddl_t', np.max(np.array(ddl_t_bounds)) / 2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
 
         elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', dddl_t_bounds,   ('main tether max jerk [m/s^3]', None),'x'))
-            options_tree.append(('model', 'scaling', 'x', 'ddl_t', np.max(np.array(ddl_t_bounds))/2., ('???', None), 'x'))
-            options_tree.append(('model', 'scaling', 'u', 'dddl_t', np.max(np.array(dddl_t_bounds))/2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'x', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'dddl_t', dddl_t_scaling, ('???', None), 'x'))
 
         else:
             raise ValueError('invalid tether control variable chosen')
@@ -1318,6 +1352,8 @@ def estimate_CL(options):
     if kite_dof == 3:
         coeff_bounds = options['model']['system_bounds']['x']['coeff']
         CL = coeff_bounds[1][0]
+        if not vect_op.is_numeric_scalar(CL):
+            CL = 1.5 #todo: this is arbitrary
 
     else:
         alpha = aero_validity['alpha_max_deg'] * np.pi / 180.

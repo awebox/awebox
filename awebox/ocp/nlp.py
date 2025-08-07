@@ -28,7 +28,7 @@ _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter, thilo bronnenmeyer alu-fr 2017-2018
 - edited: rachel leuthold, alu-fr 2018-2021
 '''
-
+import pdb
 
 import casadi.tools as cas
 
@@ -139,7 +139,7 @@ class NLP(object):
             Outputs = self.__Outputs
         else:
             Outputs = self.__Outputs_fun(self.__V, self.__P)
-        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, model.parameters, self.__Xdot(self.__Xdot_fun(self.__V)), Outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
+        [component_cost_function, component_cost_structure, f_fun] = objective.get_cost_function_and_structure(nlp_options, self.__V, self.__P, model.variables, self.__Xdot(self.__Xdot_fun(self.__V)), Outputs, model, self.__Integral_outputs(self.__Integral_outputs_fun(self.__V, self.__P)))
 
         self.__timings['objective'] = time.time()-timer
 

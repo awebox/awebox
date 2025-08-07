@@ -175,6 +175,8 @@ def get_force_outputs(model_options, variables, parameters, atmos, wind, upper_n
     elif tether_model == 'equivalent':
         drag_node = equivalent_upper
         drag_parent = equivalent_lower
+        message = 'The equivalent tether_model does not work as expected. It is currently offered only for backwards compatibility reasons, and is not recommended. Please be absolutely sure this model is what you would like to use.'
+        print_op.base_print(message, level='warning')
 
     elif tether_model == 'not_in_use':
         drag_parent = cas.DM.zeros((3, 1))
@@ -283,6 +285,7 @@ def get_tether_segment_properties(options, architecture, scaling, variables_si, 
     return props
 
 def get_body_axes(q_upper, q_lower):
+    # todo: remove this the moment Rachel is done with verification testing.
 
     tether = q_upper - q_lower
 
@@ -296,26 +299,21 @@ def get_body_axes(q_upper, q_lower):
 
 
 def from_earthfixed_to_body(earthfixed_vector, q_upper, q_lower):
+    # todo: remove this the moment Rachel is done with verification testing.
     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
-
-    body_x = cas.mtimes(earthfixed_vector.T, ehat_x)
-    body_y = cas.mtimes(earthfixed_vector.T, ehat_y)
-    body_z = cas.mtimes(earthfixed_vector.T, ehat_z)
-
-    body_vector = cas.vertcat(body_x, body_y, body_z)
-
+    DCM = cas.horzcat(ehat_x, ehat_y, ehat_z)
+    body_vector = kite_frames.from_earth_to_body(DCM, earthfixed_vector)
     return body_vector
 
 def from_body_to_earthfixed(body_vector, q_upper, q_lower):
+    # todo: remove this the moment Rachel is done with verification testing.
     [ehat_x, ehat_y, ehat_z] = get_body_axes(q_upper, q_lower)
-    earthfixed_x = body_vector[0] * ehat_x
-    earthfixed_y = body_vector[1] * ehat_y
-    earthfixed_z = body_vector[2] * ehat_z
-    earthfixed_vector = earthfixed_x + earthfixed_y + earthfixed_z
-
+    DCM = cas.horzcat(ehat_x, ehat_y, ehat_z)
+    earthfixed_vector = kite_frames.from_body_to_earth(DCM, body_vector)
     return earthfixed_vector
 
 def get_physical_forces(model_options, variables, parameters, atmos, wind, upper_node, cd_tether_fun, architecture):
+    # todo: remove this the moment Rachel is done with verification testing.
     q_upper, q_lower, dq_upper, dq_lower = element.get_upper_and_lower_pos_and_vel(variables, upper_node,
                                                                                    architecture)
     diam = element.get_element_diameter(variables, upper_node, architecture)
@@ -326,6 +324,7 @@ def get_physical_forces(model_options, variables, parameters, atmos, wind, upper
 
 
 def get_inverse_equivalence_matrix(tether_length):
+    # todo: remove this the moment Rachel is done with verification testing.
     # equivalent forces at upper node = [a, b, c]
     # equivalent forces at lower node = [d, e, f]
     # total forces = [Fx, Fy, Fz]
@@ -334,27 +333,29 @@ def get_inverse_equivalence_matrix(tether_length):
     # a + d = Fx
     # b + e = Fy
     # c + f = Fz
-    # L (a - d) = My
-    # L (a - e) = Mx
-    # c - f = 0
+    # (L/2) (b - e) = Mx <- this is what it should be. at present, it says L (a - d) = Mx
+    # (L/2) (a - d) = My <- this is what it should be. at present, it says L (b - e) = My
+    # c - f = 0 <- the line is presently multiplied by a constant L. annoying but not harmful.
 
     # A [a, b, c, d, e, f].T = [Fx, Fy, Fz, Mx, My, 0].T
     # [a, b, c, d, e, f].T = Ainv [Fx, Fy, Fz, Mx, My, 0].T
 
-    L = tether_length / 2.
+    L = tether_length
+    # L = tether_length / 2.
 
-    Ainv = np.matrix([[1., 0., 0., 0., 1. / L, 0.],
-                      [0., 1., 0., 1. / L, 0., 0.],
-                      [0., 0., 1., 0., 0., 1. / L],
-                      [1., 0., 0., 0., -1. / L, 0.],
-                      [0., 1., 0., -1. / L, 0., 0.],
-                      [0., 0., 1., 0., 0., -1. / L]]) / 2.
+    Ainv = np.matrix([[0.5, 0., 0., 0., 1. / L, 0.],
+                      [0., 0.5, 0., 1. / L, 0., 0.],
+                      [0., 0., 0.5, 0., 0., 0.5],
+                      [0.5, 0., 0., 0., -1. / L, 0.],
+                      [0., 0.5, 0., -1. / L, 0., 0.],
+                      [0., 0., 0.5, 0., 0., -0.5]])
 
     return Ainv
 
 
 def get_equivalent_tether_drag_forces(variables, parameters, upper_node, architecture, model_options, diam, q_upper, q_lower, dq_upper, dq_lower, atmos, wind,
                                       cd_tether_fun):
+    # todo: remove this the moment Rachel is done with verification testing.
     tether = q_upper - q_lower
 
     [total_force_earthfixed, total_moment_earthfixed] = get_total_drag(variables, parameters, upper_node, architecture, model_options, diam, q_upper, q_lower, dq_upper, dq_lower, atmos, wind, cd_tether_fun)
@@ -398,7 +399,10 @@ def get_total_drag(variables, parameters, upper_node, architecture, model_option
         dq_loc_upper = dq_lower + loc_s_upper * (dq_upper - dq_lower)
         dq_loc_lower = dq_lower + loc_s_lower * (dq_upper - dq_lower)
 
+        # this is a bug, but I'd like to leave it in until I'm done with all of my wake model verification tests
         loc_force = get_segment_force(variables, parameters, upper_node, diam, q_upper, q_lower, dq_upper, dq_lower, atmos, wind, architecture, cd_tether_fun)
+        # it should read:
+        # loc_force = get_segment_force(variables, parameters, upper_node, diam, q_loc_upper, q_loc_lower, dq_loc_upper, dq_loc_lower, atmos, wind, architecture, cd_tether_fun)
 
         loc_moment = vect_op.cross(moment_arm, loc_force)
 
@@ -408,6 +412,7 @@ def get_total_drag(variables, parameters, upper_node, architecture, model_option
     return [total_force, total_moment]
 
 def get_segment_force(variables, parameters, upper_node, diam, q_upper, q_lower, dq_upper, dq_lower, atmos, wind, architecture, cd_tether_fun):
+
     q_average = (q_upper + q_lower) / 2.
     zz = q_average[2]
 

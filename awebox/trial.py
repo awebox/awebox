@@ -315,8 +315,30 @@ class Trial(object):
         data_to_save = {}
 
         # store necessary information
+        print_op.warn_about_temporary_functionality_alteration(editor='rela1')
         data_to_save['solution_dict'] = self.generate_solution_dict()
-        data_to_save['plot_dict'] = self.__visualization.plot_dict
+        print_op.warn_about_temporary_functionality_alteration(editor='rela1', reason='objs in plot_dict')
+        # data_to_save['plot_dict'] = self.__visualization.plot_dict
+        plot_dict = self.__visualization.plot_dict
+        data_to_save['plot_dict'] = {'outputs_dict': plot_dict['outputs_dict'],
+                                     'variables_dict': plot_dict['variables_dict'],
+                                     'integral_output_names': plot_dict['integral_output_names'],
+                                     'model_variables': plot_dict['model_variables'],
+                                     'model_scaling': plot_dict['model_scaling'],
+                                     'discretization': plot_dict['discretization'],
+                                     'n_k': plot_dict['n_k'],
+                                     'model_outputs': plot_dict['model_outputs'],
+                                     'outputs_fun': plot_dict['outputs_fun'],
+                                     'Collocation': plot_dict['Collocation'],
+                                     'model_parameters': plot_dict['model_parameters'],
+                                     'architecture': plot_dict['architecture'],
+                                     'cosmetics': plot_dict['cosmetics'],
+                                     'wind': plot_dict['wind'],
+                                     'wake': plot_dict['wake'],
+                                     'u_param': plot_dict['u_param']
+                                     }
+        if 'd' in plot_dict.keys():
+            data_to_save['plot_dict']['d'] = plot_dict['d']
 
         # pickle data
         save_op.save(data_to_save, filename, file_extension)
@@ -336,31 +358,32 @@ class Trial(object):
 
         solution_dict = {}
 
-        # seeding data
+        print_op.warn_about_temporary_functionality_alteration(editor='rela2', reason='objs in solution_dict')
+        # # seeding data
         solution_dict['time_grids'] = self.__optimization.time_grids
         solution_dict['name'] = self.__name
-
-        # parametric sweep data
+        #
+        # # parametric sweep data
         solution_dict['V_opt'] = self.__optimization.V_opt
-        solution_dict['V_final_si'] = self.__optimization.V_final_si
+        # solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
         solution_dict['p_fix_num'] = self.__optimization.p_fix_num
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
         solution_dict['integral_output_vals'] = self.__optimization.integral_output_vals
-        solution_dict['stats'] = self.__optimization.stats
-        solution_dict['iterations'] = self.__optimization.iterations
-        solution_dict['timings'] = self.__optimization.timings
+        # solution_dict['stats'] = self.__optimization.stats
+        # solution_dict['iterations'] = self.__optimization.iterations
+        # solution_dict['timings'] = self.__optimization.timings
         cost_fun = self.__nlp.cost_components[0]
         cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['cost'] = cost
         solution_dict['global_outputs_opt'] = self.__optimization.global_outputs_opt
-
-        # warmstart data
-        solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
-        solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
-        solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
-        solution_dict['opt_arg'] = self.__optimization.arg
+        #
+        # # warmstart data
+        # solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step
+        # solution_dict['Xdot_opt'] = self.__nlp.Xdot(self.__nlp.Xdot_fun(self.__optimization.V_opt))
+        # solution_dict['g_opt'] = self.__nlp.g(self.__nlp.g_fun(self.__optimization.V_opt, self.__optimization.p_fix_num))
+        # solution_dict['opt_arg'] = self.__optimization.arg
 
         return solution_dict
 
