@@ -94,11 +94,12 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         if len(periodic_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('periodic', shape=periodic_cstr.get_expression_list('all').shape))
 
-        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids)
-        ocp_cstr_list.append(vortex_ocp_cstr_list)
-        if len(vortex_ocp_cstr_list.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))
-        vortex.test_that_wake_related_ocp_variables_are_all_constrained_using_cstr_names(nlp_options, V, ocp_cstr_list)
+        if model.wake is not None:
+            vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids)
+            ocp_cstr_list.append(vortex_ocp_cstr_list)
+            if len(vortex_ocp_cstr_list.eq_list) != 0:
+                ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))
+            vortex.test_that_wake_related_ocp_variables_are_all_constrained_using_cstr_names(nlp_options, V, ocp_cstr_list)
 
         if direct_collocation:
             integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)

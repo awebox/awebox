@@ -822,8 +822,6 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     a_ref = options['model']['aero']['actuator']['a_ref']
     u_ref = get_u_ref(options['user_options'])
     u_ind = a_ref * u_ref
-    # print_op.warn_about_temporary_functionality_alteration(reason='theres something in the way scaling enters biot-savart that does not work correctly yet.')
-    # u_ind = cas.DM(1.)
 
     clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
@@ -1055,7 +1053,9 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     length = options['solver']['initialization']['l_t']
     tension = tension_per_unit_length * length
 
-    available_estimates = [max_acceleration_force, tension, gravity_force, centripetal_force, aero_force]
+    available_estimates = [tension, gravity_force, centripetal_force, aero_force]
+    if options['model']['model_bounds']['acceleration']['include']:
+        available_estimates += [max_acceleration_force]
     synthesized_force = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     force_scaling_dict = {'max_acceleration': max_acceleration_force,
@@ -1242,7 +1242,11 @@ def estimate_flight_radius(options, architecture, suppress_help_statement=False)
         length = options['solver']['initialization']['theta']['l_s']
     cone_radius = float(length * np.sin(cone_angle))
 
-    available_estimates = [anticollision_radius, centripetal_radius, cone_radius]
+    available_estimates = [cone_radius]
+    if options['model']['model_bounds']['anticollision']['include']:
+        available_estimates += [anticollision_radius]
+    if options['model']['model_bounds']['acceleration']['include']:
+        available_estimates += [centripetal_radius]
     synthesized_radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     radius_dict = {'anticollision': anticollision_radius,
@@ -1314,10 +1318,10 @@ def estimate_power(options, architecture):
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
     induction_model = options['user_options']['induction_model']
-    if induction_model == 'not_in_use':
-        induction_efficiency = 1.
-    else:
+    if induction_model == 'actuator':
         induction_efficiency = 0.5
+    else:
+        induction_efficiency = 1.0
 
     kite_dof = get_kite_dof(options['user_options'])
     if kite_dof == 3:
@@ -1458,7 +1462,11 @@ def estimate_main_tether_tension_per_unit_length(options, architecture, suppress
     tension_estimate_via_max_force = options['params']['model_bounds']['tether_force_limits'][1]
     tension_estimate_via_average_force = (tension_estimate_via_min_force + tension_estimate_via_max_force)/2.
 
-    available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_average_force, tension_estimate_via_force_summation]
+    available_estimates = [tension_estimate_via_power, tension_estimate_via_force_summation]
+    if options['model']['model_bounds']['tether_stress']['include']:
+        available_estimates += [tension_estimate_via_max_stress]
+    elif options['model']['model_bounds']['tether_force']['include']:
+        available_estimates += [tension_estimate_via_max_force]
     tension_estimate_via_synthesis = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
     tension_estimate_dict = {'power': tension_estimate_via_power,

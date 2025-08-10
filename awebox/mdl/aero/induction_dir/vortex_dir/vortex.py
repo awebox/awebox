@@ -144,9 +144,6 @@ def get_unlifted_cstr(wake, system_variables, parameters, architecture, scaling)
         parent_obs = architecture.parent_map[kite_obs]
 
         x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
-        print_op.warn_about_temporary_functionality_alteration()
-        # was calculate until may 30th.
-        # vec_u_computed = wake.evaluate_total_biot_savart_induction(x_obs=x_obs)
         vec_u_computed = wake.calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs)
 
         vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
@@ -364,11 +361,6 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
 
         substructure_types = wake.get_initialized_substructure_types()
         for substructure in substructure_types:
-            print_op.warn_about_temporary_functionality_alteration()
-            # may 4th version is calculate
-            # calculate is max_iterations_exceeded in power_problem predictor step
-            # evaluate is restoration failed
-            # vec_u_ind_from_substructure = wake.get_substructure(substructure).evaluate_total_biot_savart_induction(x_obs=x_obs)
             vec_u_ind_from_substructure = wake.get_substructure(substructure).calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs)
             u_ind_norm_from_substructure = vect_op.norm(vec_u_ind_from_substructure)
             u_ind_norm_from_substructure_over_total = u_ind_norm_from_substructure / u_ind_norm
@@ -399,9 +391,6 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
             rot_dir_dict = {'radial': ehat_radial, 'tangential': ehat_tangential, 'normal': ehat_normal, 'wind': ehat_wind, 'wind_tangential': ehat_wind_tangential, 'wind_radial': ehat_wind_radial, 'chord': ehat_chord, 'span': ehat_span, 'up': ehat_up, 'x': xhat, 'y': yhat, 'z': zhat}
             for rot_name, rot_ehat in rot_dir_dict.items():
                 outputs['vortex']['u_ind_' + rot_name + str(kite_obs)] = cas.mtimes(vec_u_ind.T, rot_ehat)
-
-            print_op.warn_about_temporary_functionality_alteration(reason='there is something really wrong here')
-            outputs['vortex']['vec_u_ind' + str(kite_obs) + '_xi_00_neg_xhat' ] = -1. * cas.mtimes(vec_u_ind.T, xhat)
 
             b_ref = parameters['theta0', 'geometry', 'b_ref']
             for extra_xi_obs in model_options['aero']['vortex']['additional_induction_observation_points']:

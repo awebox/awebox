@@ -890,10 +890,10 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
     plot_table_r = 3
     plot_table_c = len(x_over_d_vals)
 
-    fig = plt.figure(num=fig_num)
-    axes = fig.axes
-    if len(axes) == 0:  # if figure does not exist yet
-        fig, axes = plt.subplots(num=fig_num, nrows=plot_table_r, ncols=plot_table_c)
+    # fig = plt.figure(num=fig_num)
+    # axes = fig.axes
+    # if len(axes) == 0:  # if figure does not exist yet
+    fig, axes = plt.subplots(num=fig_num, nrows=plot_table_r, ncols=plot_table_c)
 
     slice_axes_dict = {0: vect_op.zhat_dm(), 1: vect_op.yhat_dm(), 2: vect_op.yhat_dm()}
 

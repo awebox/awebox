@@ -62,7 +62,7 @@ def set_default_user_options():
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
-        ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'kite_only', 'not_in_use']),'t'),
+        ('user_options',    None,          None,        'tether_drag_model',     'multi',            ('possible options: split drag equally between nodes, get equivalent forces from multiple elements, or apply drag only to tether segments with kite end-nodes', ['split', 'multi', 'equivalent', 'kite_only', 'not_in_use']),'t'),
     ]
 
     default_user_options, help_options = funcs.assemble_options_tree(default_user_options_tree, {}, {})
@@ -134,7 +134,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'filament_strength_from_circulation',   'averaged',     ('whether the shed filament strength reflects the instantaneous or averaged circulation on the shedding kite at the time of shedding', ['averaged', 'instantaneous']), 'x'),
         ('model', 'aero', 'vortex',     'use_circulation_equality_pattern',     True,           ('take advantage of the fact that the strength of an already shed vortex must have been computed in the OCP equalities when the vorticity was being shed', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'rate_of_change_scaling_factor',        0.01,           ('the multiplicative factor that scales closing vortex filament induced velocities from trailing filament induced velocities', None), 'x'),
-        ('model', 'aero', 'vortex',     'position_scaling_method',              'convection',   ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance, average convection distance', ['b_ref', 'c_ref', 'radius', 'q10', 'convection', 'average']), 'x'),
+        ('model', 'aero', 'vortex',     'position_scaling_method',              'radius',       ('how to scale the wake position node wx variables: wingspan, chord-length, flight-radius, q10 scaling, convection distance, average convection distance', ['b_ref', 'c_ref', 'radius', 'q10', 'convection', 'average']), 'x'),
         ('model', 'aero', 'vortex',     'induction_factor_normalizing_speed',   'u_zero',       ('which speed should be used to compute the induction factor.', ['u_zero', 'u_inf']), 'x'),
         ('model', 'aero', 'vortex',     'degree_of_induced_velocity_lifting',   1,              ('how best to embed the biot-savart induced velocity variables where 1: only the induced velocity at each kite is lifted; 2: the induced velocities from all of the elements at each kite are lifted; 3: the numerator and denominator components of the induced velocity, from all elements on all kites, are lifted', [1, 2, 3]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
@@ -182,7 +182,6 @@ def set_default_options(default_user_options, help_options):
         ('model',   'tether', None,         'cd_model',             'constant', ('how to calculate the tether drag coefficient: piecewise interpolation, polyfit interpolation, constant', ['piecewise', 'polyfit', 'constant']),'x'),
         ('model',   'tether', None,         'attachment',           'com',      ('tether attachment mode', ['com', 'stick']), 'x'),
         ('model',   'tether', 'cross_tether', 'attachment',         'com',      ('tether attachment mode', ['com', 'stick', 'wing_tip']),'x'),
-        ('model',   'tether', None,         'top_mass_alloc_frac',  0.5,        ('where to make a cut on a tether segment, in order to allocate tether mass to neighbor nodes, as fraction of segment length, measured from top', None), 'x'),
         ('model',   'tether', None,         'lift_tether_force',    False,       ('lift the tether force into the decision variables', [True, False]), 'x'),
 
         #### system bounds and limits (physical)
@@ -285,7 +284,6 @@ def set_default_options(default_user_options, help_options):
 
         ## numerics
         #### NLP options
-        ('nlp', None, None, 'try_skeleton', True, ('????', None), 't'),
         ('nlp',  None,               None, 'n_k',                  40,                     ('control discretization [int]', None),'t'),
         ('nlp',  None,               None,  'discretization',      'direct_collocation',   ('possible options', ['direct_collocation']),'t'),
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),

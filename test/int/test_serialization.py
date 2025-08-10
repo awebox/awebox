@@ -55,9 +55,7 @@ def load_trial_and_plot(trial_name, load_type):
     elif load_type == 'dict':
         # load and test sweep
         filehandler = open(filename, 'rb')
-        print_op.warn_about_temporary_functionality_alteration(editor='rela3', reason='loading')
         dict_test = pickle.load(filehandler)
-        print_op.warn_about_temporary_functionality_alteration(editor='rela3', reason='has loaded')
 
         trial_test = awe.Trial(dict_test)
         filehandler.close()

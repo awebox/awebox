@@ -37,6 +37,7 @@ from . import diagnostics
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
+import awebox.tools.vector_operations as vect_op
 import awebox.tools.callback as callback
 
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools

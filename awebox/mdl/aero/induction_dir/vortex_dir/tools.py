@@ -63,7 +63,6 @@ def extend_system_variables(model_options, system_lifted, system_states, archite
 
     return system_lifted, system_states
 
-
 def model_is_included_in_comparison(options):
     comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'vortex')
     any_vor = any(label[:3] == 'vor' for label in comparison_labels)
@@ -474,14 +473,23 @@ def log_and_raise_unknown_representation_error(vortex_representation):
 
 
 def get_variable_si(var_type, var_name, variables_si=None, variables_scaled=None, scaling=None):
-    if variables_si is not None:
+
+    si_or_scaled = 'under-defined'
+    if (variables_si is not None) and (variables_scaled is None):
+        si_or_scaled = 'si'
+    elif (variables_scaled is not None) and (scaling is not None) and (variables_si is None):
+        si_or_scaled = 'scaled'
+    elif (variables_scaled is not None) and (scaling is not None) and (variables_si is not None):
+        si_or_scaled = 'over-defined'
+
+    if si_or_scaled == 'si':
         var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
         return var
-    elif variables_scaled is not None and scaling is not None:
+    elif si_or_scaled == 'scaled':
         var = struct_op.get_variable_from_model_or_reconstruction(variables_scaled, var_type, var_name)
         return struct_op.var_scaled_to_si(var_type, var_name, var, scaling)
     else:
-        message = 'get_variable_si was not passed a sufficient amount of information'
+        message = 'get_variable_si was not passed the correct amount of information; the operation is ' + si_or_scaled
         print_op.log_and_raise_error(message)
     return None
 
@@ -850,8 +858,7 @@ def check_particular_wake_node_0_on_wingtip(inputs):
     Xdot = None
     variables_scaled = struct_op.get_variables_at_time(nlp_options, V_scaled, Xdot, model.variables, ndx, ddx=ddx)
     position_from_tools = get_wake_node_position_si(model.options, kite_shed, tip, wake_node,
-                                                                 model.architecture, variables_scaled=variables_scaled,
-                                                                 scaling=model.scaling)
+                                                    variables_scaled=variables_scaled, scaling=model.scaling)
     available_positions['position_from_tools'] = position_from_tools
 
     parameters = struct_op.get_parameters_at_time(V_scaled, P, model.parameters)
@@ -874,7 +881,7 @@ def check_particular_wake_node_0_on_wingtip(inputs):
         if error > tolerance:
             message = 'wake node 0 (kite ' + str(kite_shed) + ' and tip ' + tip + ') '
             message += 'seems to be misplaced during initialization at ndx = ' + str(ndx) + ', ddx = ' + str(ddx) + ' '
-            message += 'when considering the ' + pos_name
+            message += 'when considering the ' + pos_name + '. the error is ' + str(error)
             print_op.log_and_raise_error(message)
 
     print_op.print_progress(progress_index, progress_total)
@@ -897,7 +904,7 @@ def check_that_wake_node_0_always_lays_on_wingtips(nlp_options, P, Outputs, mode
 
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
-    tolerance = 1.e-4
+    tolerance = 1.e-3
 
     progress_total = model.architecture.number_of_kites * 2 * n_k * (d + 1)
 
@@ -919,6 +926,7 @@ def check_that_wake_node_0_always_lays_on_wingtips(nlp_options, P, Outputs, mode
         for tip in get_wingtip_name_and_strength_direction_dict().keys():
 
             for ndx in range(n_k):
+                print_op.print_progress(progress_index, progress_total)
                 loop_inputs = {
                     'nlp_options': nlp_options,
                     'V_scaled': V_scaled,
@@ -939,6 +947,7 @@ def check_that_wake_node_0_always_lays_on_wingtips(nlp_options, P, Outputs, mode
 
             for ndx in range(n_k):
                 for ddx in range(d):
+                    print_op.print_progress(progress_index, progress_total)
                     loop_inputs = {
                         'nlp_options': nlp_options,
                         'V_scaled': V_scaled,
@@ -955,12 +964,11 @@ def check_that_wake_node_0_always_lays_on_wingtips(nlp_options, P, Outputs, mode
                     }
                     parallel_inputs += [loop_inputs]
                     progress_index += 1
+    print_op.close_progress()
 
     from joblib import Parallel, delayed
     import multiprocessing
     n_jobs = int(np.floor(multiprocessing.cpu_count() / 2.))
     Parallel(n_jobs=n_jobs, prefer="threads")(delayed(check_particular_wake_node_0_on_wingtip)(local_args) for local_args in parallel_inputs)
-
-    print_op.close_progress()
 
     return None

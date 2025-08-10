@@ -38,7 +38,7 @@ def run(plot_show_block=True, overwrite_options={}):
 
     # discretization
     options['user_options.trajectory.lift_mode.phase_fix'] = 'single_reelout'
-    options['nlp.n_k'] = 20
+    options['nlp.n_k'] = 25
     options['solver.linear_solver'] = 'ma57'
 
     for option_name, option_val in overwrite_options.items():

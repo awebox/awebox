@@ -61,6 +61,7 @@ def get_distributed_segment_forces(n_elements, variables, upper_node, architectu
     s_grid = np.linspace(0.5*ds, 1 - 0.5*ds, n_elements)
 
     # numerical evaluation of analytic drag force expressions
+    # distributes the force according to the distance of each element from the segment endpoints
     force_upper = sum([s_grid[k]*combined_drag[:, k] for k in range(n_elements)])
     force_lower = sum([(1-s_grid[k])*combined_drag[:, k] for k in range(n_elements)])
 

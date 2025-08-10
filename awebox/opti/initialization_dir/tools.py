@@ -120,7 +120,6 @@ def get_omega_vector(t, init_options, model, node, ret):
     omega_vector = rotation_direction_sign * omega_norm * ehat2_in_body_frame
     domega_vector = cas.DM.zeros((3, 1))
 
-    # print_op.warn_about_temporary_functionality_alteration()
     if init_options['casadi_pitch_fun'] is not None:
         if (not init_options['clockwise_rotation_about_xhat']):
             message = 'casadi function pitching is not yet available for counter-clockwise rotation directions'
@@ -146,17 +145,6 @@ def get_omega_vector(t, init_options, model, node, ret):
         domega2 = - ddpitch_rad
         domega3 = - cas.sin(pitch_rad) * dpitch_rad  * dpsi + cas.cos(pitch_rad) * ddpsi
         domega_vector = cas.vertcat(domega1, domega2, domega3)
-
-        # print_op.warn_about_temporary_functionality_alteration()
-        # omega1 = -cas.sin(pitch_rad) * omega_norm
-        # omega2 = dpitch_rad
-        # omega3 = cas.cos(pitch_rad) * omega_norm
-        # omega_vector = cas.vertcat(omega1, omega2, omega3)
-        #
-        # domega1 = - omega_norm * cas.cos(pitch_rad) * dpitch_rad
-        # domega2 = ddpitch_rad
-        # domega3 = - omega_norm * cas.sin(pitch_rad) * dpitch_rad
-        # domega_vector = cas.vertcat(domega1, domega2, domega3)
 
     return omega_vector, domega_vector
 
@@ -266,21 +254,6 @@ def get_kite_dcm(t, init_options, model, node, ret):
         pseudo_nhat = ehat3
         ehat1_pitched = cas.cos(pitch_rad) * ehat1 + cas.sin(pitch_rad) * pseudo_nhat
         ehat3_pitched = vect_op.normed_cross(ehat1_pitched, ehat2)
-
-        # uinfty = 8.7
-        # tsr = 8.1
-        # rext = 30.46
-        # ravg = 16.96
-        # omega = uinfty * tsr / rext
-        # vt = omega * ravg
-        # ua_test = uinfty * vect_op.xhat_dm() - vt * ehat_forwards
-        # alpha_rad = cas.mtimes(ua_test.T, ehat3) / cas.mtimes(ua_test.T, ehat1)
-        # alpha_deg = alpha_rad * 180. / np.pi
-        # alpha_pitched_rad = cas.mtimes(ua_test.T, ehat3_pitched) / cas.mtimes(ua_test.T, ehat1_pitched)
-        # alpha_pitched_deg = alpha_pitched_rad * 180. / np.pi
-        # print(alpha_deg)
-        # print(alpha_pitched_deg)
-        # print_op.warn_about_temporary_functionality_alteration()
 
         ehat1 = ehat1_pitched
         ehat3 = ehat3_pitched

@@ -53,10 +53,10 @@ def get_constraint(nlp_options, V, P, Xdot, Outputs, Integral_outputs, model, ti
     abbreviated_variables = vortex_tools.get_list_of_abbreviated_variables(nlp_options)
     for abbreviated_var_name in abbreviated_variables:
 
-        if nlp_options['try_skeleton'] and 'wx' in abbreviated_var_name:
-            cstr_list.append(try_making_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids))
-        elif nlp_options['try_skeleton'] and 'wg' in abbreviated_var_name:
-            cstr_list.append(try_making_ring_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids))
+        if 'wx' in abbreviated_var_name:
+            cstr_list.append(get_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids))
+        elif 'wg' in abbreviated_var_name:
+            cstr_list.append(get_circulation_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids))
         else:
             cstr_list.append(get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids))
 
@@ -65,7 +65,7 @@ def get_constraint(nlp_options, V, P, Xdot, Outputs, Integral_outputs, model, ti
 ##############################################
 ##############################################
 
-def try_making_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids):
+def get_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids):
 
     wake_nodes = nlp_options['induction']['vortex_wake_nodes']
 
@@ -148,7 +148,7 @@ def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, t
 ##############################################
 ##############################################
 
-def try_making_ring_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
+def get_circulation_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
     wake_nodes = nlp_options['induction']['vortex_wake_nodes']
 
     n_k = nlp_options['n_k']
@@ -248,13 +248,7 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
         var_symbolic_si = struct_op.var_scaled_to_si('z', var_name, var_symbolic_scaled, model.scaling)
 
         # look-up the actual value from the Outputs. Keep the computing here minimal.
-        if abbreviated_var_name == 'wx':
-            var_value_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
-            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
-        elif abbreviated_var_name == 'wg':
-            var_value_si = get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
-        elif abbreviated_var_name == 'wh':
+        if abbreviated_var_name == 'wh':
             resi_scaled = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
         elif abbreviated_var_name == 'wx_center':
             var_value_si = get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
