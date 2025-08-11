@@ -31,7 +31,8 @@ edit: rachel leuthold, alu-fr, 2020
 
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 

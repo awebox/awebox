@@ -25,8 +25,8 @@
 import copy
 
 import matplotlib
-
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 
@@ -1531,7 +1531,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
             side_axes_dict = {0: 'z', 1: 'y'}
             for adx in side_axes_dict.keys():
                 ax = axes[adx]
-        
+
                 ### compute the induction factors
                 print_op.base_print('finding coordinates...')
                 side = 'x' + side_axes_dict[adx]
@@ -1580,7 +1580,7 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                 xx_number_entries = xx_mesh.shape[0] * xx_mesh.shape[1]
                 parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
                 u_map = u_wind_proj_fun.map(xx_number_entries, parallelization_type)
-    
+
                 print_op.base_print('making induction contour plot...')
                 total_progress = xx_mesh.shape[0] * xx_mesh.shape[1]
                 print_op.base_print('generating observation grid...')
@@ -1593,10 +1593,10 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                         print_op.print_progress(pdx, total_progress)
                         pdx += 1
                 print_op.close_progress()
-    
+
                 print_op.base_print('computing induction factors...')
                 uu_computed = u_map(observation_points_concatenated)
-    
+
                 print_op.base_print('reassigning computed induction factors...')
                 ldx = 0
                 uu = np.zeros(xx_mesh.shape)

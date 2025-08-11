@@ -212,6 +212,13 @@ def get_dictionary_of_derivatives(model_options, system_variables, parameters, a
     energy_scaling = model_options['scaling']['x']['e']
     derivative_dict = {'e': (power_si, energy_scaling)}
 
+    if model_options['kite_dof'] == 6 and model_options['beta_cost']:
+        beta_scaling = 1.
+        beta_si = 0.
+        for kite in architecture.kite_nodes:
+            beta_si += outputs['aerodynamics']['beta{}'.format(kite)]**2
+        beta_si = beta_si / len(architecture.kite_nodes)
+        derivative_dict['beta_cost'] =  (beta_si, beta_scaling)
     if model_options['trajectory']['system_type'] == 'drag_mode':
         power_derivative_sq_scaling = 1.
         power_derivative_sq = outputs['performance']['power_derivative']**2
@@ -296,7 +303,7 @@ def make_output_structure(outputs, system_variables, parameters):
         full_list += [cas.entry(output_type, struct=outputs_dict[output_type])]
 
     # generate "empty" structure
-    out_struct = cas.struct_symMX(full_list)
+    out_struct = cas.struct_symSX(full_list)
     # generate structure with SX expressions
     outputs_struct = out_struct(outputs_vec)
     # generate outputs function

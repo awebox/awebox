@@ -28,11 +28,14 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
 
+
 from . initialization_dir import modular as initialization_modular, initialization
 
 from . import reference
 
 import awebox.tools.struct_operations as struct_op
+
+import os
 
 import copy
 
@@ -118,7 +121,7 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
             # set weights
             var_name, _ = struct_op.split_name_and_node_identifier(name)
 
-            if variable_type == 'z' and var_name[0] == 'w':
+            if var_name[0] == 'w':
                 # then, this is a vortex wake variable
                 var_name = 'vortex'
 
@@ -166,11 +169,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
         V_bounds['lb']['phi', name] = 1.
         V_bounds['ub']['phi', name] = 1.
 
-    for name in list(formulation.xi_dict['xi_bounds'].keys()):
-        xi_bounds = formulation.xi_dict['xi_bounds']
-        V_bounds['lb']['xi', name] = xi_bounds[name][0]
-        V_bounds['ub']['xi', name] = xi_bounds[name][1]
-
     for name in struct_op.subkeys(model.variables, 'theta'):
         if (not name == 't_f') and (not name[:3] == 'l_c') and (not name[:6] == 'diam_c'):
             initial_si_value = cas.DM(options['initialization']['theta'][name])
@@ -183,13 +181,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
     initial_scaled_time = struct_op.var_si_to_scaled('theta', 't_f', initial_si_time, model.scaling)
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
-
-    if 'P_max' in model.variables_dict['theta'].keys():
-        if options['cost']['P_max'][0] == 1.0:
-            V_bounds['lb']['theta', 'P_max'] = 1e3
-            V_bounds['ub']['theta', 'P_max'] = 1e3
-            nlp.V_bounds['lb']['theta', 'P_max'] = 1e3
-            nlp.V_bounds['ub']['theta', 'P_max'] = 1e3
 
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
@@ -205,10 +196,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
     if nlp.V['theta', 't_f'].shape[0] > 1:
         V_bounds['lb']['x', :, 'dl_t'] = -1. * cas.inf
         V_bounds['ub']['x', :, 'dl_t'] = 1. * cas.inf
-
-        # make sure that pumping range fixing bounds are not imposed initially
-        V_bounds['lb']['x', :, 'l_t'] = -1. * cas.inf
-        V_bounds['ub']['x', :, 'l_t'] = 1. * cas.inf
 
         if 'coll_var' in list(nlp.V.keys()):
             V_bounds['lb']['coll_var', :, :, 'x', 'dl_t'] = -1. * cas.inf
@@ -280,7 +267,6 @@ def generate_default_solver_options(options):
 
     return opts
 
-
 def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     initial_opts = generate_default_solver_options(options)
     middle_opts = generate_default_solver_options(options)
@@ -315,6 +301,17 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     dict_of_bundled_nlp_and_options = {}
     ordered_names = ['initial', 'middle', 'final']
     for name in ordered_names:
+        dict_of_bundled_nlp_and_options[name] = {}
+        for nlp_key in bundled_nlp.keys():
+            dict_of_bundled_nlp_and_options[name][nlp_key] = bundled_nlp[nlp_key]
+
+    dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
+    dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
+    dict_of_bundled_nlp_and_options['final']['opts'] = final_opts
+    bundled_nlp = {'V': nlp.V, 'P': nlp.P, 'f_fun': nlp.f_fun, 'g_fun': nlp.g_fun}
+    dict_of_bundled_nlp_and_options = {}
+    ordered_names = ['initial', 'middle', 'final']
+    for name in ordered_names:
         dict_of_bundled_nlp_and_options[name] = copy.deepcopy(bundled_nlp)
 
     dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
@@ -323,8 +320,8 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
 
     solvers = {}
 
-    parallelization_type = options['construction']['parallelization']['type']
-    if parallelization_type == 'serial':
+    parallelization_type = options['generation_method']
+    if parallelization_type in ['serial', 'thread']:
         print_op.base_print('making hippo solvers...', level='info')
         number_expected = len(ordered_names)
         edx = 0
@@ -350,6 +347,24 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
 
             # Optionally: Collect results (if the function returns anything)
             results = [future.result() for future in futures]
+
+    elif parallelization_type == 'pathos':
+        from pathos.multiprocessing import ProcessingPool as Pool
+        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
+        with Pool() as pool:
+            results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
+
+    elif parallelization_type == 'joblib':
+        from joblib import Parallel, delayed
+        results = Parallel(n_jobs=len(ordered_names))(delayed(construct_single_solver_from_bundle)(dict_of_bundled_nlp_and_options[name]) for name in ordered_names)
+
+    elif parallelization_type == 'gevent':
+        import gevent
+        from gevent.pool import Pool
+
+        list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
+        pool = Pool(len(list_of_bundles))
+        results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
 
     else:
         message = 'unfamiliar solver generation method (' + parallelization_type + ')'

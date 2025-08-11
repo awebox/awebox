@@ -31,6 +31,21 @@ import awebox.opts.model_funcs as model_funcs
 import awebox.tools.print_operations as print_op
 
 
+def enforce_and_check_SAM_options(options, user_options):
+    # SAM requires some settings, here we enforce them
+
+    assert options['nlp']['SAM']['N'] >= options['nlp']['SAM']['d'], 'SAM requires N >= d'
+    assert options['nlp']['SAM']['d'] >= 2, 'SAM requires atleast two microintegration >= 2'
+    assert options['nlp']['collocation']['u_param'] == 'zoh', 'SAM currently only support zoh control parameterization'
+
+    assert options['user_options']['trajectory']['type'] == 'power_cycle', 'SAM is only supported for power_cycle trajectory'
+    assert options['user_options']['trajectory']['system_type'] == 'lift_mode', 'SAM is only supported for lift_mode system type'
+
+    # set the number of windings for the initialization
+    user_options['trajectory']['lift_mode']['windings'] = options['nlp']['SAM']['d'] + 1
+
+    return options, user_options
+
 def build_options_dict(options, help_options, architecture):
 
     # single out user options
@@ -41,6 +56,9 @@ def build_options_dict(options, help_options, architecture):
         message = user_options['trajectory']['type'] + ' is not supported for current release. Build the newest casADi from source and check out the awebox develop branch to use nominal_landing, compromised_landing or transition.'
         print_op.log_and_raise_error(message)
 
+    # enforce SAM options
+    if options['nlp']['SAM']['use']:
+        options, user_options = enforce_and_check_SAM_options(options,user_options)
     # initialize additional options tree
     options_tree = []
 
@@ -105,6 +123,7 @@ def assemble_options_tree(options_tree, options, help_options):
 def assemble_system_parameter_dict(options, help_options):
 
     options['model']['params'] = options['params']
+    options['nlp']['params'] = options['params']
     options['solver']['initialization']['sys_params_num'] = options['params']
 
     return options, help_options
@@ -215,20 +234,40 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', 'mpc', None, 'terminal_point_constr', options['formulation']['mpc']['terminal_point_constr'], ('????', None), 'x'))
 
     if options['nlp']['cost']['P_max']:
-        _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
-        options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [1e-3, cas.inf], ('????', None), 'x'))
+        _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)        
+        options_tree.append(('model', None, None, 'include_P_max', True, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'P_max', power, ('????', None), 'x'))
         options_tree.append(('solver', 'initialization', 'theta', 'P_max', power, ('????', None), 'x'))
+    else:
+        options_tree.append(('model', None, None, 'include_P_max', False, ('????', None), 'x'))
 
     if options['nlp']['cost']['PDGA']:
         options_tree.append(('model', 'scaling', 'theta', 'ell_radius', 50.0, ('????', None), 'x'))
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
-    # else:
-    #     _, _, _, power = model_funcs.get_suggested_lambda_energy_power_scaling(options, architecture)
-    #     options_tree.append(('params', 'model_bounds', None, 'P_max_ub', 0.0, ('????', None), 'x'))
-    #     options_tree.append(('model', 'system_bounds', 'theta', 'P_max', [power, power], ('????', None), 'x'))
+    if options['nlp']['compile_subfunctions']:
+
+        # general name for compilation files that takes into account (most) identifying options for model and constraints
+        compilation_file_name = 'awebox_{}_k{}_{}_{}_{}dof_{}_wind_profile_{}{}_{}'.format(
+            user_options['trajectory']['type'],
+            len(architecture.kite_nodes),
+            user_options['kite_standard']['name'],
+            user_options['trajectory']['system_type'],
+            user_options['system_model']['kite_dof'],
+            user_options['wind']['model'],
+            user_options['tether_drag_model'],
+            options['model']['tether']['aero_elements'],
+            options['model']['tether']['control_var']
+        )
+
+        if options['nlp']['cost']['P_max']:
+            compilation_file_name += '_P_max'
+        
+        if user_options['induction_model'] != 'not_in_use':
+            compilation_file_name += '_' + user_options['induction_model']
+
+        options_tree.append(('nlp', None, None, 'compilation_file_name', compilation_file_name, ('compilation', None), 'x'))
 
     return options_tree, phase_fix
 
@@ -270,10 +309,10 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     if options['solver']['expand_overwrite'] is not None:
         expand = options['solver']['expand_overwrite']
     else:
+        if options['nlp']['compile_subfunctions']:
+            expand = False
         if options['nlp']['discretization'] == 'multiple_shooting':
             # integrators / rootfinder do not support eval_sx
-            expand = False
-        if user_options['trajectory']['type'] in ['transition','nominal_landing','compromised_landing','launch']:
             expand = False
 
     if user_options['trajectory']['system_type'] == 'lift_mode':
@@ -326,6 +365,8 @@ def build_formulation_options(options, help_options, user_options, options_tree,
 
     options_tree = add_discretization_options_necessary_for_interpolation(options, options_tree, 'formulation')
 
+    options_tree.append(('formulation', None, None, 'phase_fix', user_options['trajectory']['lift_mode']['phase_fix'], ('phase fix type', None),'x'))
+    options_tree.append(('formulation', None, None, 'system_type', user_options['trajectory']['system_type'], ('system_type', None),'x'))
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
 

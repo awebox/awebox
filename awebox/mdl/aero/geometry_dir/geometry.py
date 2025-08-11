@@ -25,7 +25,7 @@
 '''
 geometry values needed for general induction modelling
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2017-21
+- author: rachel leuthold, alu-fr 2017-25
 - edit: jochem de schutter, alu-fr 2019
 '''
 

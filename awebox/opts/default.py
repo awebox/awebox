@@ -58,7 +58,7 @@ def set_default_user_options():
         ('user_options',    'wind',        None,        'u_ref',                 5.,                 ('reference wind speed [m/s]', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_heightsdata', None,              ('data for the heights at this time instant', None),'s'),
         ('user_options',    'wind',        None,        'atmosphere_featuresdata',None,              ('data for the wind features at this time instant', None),'s'),
-        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator']),'x'),
+        ('user_options',    None,          None,        'induction_model',       'not_in_use',         ('possible options', ['not_in_use', 'actuator', 'vortex']),'x'),
         ('user_options',    None,          None,        'kite_standard',         None,               ('possible options',None),'x'),
         ('user_options',    None,          None,        'atmosphere',            'isa',              ('possible options', ['isa', 'uniform']),'x'),
         ('user_options',    None,          None,        'tether_model',          'default',          ('possible options',['default']),'x'),
@@ -101,6 +101,7 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', None,         'lift_aero_force',      False,        ('lift the aero force into the decision variables', [True, False]), 'x'),
         ('params','aero', None,         'turbine_efficiency',   0.75,        ('combined drag-mode propeller and generator efficiency', None), 's'),
         ('params','aero', None,         'moment_factor',   1.0,              ('enhance aerodynamic moment generator by control surfaces', None), 's'),
+        ('model','aero', None,         'fictitious_embedding',   'additive', ('type of fictitious embedding', None), 's'),
 
         ('model', 'aero', 'induction', 'comparison',     [],     ('which induction models should we include for comparison', ['act', 'vor']), 'x'),
         ('model', 'aero', 'induction', 'force_zero', False,      ('force the induced velocity to remain zero, while maintaining all other constraint structures.', [True, False]), 'x'),
@@ -176,6 +177,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 1.5,        ('tether stress safety factor [-]', None),'x'),
         ('params',  'tether', None,         'youngs_modulus',       1.e11,      ('the ratio of stress over strain in elastic deformation [Pa/fractional-elongation]', None), 'x'),
+        ('params',  'tether', None,         'lb_dl_t_reelout',      0.0,          ('tether speed lower bound during reel-out (for single_reelout phase_fix)', None), 's'),
         ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']), 'x'),
         ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
@@ -204,6 +206,7 @@ def set_default_options(default_user_options, help_options):
 
         ('model',  'system_bounds', 'theta',       'a',             [0.0, 0.5],           ('average induction factor bounds', None),'x'),
         ('model',  'system_bounds', 'theta',       'ell_radius',    [5.0, cas.inf],           ('ellipse radius bounds', None),'s'),
+        ('model',  'system_bounds', 'theta',       'P_max',        [1e-3, cas.inf],           ('Generator rated power bounds', None),'s'),
 
         ('model',  'system_bounds', 'x',          'coeff',        [np.array([0., -80.0 * np.pi / 180.]), np.array([2., 80.0 * np.pi / 180.])],   ('coeff bounds [-]', None),'s'),
         ('model',  'system_bounds', 'u',          'dcoeff',       [np.array([-5., -80. * np.pi / 180]), np.array([5., 80. * np.pi / 180])],   ('dcoeff bounds [-]', None),'s'),
@@ -289,18 +292,45 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'collocation',      None, 'd',                    4,                      ('degree of lagrange polynomials inside collocation interval [int]', None),'t'),
         ('nlp',  'collocation',      None, 'scheme',               'radau',                ('collocation scheme', ['radau','legendre']),'x'),
         ('nlp',  'collocation',      None, 'u_param',              'zoh',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
+        ('nlp',  'collocation',      None, 'ineq_constraints',     'shooting_nodes',       ('impose path constraints at collocation nodes in zoh case', ['shooting_nodes', 'collocation_nodes']),'x'),
         ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
+
+        # average model options
+        ('nlp', 'SAM', None, 'use', False, ('option to use average model [false]', None), 't'),
+        ('nlp', 'SAM', None, 'N', 10, ('number of "skipped" cycles [int]', None), 't'),
+        ('nlp', 'SAM', None, 'd', 3, ('number of microInts (cycles)', None), 't'),
+        ('nlp', 'SAM', None, 'ADAtype', 'CD', ('type of the average dynamics approximation', ['FD','BD','CD']), 't'),
+        ('nlp', 'SAM', None, 'MaInt_type', 'legendre', ('type of macro integration coll', ['legendre','radau']), 't'),
+        ('nlp', 'SAM', None, 'flag_SAM_reconstruction', False, ('if true, the variables are reconstructed from an SAM solution', None), 't'),
+
+        #averager moel regularization
+        ('nlp', 'SAM', 'Regularization', 'AverageStateFirstDeriv', 1, ('regularization factor the first derivative of the average state trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'AverageStateThirdDeriv', 1E-1, ('regularization factor for the third derivative of the average state trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'AverageAlgebraicsThirdDeriv', 0, ('regularization factor the third derivative of the average algebraics trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1E-3, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
+
+        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-10, 0.005, 1E-10],  # we dont penalize the x and the z position
+                                                          'dq': 1,  # we want the velocities to be similar
+                                                          'r': 1,  # we want the orientations to be similar
+                                                          'omega': 1,  # we want the velocities to be similar
+                                                          'delta': 1,  # we want the controls to be similar
+                                                          'dl_t':1,
+                                                          'e':0,
+                                                          }, ('weights for some states, the rest is initialized with 1E-8 [dict]', None), 't'),
+
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
         ('nlp',  'cost',             None, 'power_der_stop',       0.9,                    ('stop of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
-        ('nlp',  'parallelization',  None, 'type',                 'thread',               ('parallellization type', ['serial', 'openmp', 'thread', 'concurrent_futures']),'t'),
+        ('nlp', 'parallelization',   None, 'type',                 'thread',               ('parallellization type', ['serial', 'openmp', 'thread', 'map', 'concurrent_futures', 'for-loop']),'t'),
         ('nlp',  None,               None, 'slack_constraints',    False,                  ('slack path constraints', (True, False)),'t'),
         ('nlp',  None,               None, 'constraint_scale',     1.,                     ('value with which to scale all constraints, to improve kkt matrix conditioning', None), 't'),
         ('nlp',  'cost',             None, 'P_max',                False,                  ('divide power output by peak power in cost function', None), 's'),
         ('nlp',  'cost',             None, 'PDGA',                 False,                  ('divide power output by ellipsoidal flight radius in cost function', None), 's'),
+        ('nlp',  'cost',             None, 'beta',                 True,                   ('side-slip angle regularization', None), 's'),
         ('nlp',  'cost',             None, 'adjustments_to_general_regularization_distribution', [], ('list of reassignments of generalized regularization, entries must be tuples (model var type, var name, reassigment))', None), 's'),
         ('nlp',  None,               None, 'generate_constraints', True,                   ('DO NOT TURN THIS OFF. trial.nlp should generate the constraints', [True, False]), 'x'),
+        ('nlp',  None,               None, 'compile_subfunctions', False,                  ('Compile NLP subfunctions (objective, constraints)', [True, False]), 'x'),
 
         ### Multiple shooting integrator options
         ('nlp',  'integrator',       None, 'type',                 'collocation',          ('integrator type', ('idas', 'collocation')),'t'),
@@ -316,7 +346,7 @@ def set_default_options(default_user_options, help_options):
 
         ### solver options
         ('solver',  None,   None,   'generate_solvers',     True,       ('trial.optimization should generate the casadi solver', [True, False]), 'x'),
-        ('solver', 'construction', 'parallelization', 'type', 'serial',  ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures']), 'x'),
+        ('solver',  None,   None,   'generation_method',    'serial',   ('method of generating the solvers. multiprocessing_pool generates in roughly 70% the time of the serial generation, but requires roughly 2-3x as much memory. the time savings increases and memory cost decreases for larger problems.', ['serial', 'multiprocessing_pool', 'concurrent_futures', 'pathos', 'joblib', 'gevent']), 'x'),
         ('solver',  None,   None,   'nlp_solver',          'ipopt',     ('which NLP solver to use', ['ipopt', 'worhp']),'x'),
         ('solver',  None,   None,   'linear_solver',       'mumps',     ('which linear solver to use', ['mumps', 'ma57']),'x'),
         ('solver',  None,   None,   'hessian_approximation',False,      ('use a limited-memory hessian approximation instead of the exact Newton hessian', [True, False]),'x'),
@@ -492,6 +522,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'ref_interpolator',      'spline',  ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart',    True,      ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
+        ('mpc', None,  None,    'ip_type',      'linear',           ('reference interpolation type ', ['linear', 'collocation']), 'x'),
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),

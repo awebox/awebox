@@ -29,7 +29,7 @@
 # import matplotlib
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
-
+import pdb
 import pickle
 from . import scheduling
 from . import preparation
@@ -548,7 +548,7 @@ class Optimization(object):
 
         # ensure that problem is the correct problem
         for step_name in self.__schedule['homotopy'][:initial_index]:
-            if step_name == 'initial' or step_name == 'final':
+            if step_name == 'initial' or step_name == 'relax_power_reelout' or step_name == 'final':
                 self.advance_counters_for_warmstart(step_name, 0, nlp, model)
             else:
                 self.advance_counters_for_warmstart(step_name, 0, nlp, model)
@@ -724,7 +724,7 @@ class Optimization(object):
             'Homotopy max. iterations': self.__options['max_iter_hippo'],
             'Homotopy barrier param': self.__options['mu_hippo'],
             'Homotopy method': self.__options['homotopy_method'],
-            'Construction parallelization': self.__options['construction']['parallelization']['type'],
+            'Generation': self.__options['generation_method'],
             'Expand': self.__options['expand']
         }
 
@@ -753,6 +753,14 @@ class Optimization(object):
         awelogger.logger.warning('Cannot set status object.')
 
     @property
+    def options(self):
+        return self.__options
+
+    @options.setter
+    def options(self, value):
+        awelogger.logger.warning('Cannot set options object.')
+
+    @property
     def solvers(self):
         return self.__solvers
 
@@ -766,7 +774,8 @@ class Optimization(object):
 
     @V_opt.setter
     def V_opt(self, value):
-        awelogger.logger.warning('Cannot set V_opt object.')
+        awelogger.logger.warning('SHOULD NOT set V_opt object.')
+        self.__V_opt = value
 
     @property
     def V_ref(self):
@@ -782,7 +791,8 @@ class Optimization(object):
 
     @V_final_si.setter
     def V_final_si(self, value):
-        awelogger.logger.warning('Cannot set V_final_si object.')
+        awelogger.logger.warning('Should not set V_final_si object.')
+        self.__V_final_si = value
 
     @property
     def V_init(self):

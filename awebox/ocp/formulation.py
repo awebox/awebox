@@ -65,7 +65,7 @@ class Formulation(object):
             self.generate_variables(options)
             self.generate_variable_bounds(options)
             self.generate_parameter_bounds(options)
-            self.generate_parameterization_settings(options)
+            # self.generate_parameterization_settings(options)
             self.generate_integral_constraints(options, model)
             self.generate_outputs(options)
 
@@ -81,8 +81,10 @@ class Formulation(object):
 
         self.__induction_model = options['induction']['induction_model']
         self.__traj_type = options['trajectory']['type']
+        self.__system_type = options['system_type']
         self.__tether_drag_model = options['tether_drag_model']
         self.__fix_tether_length = options['trajectory']['tracking']['fix_tether_length']
+        self.__phase_fix = options['phase_fix']
 
         self.__enforce_periodicity = periodic
         self.__enforce_initial_conditions = initial_conditions
@@ -112,77 +114,6 @@ class Formulation(object):
 
         self.__parameter_bounds = None
 
-
-        return None
-
-    def __get_V_pickle(self, options, initial_or_terminal):
-
-        parameterized_trajectory = options['trajectory']['transition'][initial_or_terminal + '_trajectory']
-        if type(parameterized_trajectory) == awe.trial.Trial:
-            parameterized_trial = parameterized_trajectory
-            V_pickle = parameterized_trial.optimization.V_final
-            plot_dict_pickle = parameterized_trial.visualization.plot_dict
-        elif type(parameterized_trajectory) == str:
-            relative_path = parameterized_trajectory
-            if relative_path[-4:] == '.awe':
-                parameterized_trial = pickle.load(open(relative_path, 'rb'))
-                V_pickle = parameterized_trial.optimization.V_final
-                plot_dict_pickle = parameterized_trial.visualization.plot_dict
-            elif relative_path[-2:] == '.p':
-                message = 'reading in of pickled trajectories as .p files not supported anymore. Please use .awe files.'
-                print_op.log_and_raise_error(message)
-
-            elif relative_path[-5:] == '.dict':
-                parameterized_trial_seed = pickle.load(open(relative_path, 'rb'))
-                V_pickle = parameterized_trial_seed['solution_dict']['V_final']
-                plot_dict_pickle = parameterized_trial_seed['plot_dict']
-            else:
-                message = initial_or_terminal.capitalize() + ' trajectory must be supplied in form of an .awe'
-                print_op.log_and_raise_error(message)
-
-        return V_pickle, plot_dict_pickle
-
-    def generate_parameterization_settings(self, options):
-
-        [periodic, initial_conditions, param_initial_conditions, param_terminal_conditions, terminal_inequalities, integral_constraints,_] = operation.get_operation_conditions(options)
-
-        xi = var_struct.get_xi_struct()
-        xi_bounds = {}
-
-        xi_bounds['xi_0'] = [0.0, 0.0]
-        xi_bounds['xi_f'] = [0.0, 0.0]
-
-        V_pickle_initial = None
-        plot_dict_pickle_initial = None
-        V_pickle_terminal = None
-        plot_dict_pickle_terminal = None
-
-        if param_initial_conditions:
-            xi_bounds['xi_0'] = [0.0, 1.0]
-            if options['trajectory']['type'] == 'compromised_landing':
-                xi_0 = options['landing']['xi_0_initial']
-                xi_bounds['xi_0'] = [xi_0, xi_0]
-            V_pickle_initial, plot_dict_pickle_initial = self.__get_V_pickle(options, 'initial')
-
-        if param_terminal_conditions:
-            xi_bounds['xi_f'] = [0.0, 1.0]
-            V_pickle_terminal, plot_dict_pickle_terminal = self.__get_V_pickle(options, 'terminal')
-
-        if param_terminal_conditions and param_initial_conditions:
-            for theta in struct_op.subkeys(V_pickle_initial, 'theta'):
-                diff = V_pickle_terminal['theta', theta] - V_pickle_initial['theta', theta]
-                if theta != 't_f':
-                    if (float(diff) != 0.0):
-                        raise ValueError('Parameters of initial and terminal trajectory are not identical.')
-
-        xi_dict = {}
-        xi_dict['V_pickle_initial'] = V_pickle_initial
-        xi_dict['plot_dict_pickle_initial'] = plot_dict_pickle_initial
-        xi_dict['V_pickle_terminal'] = V_pickle_terminal
-        xi_dict['plot_dict_pickle_terminal'] = plot_dict_pickle_terminal
-        xi_dict['xi'] = xi
-        xi_dict['xi_bounds'] = xi_bounds
-        self.__xi_dict = xi_dict
 
         return None
 
@@ -278,14 +209,6 @@ class Formulation(object):
         awelogger.logger.warning('Cannot set tether_drag_model object.')
 
     @property
-    def xi_dict(self):
-        return self.__xi_dict
-
-    @xi_dict.setter
-    def xi_dict(self):
-        awelogger.logger.warning('Cannot set xi_dict object.')
-
-    @property
     def timings(self):
         return self.__timings
 
@@ -308,3 +231,19 @@ class Formulation(object):
     @fix_tether_length.setter
     def fix_tether_length(self):
         awelogger.logger.warning('Cannot set fix_tether_length object.')
+
+    @property
+    def phase_fix(self):
+        return self.__phase_fix
+
+    @phase_fix.setter
+    def phase_fix(self):
+        awelogger.logger.warning('Cannot set phase_fix object.')
+
+    @property
+    def system_type(self):
+        return self.__system_type
+
+    @system_type.setter
+    def system_type(self):
+        awelogger.logger.warning('Cannot set system_type object.')

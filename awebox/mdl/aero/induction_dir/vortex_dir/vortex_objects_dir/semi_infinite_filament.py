@@ -40,10 +40,11 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 import matplotlib
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 from awebox.tools.vector_operations import xhat_dm
 
-matplotlib.use('TkAgg')
 
 
 class SemiInfiniteFilament(obj_element.Element):

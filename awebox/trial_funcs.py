@@ -112,8 +112,7 @@ def interpolate_data(trial, freq):
         integral_output_names, integral_outputs_opt, Collocation=Collocation)
     return interpolation
 
-
-def generate_optimal_model(trial, param_options=None):
+def generate_optimal_model(trial, param_options = None, external_forces = False):
 
     """
     Generate optimal model dict based on both optimized parameter values
@@ -132,12 +131,8 @@ def generate_optimal_model(trial, param_options=None):
                 if var != 't_f':
                     variables.append(cas.SX(trial.optimization.V_opt['theta',var]))
                 else:
-                    if trial.optimization.V_opt['theta','t_f'].shape[0] == 1:
-                        t_f = trial.optimization.V_opt['theta','t_f']
-                        variables.append(cas.SX(t_f))
-                    else:
-                        t_f = trial.visualization.plot_dict['output_vals'][1]['final', 'time_period', 'val']
-                        variables.append(cas.SX(t_f))
+                    t_f = trial.visualization.plot_dict['time_grids']['x'][-1]
+                    variables.append(cas.SX(t_f))
     variables = trial.model.variables(cas.vertcat(*variables))
 
     # fill in parameters structure
@@ -156,6 +151,10 @@ def generate_optimal_model(trial, param_options=None):
         else:
             parameters['theta0', param_type] = param_options[param_type]
 
+    # switch on fictitious forces and moments    
+    if external_forces:
+        parameters['phi', 'gamma'] = 1
+
     # create stage cost function
     import awebox.ocp.objective as obj
     import awebox.ocp.discretization as discr
@@ -173,7 +172,8 @@ def generate_optimal_model(trial, param_options=None):
         power = trial.model.integral_outputs_fun(var, trial.model.parameters)
     else:
         outputs_eval = trial.model.outputs(trial.model.outputs_fun(var, trial.model.parameters))
-        power = outputs_eval['performance','p_current'] / trial.model.scaling['x']['e']
+        vars_scaling  = trial.model.variables(trial.model.scaling) # this fixes a bug if the energy is a state
+        power = outputs_eval['performance','p_current'] / vars_scaling['x','e']
     cost_weighting = discr.setup_nlp_cost()(trial.optimization.p_fix_num['cost'])
     stage_cost = - cost_weighting['power']*power / t_f.full()[0][0] + u_reg + xdot_reg + beta_reg
     quadrature = cas.Function('quad', [var, trial.model.parameters], [stage_cost])

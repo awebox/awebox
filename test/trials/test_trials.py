@@ -226,14 +226,14 @@ def make_basic_health_variant(base_options):
     basic_health_options = copy.deepcopy(base_options)
 
     basic_health_options['user_options.trajectory.lift_mode.windings'] = 1
-    basic_health_options['nlp.n_k'] = 9 #6 #9 # try to decrease this.
+    basic_health_options['nlp.n_k'] = 9 # try to decrease this.
     basic_health_options['nlp.collocation.d'] = 3
     basic_health_options['nlp.collocation.u_param'] = 'zoh'
     basic_health_options['solver.hippo_strategy'] = False
 
     basic_health_options['solver.health_check.when'] = 'success'
     basic_health_options['nlp.collocation.name_constraints'] = True
-    basic_health_options['solver.health_check.help_with_debugging'] = True #False
+    basic_health_options['solver.health_check.help_with_debugging'] = False
 
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
     basic_health_options['solver.homotopy_method.advance_despite_ill_health'] = False
@@ -244,10 +244,9 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.ipopt.autoscale'] = False
     basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['quality.when'] = 'never'
-    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'si' #'scaled'
+    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
     basic_health_options['solver.health_check.save_health_indicators'] = True
     basic_health_options['solver.health_check.thresh.condition_number'] = 1e10
-
 
     return basic_health_options
 
@@ -271,8 +270,7 @@ def generate_options_dict():
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
-    single_kite_options['visualization.cosmetics.plot_eq_constraints'] = True
-    single_kite_options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
+    single_kite_options['solver.generation_method'] = 'multiprocessing_pool'
 
     single_kite_basic_health_options = make_basic_health_variant(single_kite_options)
 
@@ -362,6 +360,7 @@ def generate_options_dict():
     actuator_comparison_options['user_options.system_model.kite_dof'] = 6
 
     vortex_options = copy.deepcopy(single_kite_6_dof_options)
+    vortex_options['nlp.collocation.d'] = 3
     vortex_options['user_options.trajectory.lift_mode.windings'] = 1
     vortex_options['user_options.induction_model'] = 'vortex'
     vortex_options['model.aero.vortex.representation'] = 'alg'
@@ -554,9 +553,9 @@ if __name__ == "__main__":
         #     test_large_dual_kite()
 
         if types_of_problems['vortex']:
+            test_vortex()
             test_vortex_basic_health()
             test_vortex_force_zero_basic_health()
-            test_vortex()
             test_vortex_force_zero()
             test_vortex_3_dof()
 

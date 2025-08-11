@@ -124,7 +124,7 @@ def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, t
     anchor_ndx = ndx - 1
 
     anchoring_position_scaled = V['coll_var', anchor_ndx, ddx, 'z', anchor_name]
-    anchoring_position_si = struct_op.var_scaled_to_si('z', anchor_name, anchoring_position_scaled, model.scaling, make_safety_check=False)
+    anchoring_position_si = struct_op.var_scaled_to_si('z', anchor_name, anchoring_position_scaled, model.scaling, check_should_multiply=False)
     convection_time = tgrid_coll[ndx, ddx] - tgrid_coll[anchor_ndx, ddx]
     if anchor_ndx < 0:
         convection_time += t_period
@@ -132,7 +132,7 @@ def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, t
     u_local = model.wind.get_velocity(anchoring_position_si[2])
     if nlp_options['induction']['vortex_convection_type'] == 'free':
         fixing_position_scaled = V['coll_var', ndx, ddx, 'z', fixing_name]
-        fixing_position_si = struct_op.var_scaled_to_si('z', fixing_name, fixing_position_scaled, model.scaling, make_safety_check=False)
+        fixing_position_si = struct_op.var_scaled_to_si('z', fixing_name, fixing_position_scaled, model.scaling, check_should_multiply=False)
         x_halfways = (fixing_position_si + anchoring_position_si) / 2.
         variables_scaled = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, ndx, ddx)
         parameters = struct_op.get_parameters_at_time(V, P, model.parameters)
@@ -140,7 +140,7 @@ def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, t
         u_local += u_ind
 
     convection_distance_si = convection_time * u_local
-    convection_distance_scaled = struct_op.var_si_to_scaled('z', fixing_name, convection_distance_si, model.scaling, make_safety_check=False)
+    convection_distance_scaled = struct_op.var_si_to_scaled('z', fixing_name, convection_distance_si, model.scaling, check_should_multiply=False)
     return anchoring_position_scaled + convection_distance_scaled
 
 

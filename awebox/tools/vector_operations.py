@@ -30,7 +30,8 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 
@@ -48,12 +49,12 @@ from awebox.logger.logger import Logger as awelogger
 
 
 def cross(a, b):
-    vi = xhat() * (a[1] * b[2] - a[2] * b[1])
-    vj = yhat() * (a[0] * b[2] - a[2] * b[0])
-    vk = zhat() * (a[0] * b[1] - a[1] * b[0])
+    # vi = xhat() * (a[1] * b[2] - a[2] * b[1])
+    # vj = yhat() * (a[0] * b[2] - a[2] * b[0])
+    # vk = zhat() * (a[0] * b[1] - a[1] * b[0])
 
-    v = vi - vj + vk
-
+    # v = vi - vj + vk
+    v = cas.cross(a,b)
     return v
 
 def norm(a):

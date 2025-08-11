@@ -33,9 +33,7 @@ _python-3.5 / casadi-3.4.5
 import casadi.tools as cas
 import numpy as np
 
-import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
-import awebox.tools.print_operations as print_op
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 
@@ -127,16 +125,52 @@ def find_time_spent_in_reelin(nlp_numerics_options, V):
     time_period_first = V['theta', 't_f', 1] * (nk - round(nk * phase_fix_reel_out)) / nk
     return time_period_first
 
-
 def find_time_period(nlp_numerics_options, V):
     lift_mode = nlp_numerics_options['system_type'] == 'lift_mode'
     single_reelout = nlp_numerics_options['phase_fix'] == 'single_reelout'
-    if lift_mode and single_reelout:
+
+    if nlp_numerics_options['SAM']['use']:
+        time_period = find_time_period_SAM(nlp_numerics_options, V)
+    elif lift_mode and single_reelout:
         reelout_time = find_time_spent_in_reelout(nlp_numerics_options, V)
         reelin_time = find_time_spent_in_reelin(nlp_numerics_options, V)
         time_period = (reelout_time + reelin_time)
     else:
         time_period = V['theta', 't_f']
+
+    return time_period
+
+def find_time_period_SAM(nlp_numerics_options: dict, V: cas.struct) -> cas.SX:
+    """
+    Calculate the total time period of the pumping trajectory, including the reel-in phase
+    for the case where SAM is used to discretize the reel-out phase.
+
+    :param nlp_numerics_options: dictionary of the nlp options e.g. `options['nlp']`
+    :param V: nlp variables
+    :return: casasdi symbolic expression of the total time period
+    """
+
+    # preparations
+    regions_indeces = struct_op.calculate_SAM_regions(nlp_numerics_options)
+    delta_ns = [region_indeces.__len__() for region_indeces in regions_indeces]
+    assert sum(delta_ns) == nlp_numerics_options['n_k']
+    d_SAM = nlp_numerics_options['SAM']['d']
+    N_SAM = nlp_numerics_options['SAM']['N']
+    from awebox.tools.sam_functionalities import CollocationIRK
+    macroIntegrator = CollocationIRK(
+        np.array(cas.collocation_points(d_SAM, nlp_numerics_options['SAM']['MaInt_type'])))
+    _, _, b_macro = macroIntegrator.c, macroIntegrator.A, macroIntegrator.b
+    assert d_SAM == b_macro.size
+
+    # calculate time period
+    time_period = 0
+
+    # quadrature of the macro-integration method
+    for i in range(nlp_numerics_options['SAM']['d']):
+        time_period += delta_ns[i] / nlp_numerics_options['n_k'] * V['theta', 't_f', i] * b_macro[i] * N_SAM
+
+    # reel-in phase duration
+    time_period += delta_ns[-1] / nlp_numerics_options['n_k'] * V['theta', 't_f', -1]  # t_RI
 
     return time_period
 

@@ -201,8 +201,8 @@ def generate_structure(options, architecture):
     if len(architecture.layer_nodes) > 1:
         system_parameters += [('l_i', (1, 1)), ('diam_i', (1, 1))]
 
-    if 'P_max' in options['system_bounds']['theta'].keys():
-        system_parameters += [('P_max', (1, 1))]  # max power
+    if options['include_P_max']:
+        system_parameters += [('P_max', (1, 1))] # max power
 
     if options['model_bounds']['ellipsoidal_flight_region']['include']:
         system_parameters += [('ell_radius', (1, 1))]
@@ -401,8 +401,7 @@ def scale_bounds(variable_bounds, scaling):
         for name in list(variable_bounds[variable_type].keys()):
             for bound_type in ['lb', 'ub']:
                 local_si = variable_bounds[variable_type][name][bound_type]
-
-                if isinstance(local_si, float) or not (local_si.shape == scaling[variable_type, name].shape):
+                if isinstance(local_si, float) or isinstance(local_si, int) or not (local_si.shape == scaling[variable_type, name].shape):
                     local_si = local_si * cas.DM.ones(scaling[variable_type, name].shape)
 
                 variable_bounds[variable_type][name][bound_type] = struct_op.var_si_to_scaled(variable_type, name, cas.DM(local_si), scaling)

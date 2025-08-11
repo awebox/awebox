@@ -132,7 +132,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['power_per_surface_area'] = power_per_surface_area
 
     if 'l_t' in plot_dict['interpolation_si']['x'].keys():
-        power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['interpolation_si']['x']['l_t'])))
+        power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['interpolation_si']['x']['l_t'][0])))
     elif 'l_t' in plot_dict['interpolation_si']['theta'].keys():
         power_and_performance['l_t_max'] = plot_dict['interpolation_si']['theta']['l_t']
     else:

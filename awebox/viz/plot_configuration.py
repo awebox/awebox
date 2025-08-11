@@ -22,11 +22,7 @@
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
 #
-# Import main interface classes
-from .sweep import Sweep
-from .trial import Trial
-from .opts.options import Options
-from .opts.kite_data import ampyx_data, megawes_data, boeing747_data, bubbledancer_data
 
-# Visualization classes
-from .viz.visualization import Visualization
+# Set the default matplot backend, for more details see: https://matplotlib.org/stable/users/explain/figure/backends.html
+# DEFAULT_MPL_BACKEND = 'module://backend_interagg'
+DEFAULT_MPL_BACKEND = 'TkAgg'

@@ -24,8 +24,8 @@
 #
 
 import matplotlib
-
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 import casadi.tools as cas
@@ -781,9 +781,7 @@ def plot_path_of_wingtip(ax, side, plot_dict, kite, zeta, ref=False, color='k', 
         data = cas.horzcat(data, local_pos)
 
     basic_draw(ax, side, data=data, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
-
     return None
-
 
 
 def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, linestyle='-', alpha=0.2, label=None, index=-1):
@@ -816,7 +814,6 @@ def plot_all_tethers(ax, side, plot_dict, ref=False, color='k', marker=None, lin
         basic_draw(ax, side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle, alpha=alpha, label=label)
 
     return None
-
 
 
 def plot_trajectory_contents(ax, plot_dict, cosmetics, side, init_colors=bool(False), plot_kites=bool(True), label=None, linewidth=1, idx_at_eval=0):
@@ -1057,7 +1054,7 @@ def calibrate_visualization(model, nlp, name, options):
     return plot_dict
 
 
-def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None):
+def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, integral_output_vals, options, time_grids, cost, name, V_ref_scaled, global_output_vals, iterations=None, return_status_numeric=None, timings=None, n_points=None) -> dict:
     """
     Recalibrate plot dict with all calibration operation that need to be perfomed once for every plot.
     :param plot_dict: plot dictionary before recalibration
@@ -1068,6 +1065,9 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
     cosmetics = options['visualization']['cosmetics']
     if n_points is not None:
         cosmetics['interpolation']['n_points'] = int(n_points)
+
+    # extend the cosmetics dict with the SAM options
+    cosmetics['SAM'] = options['nlp']['SAM']
 
     plot_dict['cost'] = cost
 
@@ -1107,7 +1107,7 @@ def recalibrate_visualization(V_plot_scaled, P_fix_num, plot_dict, output_vals, 
         plot_dict[keys] = values
 
     si_or_scaled = cosmetics['variables']['si_or_scaled']
-    if (si_or_scaled == 'scaled'):
+    if si_or_scaled == 'scaled':
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled='scaled', opt_or_ref='opt')
     if cosmetics['plot_ref']:
         plot_dict = interpolate_data(plot_dict, cosmetics, si_or_scaled=si_or_scaled, opt_or_ref='ref')
@@ -1212,6 +1212,38 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
     for interpolation_type, interpolation_output in dict_transfer.items():
         plot_dict[interpolation_type] = interpolation_output
+
+    return plot_dict
+
+
+
+def interpolate_ref_data(plot_dict, cosmetics):
+    '''
+    Postprocess tracking reference data from V-structure to (interpolated) data vectors
+        with associated time grid
+    :param plot_dict: dictionary of all relevant plot information
+    :param cosmetics: dictionary of cosmetic plot choices
+    :return: plot dictionary with added entries corresponding to interpolation
+    '''
+
+    # extract information
+    time_grids = plot_dict['time_grids']
+    variables_dict = plot_dict['variables_dict']
+    V_ref_si = plot_dict['V_plot_si']
+    P_fix_num = plot_dict['P']
+    model_parameters = plot_dict['model_parameters']
+    model_scaling = plot_dict['model_scaling']
+    outputs_dict = plot_dict['outputs_dict']
+    outputs_fun = plot_dict['outputs_fun']
+    integral_output_names = plot_dict['integral_output_names']
+    integral_outputs_ref = plot_dict['integral_output_vals']['ref']
+    Collocation = plot_dict['Collocation']
+
+    # make the interpolation
+    plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
+                                                   P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
+                                                   integral_output_names, integral_outputs_ref,
+                                                   Collocation=Collocation, interpolate_time_grid = False, timegrid_label='ip')
 
     return plot_dict
 
@@ -1535,7 +1567,6 @@ def test_naca_coordinates():
         message = 'something went wrong with the naca 0012 coordinate generation.'
         print_op.log_and_raise_error(message)
     return None
-
 
 
 if __name__ == "__main__":

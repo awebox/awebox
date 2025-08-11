@@ -42,6 +42,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.constraint_operations as cstr_op
 import awebox.tools.performance_operations as perf_op
 
+import awebox.tools.cached_functions as cf
+
 from awebox.logger.logger import Logger as awelogger
 
 
@@ -59,7 +61,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         # add initial constraints
         var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
         var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
-        init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model, formulation.xi_dict)
+        init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model)
         ocp_cstr_list.append(init_cstr)
         if len(init_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('initial', shape=init_cstr.get_expression_list('all').shape))
@@ -83,7 +85,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         # add terminal constraints
         var_terminal = struct_op.get_variables_at_final_time(nlp_options, V, Xdot, model)
         var_ref_terminal = struct_op.get_var_ref_at_final_time(nlp_options, P, V, Xdot, model)
-        terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model, formulation.xi_dict)
+        terminal_cstr = operation.get_terminal_constraints(nlp_options, var_terminal, var_ref_terminal, model)
         ocp_cstr_list.append(terminal_cstr)
         if len(terminal_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('terminal', shape=terminal_cstr.get_expression_list('all').shape))
@@ -178,12 +180,10 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
     relevant_shooting_vars = []
     for var_type in (set(model_variables.keys()) - set(['x'])):
         relevant_shooting_vars = cas.vertcat(relevant_shooting_vars, model_variables[var_type])
-    mdl_shooting_cstr_sublist = cstr_op.MdlConstraintList()
 
     for cstr in model_constraints_list.get_list('eq'):
 
         cstr_expr = cstr.expr
-        selected_expr = []
 
         for cdx in range(cstr_expr.shape[0]):
             local_expr = cstr_expr[cdx]
@@ -192,21 +192,11 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
             will_be_dependent = not (local_jac.nnz() > 0)
             if will_be_dependent:
                 message = 'the ' + str(cdx) + 'th entry of the model ' + cstr.name + ' equality constraint ' \
-                        'would be likely to trigger licq violations in direct collocation, so the conflicting '\
-                        'constraints have not been enforced at the shooting nodes. we suggest re-considering '\
+                        'would be likely to trigger licq violations in direct collocation. we suggest re-considering '\
                         'this constraint formulation.'
-                awelogger.logger.warning(message)
-            else:
-                selected_expr = cas.vertcat(selected_expr, local_expr)
+                awelogger.logger.error(message)
 
-        # if selected_expr is not still []
-        if not isinstance(selected_expr, list):
-            selected_cstr = cstr_op.Constraint(expr=selected_expr,
-                                               name=cstr.name + '_selected',
-                                               cstr_type='eq')
-            mdl_shooting_cstr_sublist.append(selected_cstr)
-
-    return mdl_shooting_cstr_sublist
+    return None
 
 
 def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
@@ -222,8 +212,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     model_constraints_list = model.constraints_list
 
     # todo: sort out influence of periodicity. currently: assume periodic trajectory
-    mdl_shooting_cstr_sublist = get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model)
-    n_shooting_cstr = mdl_shooting_cstr_sublist.get_expression_list('eq').shape[0]
+    n_shooting_cstr = model_constraints_list.get_expression_list('eq').shape[0]
 
     parallellization = nlp_options['parallelization']['type']
 
@@ -237,48 +226,59 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     coll_vars = struct_op.get_coll_vars(nlp_options, V, P, Xdot, model)
     coll_params = struct_op.get_coll_params(nlp_options, V, P, model)
 
-    # create maps of relevant functions, then evaluate
-    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    if parallellization in ['openmp', 'thread', 'serial']:
-        mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
-        ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
-    elif parallellization == 'concurrent_futures':
-        list_of_horzcatted_inputs = [coll_vars, coll_params]
-        ocp_eqs_expr = struct_op.concurrent_future_map(mdl_eq_fun, list_of_horzcatted_inputs)
-    else:
-        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
-        print_op.log_and_raise_error(message)
-
-    mdl_shooting_eq_fun = mdl_shooting_cstr_sublist.get_function(nlp_options, model_variables, model_parameters, 'eq')
-    if parallellization in ['openmp', 'thread', 'serial']:
-        mdl_shooting_eq_map = mdl_shooting_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
-        ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
-    elif parallellization == 'concurrent_futures':
-        list_of_horzcatted_inputs = [shooting_vars, shooting_params]
-        ocp_eqs_shooting_expr = struct_op.concurrent_future_map(mdl_shooting_eq_fun, list_of_horzcatted_inputs)
-    else:
-        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
-        print_op.log_and_raise_error(message)
-
+    # create maps of relevant functions
+    u_poly = (nlp_options['collocation']['u_param'] == 'poly')
+    u_zoh_ineq_shoot = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes')
+    u_zoh_ineq_coll = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes')
+    inequalities_at_shooting_nodes = u_zoh_ineq_shoot
+    inequalities_at_collocation_nodes = u_poly or u_zoh_ineq_coll
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    if parallellization in ['openmp', 'thread', 'serial']:
-        if nlp_options['collocation']['u_param'] == 'poly':
-            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
-            ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
-        elif nlp_options['collocation']['u_param'] == 'zoh':
+    if nlp_options['compile_subfunctions']:
+        mdl_ineq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_ineq', mdl_ineq_fun, do_compile=nlp_options['compile_subfunctions'])
+
+    mdl_eq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'eq')
+    if nlp_options['compile_subfunctions']:
+        mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
+
+    # evaluate constraint functions
+    if nlp_options['parallelization']['type'] == 'for-loop':
+
+        if inequalities_at_collocation_nodes:
+            ocp_ineqs_list = []
+            for k in range(coll_vars.shape[1]):
+                ocp_ineqs_list.append(mdl_ineq_fun(coll_vars[:,k], coll_params[:,k]))
+            ocp_ineqs_expr = cas.horzcat(*ocp_ineqs_list)
+
+        elif inequalities_at_shooting_nodes:
+            ocp_ineqs_list = []
+            for k in range(shooting_vars.shape[1]):
+                ocp_ineqs_list.append(mdl_ineq_fun(shooting_vars[:,k], shooting_params[:,k]))
+            ocp_ineqs_expr = cas.horzcat(*ocp_ineqs_list)
+
+        ocp_eqs_list = []
+        for k in range(coll_vars.shape[1]):
+            ocp_eqs_list.append(mdl_eq_fun(coll_vars[:,k], coll_params[:,k]))
+        ocp_eqs_expr = cas.horzcat(*ocp_eqs_list)
+
+        ocp_eqs_list = []
+        for k in range(shooting_vars.shape[1]):
+            ocp_eqs_list.append(mdl_eq_fun(shooting_vars[:,k], shooting_params[:,k]))
+        ocp_eqs_shooting_expr = cas.horzcat(*ocp_eqs_list)
+
+    elif nlp_options['parallelization']['type'] in ['openmp', 'thread', 'serial', 'map']:
+
+        if inequalities_at_shooting_nodes:
             mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
             ocp_ineqs_expr = mdl_ineq_map(shooting_vars, shooting_params)
-    elif parallellization == 'concurrent_futures':
-        if nlp_options['collocation']['u_param'] == 'poly':
-            list_of_horzcatted_inputs = [coll_vars, coll_params]
-            ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, list_of_horzcatted_inputs)
-        elif nlp_options['collocation']['u_param'] == 'zoh':
-            list_of_horzcatted_inputs = [shooting_vars, shooting_params]
-            ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, list_of_horzcatted_inputs)
-    else:
-        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
-        print_op.log_and_raise_error(message)
+        elif inequalities_at_collocation_nodes:
+            mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, coll_nodes, [], [])
+            ocp_ineqs_expr = mdl_ineq_map(coll_vars, coll_params)
 
+        mdl_eq_map = mdl_eq_fun.map('mdl_eq_map', parallellization, coll_nodes, [], [])
+        mdl_shooting_eq_map = mdl_eq_fun.map('mdl_shooting_eq_map', parallellization, shooting_nodes, [], [])
+
+        ocp_eqs_expr = mdl_eq_map(coll_vars, coll_params)
+        ocp_eqs_shooting_expr = mdl_shooting_eq_map(shooting_vars, shooting_params)
 
     # sort constraints to obtain desired sparsity structure
     for kdx in range(n_k):
@@ -290,7 +290,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
                 for cdx in range(ocp_eqs_shooting_expr[:, kdx].shape[0]):
                     cstr_list.append(cstr_op.Constraint(
                         expr=ocp_eqs_shooting_expr[cdx, kdx],
-                        name='shooting_' + str(kdx) + '_' + mdl_shooting_cstr_sublist.get_name_list('eq')[
+                        name='shooting_' + str(kdx) + '_' + model_constraints_list.get_name_list('eq')[
                             cdx] + '_' + str(cdx),
                         cstr_type='eq'
                         )
@@ -304,7 +304,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
                 )
 
             # path constraints on shooting nodes
-            if (ocp_ineqs_expr.shape != (0, 0)):
+            if (ocp_ineqs_expr.shape != (0, 0)) and inequalities_at_shooting_nodes:
                 if nlp_options['collocation']['name_constraints']:
                     for cdx in range(ocp_ineqs_expr[:, kdx].shape[0]):
                         cstr_list.append(cstr_op.Constraint(
@@ -325,12 +325,12 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         # collocation constraints
         for jdx in range(d):
             ldx = kdx * d + jdx
-            if nlp_options['collocation']['u_param'] == 'poly':
+            if inequalities_at_collocation_nodes:
                 if ocp_ineqs_expr.shape != (0, 0):
                     cstr_list.append(cstr_op.Constraint(
-                        expr=ocp_ineqs_expr[:, ldx],
-                        name='path_{}_{}'.format(kdx, jdx),
-                        cstr_type='ineq'
+                        expr = ocp_ineqs_expr[:,ldx],
+                        name = 'path_{}_{}'.format(kdx,jdx),
+                        cstr_type = 'ineq'
                         )
                     )
 
@@ -356,13 +356,19 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
 
-    if nlp_options['collocation']['u_param'] == 'zoh':
+    if u_zoh_ineq_shoot:
         entry_tuple += (
-            cas.entry('shooting',       repeat = [n_k],     shape = mdl_shooting_cstr_sublist.get_expression_list('eq').shape),
+            cas.entry('shooting',       repeat = [n_k],     struct = mdl_dyn_constraints),
             cas.entry('path',           repeat = [n_k],     struct = mdl_path_constraints),
         )
 
-    elif nlp_options['collocation']['u_param'] == 'poly':
+    elif u_zoh_ineq_coll:
+        entry_tuple += (
+            cas.entry('shooting',       repeat = [n_k],       struct = mdl_dyn_constraints),
+            cas.entry('path',           repeat = [n_k,d],     struct = mdl_path_constraints),
+        )
+
+    elif u_poly:
         entry_tuple += (
             cas.entry('path',           repeat = [n_k, d],     struct = mdl_path_constraints),
         )

@@ -10,8 +10,11 @@ dist/
 # Figures
 figures/
 *.jpg
+*.png
 *.eps
 *.mp4
+*.png
+examples/_export/
 
 # Savefiles
 *.csv
@@ -22,12 +25,17 @@ figures/
 *.awe
 *.dict
 *.ipynb
+*.pckl
+cache/
+tracking_files/
 
 # Profiler
 *.prof
 
 # Code-generated files
 *.c
+*.o
+*.so
 
 # Documentation
 docs/build/

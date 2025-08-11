@@ -46,6 +46,11 @@ def run(plot_show_block=True, overwrite_options={}):
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
+    options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
+
+    # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+    # note: this may result in slightly slower solution timings
+    options['nlp.compile_subfunctions'] = False
 
     for option_name, option_val in overwrite_options.items():
         options[option_name] = option_val
@@ -56,7 +61,7 @@ def run(plot_show_block=True, overwrite_options={}):
     trial.optimize()
 
     # write the solution to CSV file, interpolating the collocation solution with given frequency.
-    # trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
+    trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
 
     # draw some of the pre-coded plots for analysis
     trial.plot(['states', 'controls', 'constraints', 'quad'])

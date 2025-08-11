@@ -28,10 +28,10 @@ _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
 - edited: rachel leuthold, 2017-2025
 '''
+from typing import Dict
 
 import casadi.tools as cas
 import numpy as np
-
 import operator
 
 import copy
@@ -42,6 +42,9 @@ from reportlab.platypus.para import lengthSequence
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
+from awebox.ocp.discretization import construct_time_grids
+from awebox.tools.sam_functionalities import construct_time_grids_SAM_reconstruction, originalTimeToSAMTime
+
 from itertools import chain
 import matplotlib.pyplot as plt
 from multiprocessing import Pool, Lock
@@ -235,7 +238,7 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
-    # if ddx == d - 1:
+    # reminder: if ddx == d - 1:
     #     kdx = kdx + 1
     #     ddx = None
     at_control_node = (ddx is None)
@@ -456,11 +459,86 @@ def get_V_theta(V, nlp_numerics_options, k):
     return theta
 
 
+def calculate_SAM_regionIndex(nlp_options: dict, k: int) -> int:
+    """ Calculate the SAM region index of the interval index k.
+    The integration horizon [0,nk] is divided into `n_tf` regions.
+        The first ~50% are reserved for the individual micro-integrations of the SAM scheme,
+        The last ~50% is reserved for the the reel-in phase.
+    Note that this 50/50 relation is also hardcoded in the initialization of the t_fs
+
+    : param nlp_options: dictionary with the nlp options e.g option['nlp']
+    : param k: the integration interval index on the awebox grid
+
+    ToDo: this could be done more efficiently, all of this can be precomputed. This function is evaluated a lot of times.
+    """
+
+    n_k = nlp_options['n_k']  # the total number of integration intervals
+    n_k_ratio = 0.5 # the ratio of the number of intervals in the reel-out phase
+    n_micros = nlp_options['SAM']['d']  # the number of micro-integrations
+    n_regions = n_micros + 1  # the number of time-scaling regions
+
+    # 1. reserve (~n_k_ratio) of the ingeration intervals for reelin phase
+    n_single_micro = round(n_k*n_k_ratio/n_micros) # the number of intervals in a single micro-integration
+    n_RO_intervals = n_single_micro*n_micros
+    n_RI_intervals = n_k - n_RO_intervals
+
+    # the number integrations intervals per regions
+    delta_ns = np.array([n_single_micro]*n_micros + [n_RI_intervals])
+    assert np.sum(delta_ns) == n_k, 'sum of the rounded delta_ns must be equal to n_k'
+
+    # 2. calculate the region index
+    region_indx = np.sum(k >= np.cumsum(delta_ns))
+    if region_indx > n_regions - 1:
+        # last interval? -> return last region
+        region_indx = n_regions - 1
+
+    return int(region_indx)
+
+
+def calculate_SAM_regions(nlp_options: dict) -> list:
+    """ Returs a list of lists, where each list contains the indices of the k's that belong to the same SAM region.
+        For example, nk= 10, d_SAM=1, and thus 2 regions, the output will be
+        [[0,1,2,4,5,6],[7,8,9,10]]
+
+        :param nlp_options: dictionary with the nlp options e.g option['nlp']
+        :return: list of lists with of indices
+    """
+    assert nlp_options['SAM']['use'] or nlp_options['SAM']['flag_SAM_reconstruction']
+    n_k = nlp_options['n_k']
+    n_tf = nlp_options['SAM']['d'] + 1
+    return_list = [[] for _ in range(n_tf)]  # generate a list with n_tf empty lists
+    for k in range(n_k):
+        return_list[calculate_SAM_regionIndex(nlp_options, k)].append(k)
+    return return_list
+
+
+def calculate_tf_index(nlp_options, k):
+    """ Calculates the index of the discretization region (with a constant tf) that the index `k` belongs to """
+    nk = nlp_options['n_k']
+    if nlp_options['SAM']['use']:
+        # SAM with (d+1) regions?
+        assert nlp_options['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        return calculate_SAM_regionIndex(nlp_options, k)
+
+    elif nlp_options['phase_fix'] == 'single_reelout':
+        # single reel-out? -> two regions
+        k_reelout = round(nk * nlp_options['phase_fix_reelout'])
+        if k < k_reelout:
+            return 0
+        else:
+            return 1
+    else:
+        # else -> only one region
+        return 0
+
 def calculate_tf(params, V, k):
 
     nk = params['n_k']
 
-    if params['phase_fix'] == 'single_reelout':
+    if params['SAM']['use']:
+        assert params['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        tf =  V['theta', 't_f', calculate_SAM_regionIndex(params, k)]
+    elif params['phase_fix'] == 'single_reelout':
         if k < round(nk * params['phase_fix_reelout']):
             tf = V['theta', 't_f', 0]
         else:
@@ -470,13 +548,53 @@ def calculate_tf(params, V, k):
 
     return tf
 
+
+def calculate_SAM_regionIndexArray(nlpoptions, Vopt, t: np.ndarray) -> np.ndarray:
+    """
+    For a given time vector t IN THE ORIGINAL AWEBOX TIME, calculate the region index for each time point.
+
+    :param nlpoptions: dictionary with the nlp options e.g option['nlp']
+    :param Vopt: the solution struct
+    :param t: numpy array with the time points
+
+    """
+
+    assert type(t) is np.ndarray, f't must be a numpy array, but is {type(t)}'
+
+    n_k = nlpoptions['n_k']
+    indeces_regions = calculate_SAM_regions(nlpoptions)
+    delta_ns = np.array([len(region) for region in indeces_regions]) # number integration intervals in each region
+    tfs = Vopt['theta', 't_f',:].full().flatten()
+    delta_ts = tfs/n_k * delta_ns # duration of each phase in physical time
+    ts_cumsum = np.cumsum(np.append(0,delta_ts)) # cumulative sum of the phase durations
+
+    # evaluate the region index for a numpy array of times t
+    region_index = np.array([np.sum(s >= ts_cumsum) - 1 for s in t])
+    assert np.all(region_index >= 0), 'region index must be positive'
+
+    # due to numerical errors: make sure that the region index is smaller than the number of regions
+    if np.any(region_index >= len(delta_ns)):
+        region_index[region_index >= len(delta_ns)] = len(delta_ns) - 1
+        # log a warnging
+        awelogger.logger.warning('Some time points are larger than the total simulation time. The region index is set to the last region.')
+    return region_index
+
+
 def calculate_kdx(params, V, t):
 
-    n_k = params['n_k']
+    # do some checks on the params dictionary, since sometimes they are not passed correctly
+    for needed_key in ['n_k', 'phase_fix','SAM']:
+        assert needed_key in params, f'There should be a "{needed_key}" key in the params dictionary, but it is not. {params.keys()}'
 
+    n_k = params['n_k']
     lift_mode_with_single_reelout_phase_fixing = (V['theta', 't_f'].shape[0] == 2)
 
-    if lift_mode_with_single_reelout_phase_fixing:
+    if params['SAM']['use']:
+        assert params['phase_fix'] == 'single_reelout', 'phase fix must be single_reelout for SAM'
+        kdx, tau = calculate_kdx_SAM(params, V, t)
+    elif params['SAM']['flag_SAM_reconstruction']:
+        kdx, tau = calculate_kdx_SAM_reconstruction(params, V, t)
+    elif lift_mode_with_single_reelout_phase_fixing:
         k_reelout = round(n_k * params['phase_fix_reelout'])
         t_reelout = k_reelout * V['theta', 't_f', 0] / n_k
         if t <= t_reelout:
@@ -488,15 +606,90 @@ def calculate_kdx(params, V, t):
             kdx = int(k_reelout + int(n_k * (t - t_reelout) / V['theta', 't_f', 1]))
             tau = (t - t_reelout) / V['theta', 't_f', 1] * n_k - (kdx-k_reelout)
     else:
-        t = t % V['theta', 't_f', 0].full()[0][0]
-        kdx = int(n_k * t / V['theta', 't_f'])
-        tau = t / V['theta', 't_f'] * n_k - kdx
+        if t != V['theta', 't_f', 0].full()[0][0]:
+            t = t % V['theta', 't_f', 0].full()[0][0]
+            kdx = int(n_k * t / V['theta', 't_f'])
+            tau = t / V['theta', 't_f'] * n_k - kdx
+        else:
+            kdx = n_k - 1
+            tau = 1.0
 
     if kdx == n_k:
         kdx = n_k - 1
         tau = 1.0
 
     return kdx, tau
+
+def calculate_kdx_SAM(params, V, t) -> tuple:
+    """
+    calculate the index of the (micro)-integration interval for a given
+    time t WHICH IS IN THE ORIGINAL AWEBOX TIME t \in [0, \sum(T_i)], not in the discontinuous SAM time.
+    """
+    n_k = params['n_k']
+    indeces_regions = calculate_SAM_regions(params)
+    delta_ns = np.array([len(region) for region in indeces_regions]) # number integration intervals in each region
+    tfs = V['theta', 't_f',:].full().flatten()
+    delta_ts = tfs/n_k * delta_ns # duration of each phase in physical time
+    ts_cumsum = np.cumsum(np.append(0,delta_ts)) # cumulative sum of the phase durations
+    region_index = np.sum(t >= ts_cumsum) - 1 # index of the region where t is located
+
+    if region_index > tfs.shape[0] - 1:
+        region_index = tfs.shape[0] - 1
+
+    # calculate the (continuous) integration index of the given time
+    n_t = np.cumsum(np.append(0,delta_ns))[region_index] + (t - ts_cumsum[region_index])*n_k/tfs[region_index]
+
+    kdx = int(np.floor(n_t))
+    tau = n_t - kdx
+
+    # special case: last integration interval
+    if kdx == n_k:
+        kdx = n_k - 1
+        tau = 1.0
+
+    assert kdx < n_k, 'kdx must be smaller than n_k'
+    assert kdx >= 0, 'kdx must be positive'
+    assert tau <= 1.0, 'tau must be smaller than 1.0'
+    assert tau >= 0.0, 'tau must be positive'
+
+    return kdx, tau
+
+_timegrid_reconstruct_save = None # THIS IS BAAAAAD, but so much faster
+
+def calculate_kdx_SAM_reconstruction(nlpparams, V, t) -> tuple:
+    """ Calculate the interval index kdx and the remaining relative interval tau duration of the interval in which the time t is located.
+    This is valid only IF THE VARIABLES V are reconstructed versions of the SAM variables.
+
+    TODO: This implementation is currently based on a GLOBAL variable _timegrid_reconstruct_save, which is bad practice.
+    But if the timegrid is recalculated for each time point, the function is very slow. Also, there is no trivial
+    way of infering the index of the reconstructed grid from the reconstructed variables V.
+    Best would be to have an some class instance (e.g. a discretization instance) that stores
+    the timegrid, or a casadi-function t ->(kdx, tau).
+    """
+    assert nlpparams['SAM']['flag_SAM_reconstruction'], 'This function is only valid for SAM reconstruction'
+
+    # 1. build timegrid from t_f_opt
+    global _timegrid_reconstruct_save
+    if _timegrid_reconstruct_save is None:
+        print('constructing timegrid for SAM reconstruction')
+        _timegrid_reconstruct_save = construct_time_grids_SAM_reconstruction(nlpparams)
+    else:
+        # print('using saved timegrid for SAM reconstruction')
+        pass
+    timegrid_f = _timegrid_reconstruct_save
+    timegrid_intervals = timegrid_f['x'](V['theta', 't_f']).full().flatten()
+
+    # 2. find the region index using numpy.argmax(timegrid > t) - 1
+    index = np.argmax(timegrid_intervals > t) - 1
+    delta_t = timegrid_intervals[index + 1] - timegrid_intervals[index] # todo: this approximation could be better
+
+    # 3. find the kdx and tau using the region index and the timegrid
+    kdx = index
+    tau = (t - timegrid_intervals[index]) / delta_t
+
+    return kdx, tau
+
+
 
 def variables_si_to_scaled(model_variables, variables_si, scaling):
 
@@ -596,9 +789,9 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
     return scaling_value
 
 
-def var_si_to_scaled(var_type, var_name, var_si, scaling, make_safety_check=True):
+def var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply = True):
 
-    if make_safety_check:
+    if check_should_multiply:
         should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
         if message is not None:
             print_op.base_print(message, level='warning')
@@ -612,9 +805,9 @@ def var_si_to_scaled(var_type, var_name, var_si, scaling, make_safety_check=True
     else:
         return var_si
 
-def var_scaled_to_si(var_type, var_name, var_scaled, scaling, make_safety_check=True):
+def var_scaled_to_si(var_type, var_name, var_scaled, scaling, check_should_multiply = True):
 
-    if make_safety_check:
+    if check_should_multiply:
         should_multiply, message = should_variable_be_scaled(var_type, var_name, var_scaled, scaling)
         if message is not None:
             print_op.base_print(message, level='warning')
@@ -648,29 +841,42 @@ def si_to_scaled(V_ori, scaling):
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(local_canonical) == 2:
-            var_type = local_canonical[0]
-            var_name = local_canonical[1]
-            var_si = V[var_type, var_name]
-            V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+        # with SAM we have some additional variables that might need special treatment
+        if local_canonical[0] in ['v_macro_coll','lam_SAM']:
+            continue
 
-        elif len(local_canonical) == 3:
-            var_type = local_canonical[0]
-            kdx = local_canonical[1]
-            var_name = local_canonical[2]
-            var_si = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
+        if local_canonical[0] != 'phi':
 
-        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
-            kdx = local_canonical[1]
-            ddx = local_canonical[2]
-            var_type = local_canonical[3]
-            var_name = local_canonical[4]
-            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
-            V[coll_var_name, kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling)
-        else:
-            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
-            print_op.log_and_raise_error(message)
+            if len(local_canonical) == 2:
+                var_type = local_canonical[0]
+                var_name = local_canonical[1]
+                var_si = V[var_type, var_name]
+                V[var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
+
+            elif len(local_canonical) == 3:
+                var_type = local_canonical[0]
+
+                # with SAM we have some additional (state) variables that might need special treatment
+                var_type_to_store = var_type # the type(name) of the variable in the dictionary
+                var_type_scaling = var_type # the name that is used to look up the scaling
+                if var_type_to_store in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type_scaling = 'x' # for SAM: the scaling is stored under 'x'
+
+                kdx = local_canonical[1]
+                var_name = local_canonical[2]
+                var_si = V[var_type_to_store, kdx, var_name]
+                V[var_type_to_store, kdx, var_name] = var_si_to_scaled(var_type_scaling, var_name, var_si, scaling, check_should_multiply=False)
+
+            elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
+                kdx = local_canonical[1]
+                ddx = local_canonical[2]
+                var_type = local_canonical[3]
+                var_name = local_canonical[4]
+                var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+                V[coll_var_name, kdx, ddx, var_type, var_name] = var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply=False)
+            else:
+                message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while scaling variables from si'
+                print_op.log_and_raise_error(message)
 
     return V
 
@@ -682,29 +888,41 @@ def scaled_to_si(V_ori, scaling):
     set_of_canonical_names_without_dimensions = get_set_of_canonical_names_for_V_variables_without_dimensions(V)
     for local_canonical in set_of_canonical_names_without_dimensions:
 
-        if len(local_canonical) == 2:
-            var_type = local_canonical[0]
-            var_name = local_canonical[1]
-            var_si = V[var_type, var_name]
-            V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
+        # with SAM we have some additional variables that might need special treatment
+        if local_canonical[0] in ['v_macro_coll','lam_SAM']:
+            continue
 
-        elif len(local_canonical) == 3:
-            var_type = local_canonical[0]
-            kdx = local_canonical[1]
-            var_name = local_canonical[2]
-            var_si = V[var_type, kdx, var_name]
-            V[var_type, kdx, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
+        if local_canonical[0] != 'phi':
+            if len(local_canonical) == 2:
+                var_type = local_canonical[0]
+                var_name = local_canonical[1]
+                var_si = V[var_type, var_name]
+                V[var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
 
-        elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
-            kdx = local_canonical[1]
-            ddx = local_canonical[2]
-            var_type = local_canonical[3]
-            var_name = local_canonical[4]
-            var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
-            V[coll_var_name, kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling)
-        else:
-            message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
-            print_op.log_and_raise_error(message)
+            elif len(local_canonical) == 3:
+                var_type = local_canonical[0]
+
+                # with SAM we have some additional variables that might need special treatment
+                var_type_to_store = var_type # the type(name) of the variable in the dictionary
+                var_type_scaling = var_type # the name that is used to look up the scaling
+                if var_type_to_store in ['x_macro', 'x_macro_coll', 'x_micro_minus', 'x_micro_plus']:
+                    var_type_scaling = 'x' # for SAM: the scaling is stored under 'x'
+
+                kdx = local_canonical[1]
+                var_name = local_canonical[2]
+                var_si = V[var_type_to_store, kdx, var_name]
+                V[var_type_to_store, kdx, var_name] = var_scaled_to_si(var_type_scaling, var_name, var_si, scaling, check_should_multiply=False)
+
+            elif (len(local_canonical) == 5) and (local_canonical[0] == coll_var_name):
+                kdx = local_canonical[1]
+                ddx = local_canonical[2]
+                var_type = local_canonical[3]
+                var_name = local_canonical[4]
+                var_si = V[coll_var_name, kdx, ddx, var_type, var_name]
+                V[coll_var_name, kdx, ddx, var_type, var_name] = var_scaled_to_si(var_type, var_name, var_si, scaling, check_should_multiply=False)
+            else:
+                message = 'unexpected variable found at canonical index: ' + str(local_canonical) + ' while un-scaling variables to si'
+                print_op.log_and_raise_error(message)
 
     return V
 
@@ -888,7 +1106,8 @@ def get_V_index(canonical):
 
         elif length == 2:
             name = canonical[1]
-
+        elif length == 1:
+            name = canonical[0]
         else:
             message = 'unexpected (distinct) canonical_index handing'
             print_op.log_and_raise_error(message)
@@ -1246,7 +1465,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
     print_op.log_and_raise_error(message)
     return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1266,7 +1485,10 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
     if Collocation is not None:
         collocation_interpolator = Collocation.build_interpolator(local_options, V_opt)
         integral_collocation_interpolator = Collocation.build_interpolator(local_options, V_opt, integral_outputs=integral_outputs_opt)
-        time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+        if interpolate_time_grid:
+            time_grid_interpolated = build_time_grid_for_interpolation(time_grids, n_points)
+        else:
+            time_grid_interpolated = time_grids['ip']
     else:
         control_parametrization = 'zoh'
         collocation_interpolator = None
@@ -1475,3 +1697,42 @@ def test():
     # todo
     awelogger.logger.warning('no tests currently defined for struct_operations')
     return None
+
+
+def eval_time_grids_SAM(nlp_options: dict, tf_opt: cas.DM) -> Dict[str, np.ndarray]:
+    """
+    Calculate the time grids for the SAM discretization.
+    This makes use of a function that translates the original nlp time to the SAM time.
+
+    Returns a dictionary with the time grids for the states ('x'), controls ('u'), collocation nodes ('coll') and the
+    time grid for the states and collocation nodes ('x_coll').
+
+    :param nlp_options: the nlp options, e.g. trial.options['nlp']
+    :param tf_opt: the optimal time-scaling parameters, e.g. Vopt['theta', 't_f']
+    :return: a dictionary of numpy arrays for the timegrids with keys ('x','u', 'coll', 'x_coll')
+    """
+    assert nlp_options['SAM']['use']
+    assert nlp_options['discretization'] == 'direct_collocation'
+
+    timegrid_AWEbox_f = construct_time_grids(nlp_options)
+    timegrid_AWEbox_eval = {key: timegrid_AWEbox_f[key](tf_opt).full().flatten() for key in timegrid_AWEbox_f.keys()}
+    timegrid_SAM = {}
+
+    # function to go from AWEbox time to SAM time
+    f_scale = originalTimeToSAMTime(nlp_options, tf_opt)
+
+    # modify a bit for better post-processing: for x_coll timegrid
+    # check if any values of t are close to any values in ts_cumsum,
+    # this happens if the time points are equal, but are supposed to be in different SAM regions,
+    # for example when radau collocation is used
+
+    # find  paris of indices in time_grid_ip_original that are close to each other
+    close_indices = np.where(np.isclose(np.diff(timegrid_AWEbox_eval['x_coll']), 0.0))[0]
+    for first_index in close_indices:
+        timegrid_AWEbox_eval['x_coll'][first_index] -= 1E-6
+        timegrid_AWEbox_eval['x_coll'][first_index + 1] += 1E-6
+
+    for key in timegrid_AWEbox_f:
+        timegrid_SAM[key] = f_scale.map(timegrid_AWEbox_eval[key].size)(timegrid_AWEbox_eval[key]).full().flatten()
+
+    return timegrid_SAM
