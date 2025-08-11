@@ -26,10 +26,9 @@
 constraints to create "intermediate condition" fixing constraints on the positions of the wake nodes,
 to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020-21
+- author: rachel leuthold, alu-fr 2020-25
 '''
 import copy
-import pdb
 
 import numpy as np
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools

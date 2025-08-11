@@ -3,13 +3,13 @@
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 
-- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020-21
+- edited: Jochem De Schutter ALU-FR 2020-21
+- edited: rachel leuthold, alu-fr, 2020-2025
 """
 
 import collections
 import copy
 import logging
-import pdb
 
 import awebox as awe
 

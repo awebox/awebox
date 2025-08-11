@@ -23,16 +23,12 @@
 #
 #
 import copy
-import pdb
-from platform import architecture
 
 import matplotlib
-from pandas.core.ops import unpack_zerodim_and_defer
 
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-import pdb
 
 import casadi.tools as cas
 import numpy as np
@@ -912,10 +908,7 @@ def plot_velocity_deficits(plot_dict, cosmetics, fig_num=None):
             add_label_legends = (idx == len(x_over_d_vals) - 1)
             suppress_wind_options_import_warning = (pdx > 0)
 
-            try:
-                ax = axes[rdx, idx]
-            except:
-                pdb.set_trace()
+            ax = axes[rdx, idx]
             make_individual_time_averaged_velocity_deficit_subplot(ax, plot_dict, cosmetics, x_offset=x_offset, z_offset=z_offset_local,
                                                                    slice_axes=slice_axes_dict[rdx],
                                                                    add_legend_labels=add_label_legends,

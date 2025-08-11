@@ -25,9 +25,8 @@
 '''
 wind model for the awebox
 _python-3.5 / casadi-3.4.5
-- author: jochem de schutter, rachel leuthold, alu-fr 2018-20
+- author: jochem de schutter, rachel leuthold, alu-fr 2018-25
 '''
-import pdb
 
 import casadi.tools as cas
 import numpy as np

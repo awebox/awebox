@@ -27,10 +27,9 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+- edited: rachel leuthold, 2021-2025
 '''
-import copy
-import pdb
 
 import numpy as np
 import casadi.tools as cas

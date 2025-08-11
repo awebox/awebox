@@ -26,8 +26,8 @@
 initialization functions specific to the standard path scenario
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+- edited: rachel leuthold, 2021-2025
 '''
-import pdb
 
 import numpy as np
 import casadi.tools as cas

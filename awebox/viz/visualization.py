@@ -25,8 +25,8 @@
 ##################################
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
+# - edited: rachel leuthold, 2017-2025
 ###################################
-import pdb
 
 from . import tools
 from . import trajectory

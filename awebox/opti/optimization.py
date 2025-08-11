@@ -24,11 +24,12 @@
 #
 ##################################
 # Class Optimization solves the NLP of the multi-kite system
+# - edited: rachel leuthold, 2017-2025
 ###################################
 # import matplotlib
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
-import pdb
+
 import pickle
 from . import scheduling
 from . import preparation

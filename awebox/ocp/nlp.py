@@ -26,9 +26,8 @@
 Class NLP generates an NLP from the model of the tree-structure multi-kite system
 _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, jochem de schutter, thilo bronnenmeyer alu-fr 2017-2018
-- edited: rachel leuthold, alu-fr 2018-2021
+- edited: rachel leuthold, alu-fr 2018-2025
 '''
-import pdb
 
 import casadi.tools as cas
 

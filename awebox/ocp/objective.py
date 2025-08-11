@@ -27,9 +27,8 @@ objective code of the awebox
 constructs an objective function from the various fictitious costs.
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
+- edited: rachel leuthold, jochem de schutter alu-fr 2018-2025
 '''
-import pdb
 
 import casadi.tools as cas
 import numpy as np
