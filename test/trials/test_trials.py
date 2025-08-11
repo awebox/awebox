@@ -496,12 +496,12 @@ if __name__ == "__main__":
             list_functions += [test_dual_kite_basic_health, test_dual_kite, test_dual_kite_6_dof_basic_health, test_dual_kite_6_dof]
         if types_of_problems['tracking']:
             list_functions += [test_dual_kite_tracking, test_dual_kite_tracking_winch]
-        if types_of_problems['size_alternatives']:
-            list_functions += [test_small_dual_kite_basic_health, test_small_dual_kite, test_large_dual_kite_basic_health, test_large_dual_kite]
+        # if types_of_problems['size_alternatives']:
+        #     list_functions += [test_small_dual_kite_basic_health, test_small_dual_kite, test_large_dual_kite_basic_health, test_large_dual_kite]
         if types_of_problems['vortex']:
             list_functions += [test_vortex_force_zero_basic_health, test_vortex_force_zero, test_vortex_basic_health, test_vortex, test_vortex_3_dof]
-        if types_of_problems['actuator']:
-            list_functions += [test_actuator_qaxi_basic_health, test_actuator_qaxi, test_actuator_qasym, test_actuator_uaxi, test_actuator_uasym, test_actuator_comparison]
+        # if types_of_problems['actuator']:
+        #     list_functions += [test_actuator_qaxi_basic_health, test_actuator_qaxi, test_actuator_qasym, test_actuator_uaxi, test_actuator_uasym, test_actuator_comparison]
 
         from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
         import multiprocessing
@@ -547,11 +547,11 @@ if __name__ == "__main__":
             test_dual_kite_tracking()
             test_dual_kite_tracking_winch()
 
-        if types_of_problems['size_alternatives']:
-            test_small_dual_kite_basic_health()
-            test_small_dual_kite()
-            test_large_dual_kite_basic_health()
-            test_large_dual_kite()
+        # if types_of_problems['size_alternatives']:
+        #     test_small_dual_kite_basic_health()
+        #     test_small_dual_kite()
+        #     test_large_dual_kite_basic_health()
+        #     test_large_dual_kite()
 
         if types_of_problems['vortex']:
             test_vortex_basic_health()
@@ -560,13 +560,13 @@ if __name__ == "__main__":
             test_vortex_force_zero()
             test_vortex_3_dof()
 
-        if types_of_problems['actuator']:
-            test_actuator_qaxi_basic_health()
-            test_actuator_qaxi()
-            test_actuator_qasym()
-            test_actuator_uaxi()
-            test_actuator_uasym()
-            test_actuator_comparison()
+        # if types_of_problems['actuator']:
+        #     test_actuator_qaxi_basic_health()
+        #     test_actuator_qaxi()
+        #     test_actuator_qasym()
+        #     test_actuator_uaxi()
+        #     test_actuator_uasym()
+        #     test_actuator_comparison()
 
 
     else:
