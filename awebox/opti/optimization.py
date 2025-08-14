@@ -29,7 +29,6 @@
 # import matplotlib
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
-import pdb
 import pickle
 from . import scheduling
 from . import preparation
@@ -133,13 +132,16 @@ class Optimization(object):
             self.define_update_counter(nlp, formulation, model)
 
             # classifications
-            use_warmstart = not (warmstart_file == None)
+            use_warmstart = warmstart_file is not None
             make_steps = not (final_homotopy_step == 'initial_guess')
 
             if not (reference_file == None):
                 if ('V_opt' in reference_file.keys()) and (nlp.V.shape == reference_file['V_opt'].shape):
                     self.__V_ref = reference_file['V_opt']
                     self.__p_fix_num['p', 'ref'] = reference_file['V_opt'].cat
+                elif ('solution_dict' in reference_file.keys()) and ('V_opt' in reference_file['solution_dict'].keys()) and (nlp.V.shape == reference_file['solution_dict']['V_opt'].shape):
+                    self.__V_ref = reference_file['solution_dict']['V_opt']
+                    self.__p_fix_num['p', 'ref'] = reference_file['solution_dict']['V_opt'].cat
                 else:
                     message = 'proposed reference solution does not have the same number shape as nlp.V.'
                     message += ' unable to import V_ref.'
@@ -469,14 +471,15 @@ class Optimization(object):
         return None
 
     def extract_warmstart_trial(self, warmstart_file):
-        if type(warmstart_file) == str:
+
+        if isinstance(warmstart_file, str):
             try:
                 filehandler = open(warmstart_file, 'r')
                 load_trial = pickle.load(filehandler)
                 warmstart_trial = load_trial.generate_solution_dict()
             except:
                 raise ValueError('Specified warmstart trial does not exist.')
-        elif type(warmstart_file) == dict:
+        elif isinstance(warmstart_file, dict):
             warmstart_trial = warmstart_file
         else:
             warmstart_trial = warmstart_file.generate_solution_dict()
@@ -532,12 +535,17 @@ class Optimization(object):
 
     def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_trial, nlp, model):
 
+        # final homotopy step of upcoming problem
+        final_index = self.__schedule['homotopy'].index(final_homotopy_step)
+
         # final homotopy step of warmstart file
-        warmstart_step = warmstart_trial['final_homotopy_step']
-        initial_index = self.__schedule['homotopy'].index(warmstart_step)
+        if 'final_homotopy_step' in warmstart_trial.keys():
+            warmstart_step = warmstart_trial['final_homotopy_step']
+            initial_index = self.__schedule['homotopy'].index(warmstart_step)
+        else:
+            initial_index = final_index
 
         # check if schedule is still consistent
-        final_index = self.__schedule['homotopy'].index(final_homotopy_step)
         if final_index < initial_index:
             raise ValueError('Final homotopy step has a lower schedule index than final step of warmstart file')
 

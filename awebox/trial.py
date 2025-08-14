@@ -165,10 +165,9 @@ class Trial(object):
         awelogger.logger.info(60*'=')
         awelogger.logger.info('')
 
-
         self.__optimization.solve(self.__name, options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file, reference_file, debug_flags=debug_flags,
+                                  final_homotopy_step=final_homotopy_step, warmstart_file=warmstart_file, reference_file=reference_file, debug_flags=debug_flags,
                                   debug_locations=debug_locations, intermediate_solve=intermediate_solve)
 
         self.__solution_dict = self.generate_solution_dict()
@@ -346,6 +345,7 @@ class Trial(object):
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
+        solution_dict['V_init'] = self.__optimization.V_init
         solution_dict['p_fix_num'] = self.__optimization.p_fix_num
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
@@ -357,6 +357,7 @@ class Trial(object):
         cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['cost'] = cost
         solution_dict['global_outputs_opt'] = self.__optimization.global_outputs_opt
+        solution_dict['solve_succeeded'] = self.__optimization.solve_succeeded
 
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step

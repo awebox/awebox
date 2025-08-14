@@ -1261,6 +1261,9 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
         else:
             raise ValueError('Warmstart from multiple shooting to collocation not supported')
 
+    elif 'solution_dict' in warmstart_solution_dict.keys():
+        V_init_proposed, lam_x_proposed, lam_g_proposed = setup_warmstart_data(nlp, warmstart_solution_dict['solution_dict'])
+
     else:
 
         V_init_proposed = warmstart_solution_dict['V_opt']
