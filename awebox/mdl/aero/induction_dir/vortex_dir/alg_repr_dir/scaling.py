@@ -179,6 +179,7 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
 def append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude):
 
     u_ref = options['user_options']['wind']['u_ref']
+    a_ref = options['model']['aero']['actuator']['a_ref']
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
         architecture)
@@ -188,8 +189,19 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
         message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ').'
         print_op.log_and_raise_error(message)
 
-    wu_ind_scale = u_ref # it's tempting to make this smaller, aka. u_ref * a_ref. but that will upset the
-    # scaling of the wu_ind_induced_velocity constraint later on (and you won't pass the vortex_basic_health test), so don't do it.
+    scaling_method = options['model']['aero']['vortex']['wu_ind_scaling_method']
+    # choosing larger values may seem counter-intuitive here considering how low the effective induction
+    # factors are at solution, but a larger value will decrease the kkt entries corresponding to the
+    # wu_ind_induced_velocity constraints, and so will help the vortex_basic_health_trial test pass
+    if scaling_method == 'ref_full':
+        wu_ind_scale = u_ref
+    elif scaling_method == 'ref_betz':
+        wu_ind_scale = u_ref * a_ref
+    elif scaling_method == 'infty_full':
+        wu_ind_scale = u_altitude
+    elif scaling_method == 'infty_betz':
+        wu_ind_scale = u_altitude * a_ref
+
     for kite_obs in architecture.kite_nodes:
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))

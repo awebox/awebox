@@ -116,32 +116,33 @@ def run(inputs={}):
     trial_baseline.print_cost_information()
     help_op.save_results_including_figures(trial_baseline, options)
 
-    ######## simulation OCP - "problem C"
-    
-    options = help_op.toggle_vortex_options(options)
+    if trial_baseline.optimization.solve_succeeded:
+        ######## simulation OCP - "problem C"
 
-    options = help_op.turn_off_inequalities_except_time(options)
-    options = help_op.adjust_weights_for_tracking(trial_baseline, options)
-    options = help_op.fix_params_to_baseline(trial_baseline, options)
-    
-    ## the commented out lines here were useful when tuning the weights of the problem
-    # options['user_options.induction_model'] = 'not_in_use'
-    # final_homotopy_step = 'initial' 
-    final_homotopy_step = 'induction'
-    
-    # build trial and optimize
-    trial_name_vortex = trial_name_baseline + '_vortex'	
-    trial_vortex = awe_trial.Trial(options, trial_name_vortex)
-    trial_vortex.build()
+        options = help_op.toggle_vortex_options(options)
 
-    warmstart_and_reference = help_op.construct_vortex_initial_guess(trial_baseline, trial_vortex, inequalities_are_off=True)
-    trial_vortex.optimize(final_homotopy_step=final_homotopy_step, warmstart_file=warmstart_and_reference, reference_file=warmstart_and_reference)
+        options = help_op.turn_off_inequalities_except_time(options)
+        options = help_op.adjust_weights_for_tracking(trial_baseline, options)
+        options = help_op.fix_params_to_baseline(trial_baseline, options)
 
-    trial_vortex.print_cost_information()
+        ## the commented out lines here were useful when tuning the weights of the problem
+        # options['user_options.induction_model'] = 'not_in_use'
+        # final_homotopy_step = 'initial'
+        final_homotopy_step = 'induction'
 
-    if trial_vortex.optimization.solve_succeeded:
-        help_op.make_comparison_power_plot(trial_vortex, trial_baseline)
-    help_op.save_results_including_figures(trial_vortex, options)
+        # build trial and optimize
+        trial_name_vortex = trial_name_baseline + '_vortex'
+        trial_vortex = awe_trial.Trial(options, trial_name_vortex)
+        trial_vortex.build()
+
+        warmstart_and_reference = help_op.construct_vortex_initial_guess(trial_baseline, trial_vortex, inequalities_are_off=True)
+        trial_vortex.optimize(final_homotopy_step=final_homotopy_step, warmstart_file=warmstart_and_reference, reference_file=warmstart_and_reference)
+
+        trial_vortex.print_cost_information()
+
+        if trial_vortex.optimization.solve_succeeded:
+            help_op.make_comparison_power_plot(trial_vortex, trial_baseline)
+        help_op.save_results_including_figures(trial_vortex, options)
 
     return None
 
