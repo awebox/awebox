@@ -198,6 +198,7 @@ class Visualization(object):
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
         plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
+        plot_logic_dict['local_induction_factor_all_projections'] = (output.plot_local_induction_factor_all_projections, None)
         plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
         plot_logic_dict['relative_radius_of_curvature'] = (output.plot_relative_radius_of_curvature, None)

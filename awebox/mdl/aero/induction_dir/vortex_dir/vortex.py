@@ -390,6 +390,7 @@ def collect_vortex_outputs(model_options, wind, wake, system_variables, paramete
             rot_dir_dict = {'radial': ehat_radial, 'tangential': ehat_tangential, 'normal': ehat_normal, 'wind': ehat_wind, 'wind_tangential': ehat_wind_tangential, 'wind_radial': ehat_wind_radial, 'chord': ehat_chord, 'span': ehat_span, 'up': ehat_up, 'x': xhat, 'y': yhat, 'z': zhat}
             for rot_name, rot_ehat in rot_dir_dict.items():
                 outputs['vortex']['u_ind_' + rot_name + str(kite_obs)] = cas.mtimes(vec_u_ind.T, rot_ehat)
+                outputs['vortex']['local_a_' + rot_name + str(kite_obs)] = general_flow.compute_induction_factor(vec_u_ind, rot_ehat, u_normalizing)
 
             b_ref = parameters['theta0', 'geometry', 'b_ref']
             for extra_xi_obs in model_options['aero']['vortex']['additional_induction_observation_points']:

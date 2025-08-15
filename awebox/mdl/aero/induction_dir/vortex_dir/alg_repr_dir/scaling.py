@@ -136,7 +136,8 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, inpu
             options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', wg_scale, ('????', None), 'x')),
 
-    circulation_max_estimate = 2.5 * wg_scale
+    ratio_circulation_max_estimate_to_scaling_estimate = options['model']['aero']['vortex']['ratio_circulation_max_estimate_to_scaling_estimate']
+    circulation_max_estimate = wg_scale * ratio_circulation_max_estimate_to_scaling_estimate
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', wg_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
 

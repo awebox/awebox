@@ -65,11 +65,13 @@ def toggle_vortex_options(options):
     options['visualization.cosmetics.plot_ref'] = True # the 'reference' here is the baseline problem
     options['solver.hippo_strategy'] = False # save memory by only requring one casadi solver
     options['solver.linear_solver'] = 'ma86' # the parallelized but non-repeatable option
-    options['solver.homotopy_method.put_fictitious_before_induction'] = False # we need the fictitious forces to still be enabled, so that we can guaranteed fly the simulation/reference trajectory 
+    options['solver.homotopy_method.put_fictitious_before_induction'] = False # we need the fictitious forces to still be enabled, so that we can fly the simulation/reference trajectory with different aerodynamics
     return options
 
 def get_list_of_plots():
-    list_of_plots = ['power', 'states', 'algebraic_variables', 'controls', 'constraints', 'animation_snapshot',  'isometric', 'projected_xy', 'projected_yz', 'projected_xz', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'wake_legend', 'velocity_deficits', 'velocity_distribution', 'induction_wind_tunnel', 'induction_contour_wind_wind', 'induction_contour_normal_wind', 'induction_contour_normal_normal', 'aero_dimensionless', 'relative_radius', 'relative_radius_of_curvature', 'aero_coefficients', 'circulation']
+    list_of_plots = ['power', 'states', 'algebraic_variables', 'controls', 'constraints', 'animation_snapshot',  'isometric', 'projected_xy', 'projected_yz', 'projected_xz', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'wake_legend', 'velocity_deficits', 'velocity_distribution', 'aero_dimensionless', 'relative_radius', 'relative_radius_of_curvature', 'aero_coefficients', 'circulation', 'local_induction_factor_all_projections']
+    #'induction_wind_tunnel',  'induction_contour_normal_wind', 
+    #'induction_contour_normal_normal', 'induction_contour_wind_wind',
     list_of_plots = list(set(list_of_plots)) # double-check that we don't waste time producing the same plot twice
     return list_of_plots
 
@@ -125,10 +127,11 @@ def adjust_weights_for_tracking(trial_baseline, options):
     options['nlp.cost.beta'] = False
 
     options['solver.weights.vortex'] = 0.
-    options['solver.cost.fictitious.0'] = 1.e-8
-    options['solver.cost.fictitious.1'] = 1.e-8
+    options['solver.cost.fictitious.0'] = 1.e-10
+    options['solver.cost.fictitious.1'] = 1.e-10
 
-    much_more_important = 2e2
+    extra_much_more_important = 1e3
+    much_more_important = 1e2
     more_important = 1e1
     less_important = 1e-1
     much_less_important = 1e-2
@@ -137,16 +140,16 @@ def adjust_weights_for_tracking(trial_baseline, options):
         
     #options['solver.cost.tracking.0'] = 1e-2 * baseline_options['solver']['cost']['tracking'][0]
     
-    options['solver.weights.q'] = much_more_important * baseline_options['solver']['weights']['q']
+    options['solver.weights.q'] = extra_much_more_important * baseline_options['solver']['weights']['q']
     options['solver.weights.dq'] = more_important * baseline_options['solver']['weights']['dq']
     options['solver.weights.r'] = more_important * baseline_options['solver']['weights']['r']
     options['solver.weights.omega'] = more_important * baseline_options['solver']['weights']['omega']
     
-    options['solver.weights.coeff'] = much_more_important * baseline_options['solver']['weights']['coeff']
+    options['solver.weights.coeff'] = extra_much_more_important * baseline_options['solver']['weights']['coeff']
     options['solver.weights.delta'] = much_more_important * baseline_options['solver']['weights']['delta']
-    options['solver.weights.ddelta'] = much_more_important * baseline_options['solver']['weights']['ddelta']
+    options['solver.weights.ddelta'] = extra_much_more_important * baseline_options['solver']['weights']['ddelta']
 
-    options['solver.cost.t_f.0'] = less_important * baseline_options['solver']['cost']['theta_regularisation'][0]
+    options['solver.cost.t_f.0'] = less_important * baseline_options['solver']['cost']['theta_regularisation'][0] # penalizes switching time
     options['solver.cost.u_regularisation.0'] = more_important * baseline_options['solver']['cost']['u_regularisation'][
         0]
     options['solver.cost.tracking.0'] = more_important * baseline_options['solver']['cost']['tracking'][0]
@@ -342,9 +345,11 @@ def make_comparison_power_plot(trial_vortex, trial_baseline):
     vortex_time = vortex_plot_dict['time_grids']['ip']
 
     fig, ax = plt.subplots()
-    vortex_power = vortex_plot_dict['interpolation_si']['outputs']['performance']['p_current'][0]
+    vortex_power_with_fictitious = vortex_plot_dict['interpolation_si']['outputs']['performance']['p_current'][0]
+    vortex_power = vortex_plot_dict['interpolation_si']['outputs']['performance']['p_current_without_fictitious'][0]
     baseline_power = baseline_plot_dict['interpolation_si']['outputs']['performance']['p_current'][0]
-    plt.plot(vortex_time, vortex_power, label='RLL Simulation OCP')
+    plt.plot(vortex_time, vortex_power, label='RLL Simulation OCP (without fictitious forces)')
+    plt.plot(vortex_time, vortex_power_with_fictitious, label='RLL Simulation OCP (with fictitious forces)')
     plt.plot(baseline_time, baseline_power, label='baseline AWE OCP')
     plt.title('power in (B) and (C)')
     plt.legend()

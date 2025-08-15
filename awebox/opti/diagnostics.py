@@ -123,6 +123,9 @@ def compute_power_indicators(power_and_performance, plot_dict):
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
     power_per_surface_area = avg_power_watts / surface_area
 
+    e_final_joules_without_fictitious = plot_dict['global_output_vals']['e_final_joules_without_fictitious'].full()[0][0]
+    avg_power_watts_without_fictitious = plot_dict['global_output_vals']['avg_power_watts_without_fictitious'].full()[0][0]
+
     zeta = np.mean(plot_dict['interpolation_si']['outputs']['performance']['phf'][0])
 
     power_and_performance['e_final'] = e_final_joules
@@ -130,6 +133,9 @@ def compute_power_indicators(power_and_performance, plot_dict):
     power_and_performance['avg_power'] = avg_power_watts
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
+
+    power_and_performance['e_final_without_fictitious'] = e_final_joules_without_fictitious
+    power_and_performance['avg_power_without_fictitious'] = avg_power_watts_without_fictitious
 
     if 'l_t' in plot_dict['interpolation_si']['x'].keys():
         power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['interpolation_si']['x']['l_t'][0])))

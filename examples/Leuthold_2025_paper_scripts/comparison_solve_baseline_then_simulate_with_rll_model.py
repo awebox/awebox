@@ -94,7 +94,7 @@ def run(inputs={}):
     options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
     options['visualization.cosmetics.trajectory.kite_bodies'] = True
     options['visualization.cosmetics.plot_ref'] = False
-    options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'    
+    options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
     options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 5.
     
     options['visualization.cosmetics.temporal_epigraph_locations'] = [0.3, 'switch']
@@ -149,8 +149,8 @@ def run(inputs={}):
 if __name__ == "__main__":
 
     inputs = {}
-    inputs['n_k'] = 30
-    inputs['periods_tracked'] = 1.5 
+    inputs['n_k'] = 15
+    inputs['periods_tracked'] = 0.5
 
     trial = run(inputs)
 

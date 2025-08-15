@@ -140,7 +140,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
  
-    power, outputs = get_power(options, system_variables, parameters, outputs, architecture, scaling)
+    power, outputs, _ = get_power(options, system_variables, parameters, outputs, architecture, scaling)
     max_power_cstr = max_power_inequality(options, system_variables['SI'], power)
     cstr_list.append(max_power_cstr)
 
@@ -208,9 +208,9 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
     # ensure that energy matches power integration
-    power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+    power_si, _, power_si_without_fictitious = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
     energy_scaling = model_options['scaling']['x']['e']
-    derivative_dict = {'e': (power_si, energy_scaling)}
+    derivative_dict = {'e': (power_si, energy_scaling), 'e_without_fictitious': (power_si_without_fictitious, energy_scaling)}
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
@@ -321,20 +321,44 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
+def get_power_si_without_fictitious(variables_scaled, parameters, power_si):
+    variables_si = system_variables['SI']
+    if options['trajectory']['system_type'] == 'lift_mode':
+
+    power_fun = cas.Function('power_fun', [variables_scaled, parameters], [power_si])
+    assemble_variables_without_fictitious = []
+    ldx = 0
+    for var_label in variables_scaled.labels():
+        if 'fict' not in var_label:
+            assemble_variables_without_fictitious = cas.vertcat(assemble_variables_without_fictitious, variables_scaled.cat[ldx])
+        else:
+            assemble_variables_without_fictitious = cas.vertcat(assemble_variables_without_fictitious, cas.DM(0.))
+        ldx += 1
+    power_si_without_fictitious = power_fun(assemble_variables_without_fictitious, parameters)
+    return power_si_without_fictitious
+
 
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
-        power = cas.SX.zeros(1, 1)
+        power_si = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
-            power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
-        outputs['performance']['p_current'] = power
-        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
-    else:
-        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
-        outputs['performance']['p_current'] = power
+            power_si += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
+        outputs['performance']['p_current'] = power_si
+        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power_si, system_variables['scaled'], architecture, scaling)
 
-    return power, outputs
+    else:
+        power_si = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        outputs['performance']['p_current'] = power_si
+
+        # total_fictitious_forces = cas.DM.zeros((3, 1))
+        # for var_label in struct_op.subkeys(system_variables['scaled'], 'u'):
+        #     if 'fict' not in var_label:
+
+    power_si_without_fictitious = get_power_si_without_fictitious(system_variables['scaled'], parameters, power_si)
+    outputs['performance']['p_current_without_fictitious'] = power_si_without_fictitious
+
+    return power_si, outputs, power_si_without_fictitious
 
 
 def drag_mode_outputs(variables_si, parameters, outputs, architecture):

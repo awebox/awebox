@@ -335,6 +335,17 @@ def plot_local_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
+def plot_local_induction_factor_all_projections(plot_dict, cosmetics, fig_name, fig_num=None):
+    base_name = 'local_a'
+
+    interesting_outputs = []
+    if 'vortex' in plot_dict['outputs_dict'].keys():
+        for out_name in plot_dict['outputs_dict']['vortex'].keys():
+            if base_name in out_name:
+                interesting_outputs += [('vortex', out_name)]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+
 def plot_additionally_observed_induction(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for kite in plot_dict['architecture'].kite_nodes:
