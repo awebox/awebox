@@ -1121,6 +1121,7 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
         options_tree.append(('model', 'scaling', 'z', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
+    options_tree.append(('model', 'scaling', 'x', 'e_without_fictitious', energy_scaling, ('scaling of the energy', None),'x'))
     options_tree.append(('nlp', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 

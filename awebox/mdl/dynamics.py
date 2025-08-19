@@ -321,41 +321,30 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
-def get_power_si_without_fictitious(variables_scaled, parameters, power_si):
-    variables_si = system_variables['SI']
-    if options['trajectory']['system_type'] == 'lift_mode':
-
-    power_fun = cas.Function('power_fun', [variables_scaled, parameters], [power_si])
-    assemble_variables_without_fictitious = []
-    ldx = 0
-    for var_label in variables_scaled.labels():
-        if 'fict' not in var_label:
-            assemble_variables_without_fictitious = cas.vertcat(assemble_variables_without_fictitious, variables_scaled.cat[ldx])
-        else:
-            assemble_variables_without_fictitious = cas.vertcat(assemble_variables_without_fictitious, cas.DM(0.))
-        ldx += 1
-    power_si_without_fictitious = power_fun(assemble_variables_without_fictitious, parameters)
-    return power_si_without_fictitious
-
-
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
         power_si = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
             power_si += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
-        outputs['performance']['p_current'] = power_si
+
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power_si, system_variables['scaled'], architecture, scaling)
+        power_si_without_fictitious = power_si
 
     else:
         power_si = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
-        outputs['performance']['p_current'] = power_si
 
-        # total_fictitious_forces = cas.DM.zeros((3, 1))
-        # for var_label in struct_op.subkeys(system_variables['scaled'], 'u'):
-        #     if 'fict' not in var_label:
+        total_fictitious_forces = cas.DM.zeros((3, 1))
+        for var_name in struct_op.subkeys(system_variables['scaled'], 'u'):
+            if 'f_fict' in var_name:
+                total_fictitious_forces += variables_si['u'][var_name]
+        ehat_tether = vect_op.normalize(variables_si['x']['q10'])
+        fictitious_contribution_to_tension = cas.mtimes(total_fictitious_forces.T, ehat_tether)
+        original_tension = variables_si['z']['lambda10'] * variables_si['x']['l_t']
+        tension_estimated_without_fictitious = original_tension - fictitious_contribution_to_tension
+        power_si_without_fictitious = tension_estimated_without_fictitious * variables_si['x']['dl_t']
 
-    power_si_without_fictitious = get_power_si_without_fictitious(system_variables['scaled'], parameters, power_si)
+    outputs['performance']['p_current'] = power_si
     outputs['performance']['p_current_without_fictitious'] = power_si_without_fictitious
 
     return power_si, outputs, power_si_without_fictitious

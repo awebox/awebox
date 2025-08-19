@@ -37,6 +37,42 @@ import casadi.tools as cas
 awelogger.logger.setLevel(10)
 
 
+def get_basic_options_for_convergence_expense_and_comparison(options):
+
+    # base problem definition
+    options['user_options.system_model.architecture'] = {1: 0, 2: 1, 3: 1}
+    options = ampyx_ap2_settings.set_ampyx_ap2_settings(options)
+    options['user_options.system_model.kite_dof'] = 6
+    options['model.system_bounds.theta.t_f'] = [5., 35.]  # [s]
+    options['user_options.trajectory.lift_mode.windings'] = 1
+
+    options['user_options.induction_model'] = 'vortex'
+    options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
+    options['model.aero.vortex.representation'] = 'alg'
+    options['model.aero.vortex.convection_type'] = 'rigid'
+    options['model.aero.vortex.core_to_chord_ratio'] = 0.05
+
+    options['model.model_bounds.tether_stress.include'] = True
+    options['model.model_bounds.tether_force.include'] = False
+    options['user_options.trajectory.fixed_params'] = {}
+
+    options['solver.linear_solver'] = 'ma86'
+    options['solver.hippo_strategy'] = True
+    options['solver.homotopy_method.advance_despite_max_iter'] = False
+    options['solver.raise_error_at_max_time'] = True
+    options['solver.max_iter'] = 2e4
+    options['solver.max_iter_hippo'] = options['solver.max_iter']
+    options['solver.max_cpu_time'] = 1e10 * 60. * 60.  # set the max cpu time ridiculously high so that it won't kill the large problems
+
+    # these turn out not to be the best-performing scaling options (see awebox opts/default for the latest recommended scaling options), but they were the ones used when producing the convergence and expense plots, and therefore also problem A1 of the results comparison. changing the scaling to the performance-improving settings changes the results a small amount, but (so far) not the the conclusions.
+    options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
+    options['model.scaling.other.force_scaling_method'] = 'synthesized'
+    options['model.scaling.other.flight_radius_estimate'] = 'synthesized'
+    options['model.scaling.other.tension_estimate'] = 'synthesized'
+    options['model.aero.vortex.position_scaling_method'] = 'average'
+    options['model.aero.vortex.wu_ind_scaling_method'] = 'ref_betz'
+
+    return options
 
 
 def build_unique_trial_name(base_name, inputs):
@@ -69,8 +105,7 @@ def toggle_vortex_options(options):
     return options
 
 def get_list_of_plots():
-    list_of_plots = ['power', 'states', 'algebraic_variables', 'controls', 'constraints', 'animation_snapshot',  'isometric', 'projected_xy', 'projected_yz', 'projected_xz', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'wake_legend', 'velocity_deficits', 'velocity_distribution', 'aero_dimensionless', 'relative_radius', 'relative_radius_of_curvature', 'aero_coefficients', 'circulation', 'local_induction_factor_all_projections']
-    #'induction_wind_tunnel',  'induction_contour_normal_wind', 
+    list_of_plots = ['power', 'states', 'algebraic_variables', 'controls', 'constraints', 'animation_snapshot',  'isometric', 'projected_xy', 'projected_yz', 'projected_xz', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'wake_legend', 'velocity_deficits', 'velocity_distribution', 'aero_dimensionless', 'relative_radius', 'relative_radius_of_curvature', 'aero_coefficients', 'circulation', 'local_induction_factor_all_projections', 'induction_wind_tunnel',  'induction_contour_normal_wind']
     #'induction_contour_normal_normal', 'induction_contour_wind_wind',
     list_of_plots = list(set(list_of_plots)) # double-check that we don't waste time producing the same plot twice
     return list_of_plots
@@ -149,14 +184,15 @@ def adjust_weights_for_tracking(trial_baseline, options):
     options['solver.weights.delta'] = much_more_important * baseline_options['solver']['weights']['delta']
     options['solver.weights.ddelta'] = extra_much_more_important * baseline_options['solver']['weights']['ddelta']
 
+    options['solver.weights.l_t'] = more_important * baseline_options['solver']['weights']['l_t']
+    options['solver.weights.dl_t'] = more_important * baseline_options['solver']['weights']['dl_t']
+    options['solver.weights.lambda'] = much_more_important * baseline_options['solver']['weights']['lambda']
+
     options['solver.cost.t_f.0'] = less_important * baseline_options['solver']['cost']['theta_regularisation'][0] # penalizes switching time
     options['solver.cost.u_regularisation.0'] = more_important * baseline_options['solver']['cost']['u_regularisation'][
         0]
     options['solver.cost.tracking.0'] = more_important * baseline_options['solver']['cost']['tracking'][0]
 
-
-    #options['solver.weights.l_t'] = 100. * much_more_important * baseline_options['solver']['weights']['l_t']
-    #options['solver.weights.dl_t'] = 10. * much_more_important * baseline_options['solver']['weights']['dl_t']
 
     #options['solver.cost.theta_regularisation.0'] = much_more_important * baseline_options['solver']['cost']['theta_regularisation'][0]
     

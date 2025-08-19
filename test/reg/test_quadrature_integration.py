@@ -71,24 +71,25 @@ def test_integral_outputs_integration(epsilon=1.e-3):
 def test_constraints_integration(epsilon=1.e-3):
 
     trial = build_and_solve_integration_test_nlp(integration_method='constraints')
-    expected_time = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
+    time_expected = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
 
-    if 'total_time_unscaled' in trial.model.variables_dict['x'].keys():
-        time_unscaled = trial.optimization.V_final_si['x', -1, 'total_time_unscaled']
-    else:
-        message = 'total_time_unscaled not in states.keys()'
-        print_op.log_and_raise_error(message)
-    unscaled_integration_works_correctly = ((time_unscaled - expected_time)**2. < epsilon**2.)
+    for detail in ['unscaled', 'scaled']:
+        time_found_name = 'total_time_' + detail
+        if time_found_name in trial.model.variables_dict['x'].keys():
+            time_found = trial.optimization.V_final_si['x', -1, time_found_name]
+        else:
+            message = time_found_name + ' not in states.keys()'
+            print_op.log_and_raise_error(message)
 
-    if 'total_time_scaled' in trial.model.variables_dict['x'].keys():
-        time_scaled = trial.optimization.V_final_si['x', -1, 'total_time_scaled']
-    else:
-        message = 'total_time_scaled not in states.keys()'
-        print_op.log_and_raise_error(message)
-    scaled_integration_works_correctly = ((time_scaled - expected_time)**2. < epsilon**2.)
+        integration_diff = time_found - time_expected
+        integration_works_correctly = (integration_diff**2 < epsilon**2.)
 
-    assert(unscaled_integration_works_correctly)
-    assert(scaled_integration_works_correctly)
+        if not integration_works_correctly:
+            message = 'something went wrong when testing the integration-by-constraints on ' + time_found_name + '.\n'
+            message += 'expected value: ' + repr(time_expected) + ', '
+            message += 'found value: ' + repr(time_found) + ', '
+            message += 'difference: ' + repr(integration_diff)
+            print_op.log_and_raise_error(message)
 
     return None
 

@@ -178,6 +178,7 @@ def generate_structure(options, architecture):
         pass
     else:
         system_states.extend([('e', (1, 1))])  # energy
+        system_states.extend([('e_without_fictitious', (1, 1))])  # energy
 
         if options['integration']['include_integration_test']:
             system_states.extend([('total_time_unscaled', (1, 1))])
