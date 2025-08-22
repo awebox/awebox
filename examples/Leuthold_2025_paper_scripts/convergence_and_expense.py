@@ -71,8 +71,8 @@ def run(inputs={}):
     options['model.aero.actuator.normal_vector_model'] = 'xhat'
     options['visualization.cosmetics.temporal_epigraph_locations'] = ['switch', 1.0] 
 
-    # use these options only in final comparison. the convergence plots were made with the xhat normal_vector
-    options['visualization.cosmetics.temporal_epigraph_locations'] = [0.3, 'switch']
+    # use these options only in final comparison. the convergence plots were made with the xhat normal_vector. the only difference has to do with which projections are used in plotting (and in which projections of the induced velocity to store)
+    options['visualization.cosmetics.temporal_epigraph_locations'] = [0.3, 0.35, 'switch']
     options['model.aero.actuator.normal_vector_model'] = 'dual'
     
     

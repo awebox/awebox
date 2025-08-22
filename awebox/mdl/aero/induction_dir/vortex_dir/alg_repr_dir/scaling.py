@@ -202,6 +202,9 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
         wu_ind_scale = u_altitude
     elif scaling_method == 'infty_betz':
         wu_ind_scale = u_altitude * a_ref
+    else:
+        message = 'unfamiliar wu_ind_scaling_method (' + scaling_method + ').'
+        print_op.log_and_raise_error(message)
 
     for kite_obs in architecture.kite_nodes:
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)

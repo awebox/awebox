@@ -67,7 +67,7 @@ def run(inputs={}):
     options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '--'
     options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 5.
 
-    options['visualization.cosmetics.temporal_epigraph_locations'] = [0.3, 'switch']
+    options['visualization.cosmetics.temporal_epigraph_locations'] = [0.3, 0.35, 'switch']
     options['model.aero.actuator.normal_vector_model'] = 'dual'
     options['model.aero.vortex.induction_factor_normalizing_speed'] = 'u_ref'
 

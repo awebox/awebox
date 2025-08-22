@@ -109,22 +109,25 @@ def run(inputs={}):
         options = help_op.turn_off_inequalities_except_time(options)
 
         #adjust_weights_for_tracking
-        options['solver.cost.tracking.0'] = 1e1 #1
-        options['solver.cost.t_f.0'] = 1e2
-        options['solver.cost.fictitious.0'] = 1.e-10
-        options['solver.cost.u_regularisation.0'] = 1.e-1
-        options['solver.cost.xdot_regularisation.0'] = 1.e-2
-        options['solver.weights.vortex'] = 0.
-        options['solver.weights.q'] = 1e1
-        options['solver.weights.dq'] = 1e1
-        options['solver.weights.coeff'] = 1e1
+        options = help_op.adjust_weights_for_tracking(trial_baseline, options)
+        options['solver.cost.tracking.0'] = 1e0 #1
+
+        #options['solver.cost.tracking.0'] = 1e1 #1
+        #options['solver.cost.t_f.0'] = 1e2
+        #options['solver.cost.fictitious.0'] = 1.e-10
+        #options['solver.cost.u_regularisation.0'] = 1.e-1
+        #options['solver.cost.xdot_regularisation.0'] = 1.e-2
+        #options['solver.weights.vortex'] = 0.
+        #options['solver.weights.q'] = 1e1
+        #options['solver.weights.dq'] = 1e1
+        #options['solver.weights.coeff'] = 1e1
 
         options = help_op.fix_params_to_baseline(trial_baseline, options)
 
         ## the commented out lines here were useful when tuning the weights of the problem
-        #options['user_options.induction_model'] = 'not_in_use'
-        #final_homotopy_step = 'initial'
-        final_homotopy_step = 'induction'
+        options['user_options.induction_model'] = 'not_in_use'
+        final_homotopy_step = 'initial'
+        #final_homotopy_step = 'induction'
 
         # build trial and optimize
         trial_name_vortex = trial_name_baseline + '_vortex'
@@ -146,6 +149,7 @@ def run(inputs={}):
 if __name__ == "__main__":
 
     inputs = {}
-    #inputs['nlp.n_k'] = 10, # when testing
+    #inputs['nlp.n_k'] = 20 # when testing
+    #inputs['user_options.trajectory.lift_mode.windings'] = 1
 
     trial = run(inputs)

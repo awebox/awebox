@@ -97,7 +97,7 @@ def toggle_baseline_options(options):
     
 def toggle_vortex_options(options):
     options['user_options.induction_model'] = 'vortex'
-    #options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # it's really tempting to remove inequality constraints by switching the phase-fixing method, but that upsets the warmstart generation so we're not doing it.
+    #options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # notice that the -inf <= dl_t <= inf bounds, will achieve this, without upsetting the warmstart.
     options['visualization.cosmetics.plot_ref'] = True # the 'reference' here is the baseline problem
     options['solver.hippo_strategy'] = False # save memory by only requring one casadi solver
     options['solver.linear_solver'] = 'ma86' # the parallelized but non-repeatable option

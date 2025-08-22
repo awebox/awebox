@@ -1314,10 +1314,10 @@ def estimate_power(options, architecture):
     p_loyd = perf_op.get_loyd_power(power_density, CL, CD, s_ref, elevation_angle)
 
     induction_model = options['user_options']['induction_model']
-    if induction_model == 'actuator':
-        induction_efficiency = 0.5
+    if induction_model == 'not_in_use':
+        induction_efficiency = 1.
     else:
-        induction_efficiency = 1.0
+        induction_efficiency = 0.5
 
     kite_dof = get_kite_dof(options['user_options'])
     if kite_dof == 3:

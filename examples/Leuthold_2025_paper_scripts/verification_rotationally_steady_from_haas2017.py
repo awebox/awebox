@@ -24,6 +24,8 @@ import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 
+import helpful_operations as help_op
+
 import awebox.viz.wake as wake_viz
 import awebox.opti.initialization_dir.initialization as initialization
 
@@ -94,13 +96,13 @@ def run(inputs={}):
     options['visualization.cosmetics.trajectory.trajectory_rotation_dcm'] = True
     options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
     options['visualization.cosmetics.trajectory.kite_bodies'] = True
-    options['model.aero.vortex.far_wake_convection_time'] = t_f * 2
 
     options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
 
     options['model.aero.actuator.normal_vector_model'] = 'xhat'
     options['visualization.cosmetics.trajectory.reel_in_linestyle'] = '-'
-    options['visualization.cosmetics.temporal_epigraph_locations'] = []
+    options['visualization.cosmetics.temporal_epigraph_locations'] = [1.]
+    options['model.aero.vortex.ratio_circulation_max_estimate_to_scaling_estimate'] = 2.
     options['visualization.cosmetics.trajectory.temporal_epigraph_length_to_span'] = 0.
 
 
@@ -139,28 +141,41 @@ def run(inputs={}):
     # make sure you don't accidentally clip away the initialization to fit the inequalities
     options['solver.initialization.init_clipping'] = False
 
+    # keep the semi-infinite part of the wake from overwhelming the plotting
+    options['model.aero.vortex.far_wake_convection_time'] = t_f * 2
+
+    # tracking
+    options['solver.weights.q'] = 100.
+    options['solver.weights.dq'] = 1.
+    options['solver.weights.r'] = 10.
+    options['solver.weights.omega'] = 1.
+    options['solver.cost.tracking.0'] = 1e2 #1
+    options['solver.cost.fictitious.0'] = 1.e-15
+    # options['solver.cost.beta.0'] = 1.e-8
+    options['solver.cost.u_regularisation.0'] = 1.e-8
+    options['solver.cost.xdot_regularisation.0'] = 1.e-8
+    # options['solver.weights.vortex'] = 1.e-8
 
     options = help_op.toggle_vortex_options(options)
-    options = help_op.adjust_weights_for_tracking(trial_baseline, options)
     
     # build trial and optimize
     trial_name = help_op.build_unique_trial_name(base_name, inputs)
-    trial = awe_trial.Trial(options, trial_name_vortex)
+    trial = awe_trial.Trial(options, trial_name)
     trial.build()
     trial.optimize(final_homotopy_step='induction')
     
     trial.print_cost_information()
     
-    help_op.save_results_including_figures(trial_vortex, options)
+    help_op.save_results_including_figures(trial, options)
 
-    # check how well the tracking worked
+    # double-check that the tracking worked
     report = {}
-    criteria = make_comparison(trial)-
+    criteria = make_comparison(trial)
     for name_1, val_1 in criteria.items():
         for name_2, val_2 in val_1.items():
             report['criteria_' + name_1 + '_' + name_2] = val_2
     print_op.print_dict_as_table(report, level='info')
-    filename = get_summary_csv_filename(trial)
+    filename = "comparison_" + trial.name + ".csv"
     save_op.write_or_append_two_column_dict_to_csv(report, filename)
 
     return None
