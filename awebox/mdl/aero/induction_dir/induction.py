@@ -108,7 +108,7 @@ def log_and_raise_unknown_induction_model_error(induction_model):
 ## velocities
 
 def get_kite_induced_velocity_var(variables, kite):
-    ind_var = variables['z']['ui' + str(kite)]
+    ind_var = variables['z']['wui' + str(kite)]
     return ind_var
 
 def get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, architecture, parameters):

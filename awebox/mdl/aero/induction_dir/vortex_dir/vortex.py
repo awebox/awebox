@@ -140,13 +140,13 @@ def get_unlifted_cstr(wake, system_variables, parameters, architecture, scaling)
     cstr_list = cstr_op.ConstraintList()
 
     for kite_obs in architecture.kite_nodes:
-        parent_obs = architecture.parent_map[kite_obs]
 
-        x_obs = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
-        vec_u_computed = wake.calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=x_obs)
+        parent_obs = architecture.parent_map[kite_obs]
+        q_kite = variables_si['x']['q' + str(kite_obs) + str(parent_obs)]
+        vec_u_ind_computed = wake.calculate_total_biot_savart_at_x_obs(system_variables['scaled'], parameters, x_obs=q_kite)
 
         vec_u_ind = get_induced_velocity_at_kite_si(variables_si, kite_obs)
-        resi_si = vec_u_ind - vec_u_computed
+        resi_si = vec_u_ind - vec_u_ind_computed
 
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         scaling_val = scaling['z', var_name]

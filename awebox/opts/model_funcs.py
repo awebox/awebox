@@ -426,6 +426,10 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
+        options_tree.append(('model', 'system_bounds_other', None, 'fixed_params', fixed_params,
+                         ('user input for fixed bounds on theta', None), 'x'))
+
+
     else:
         if user_options['trajectory']['type'] == 'launch':
             initial_or_terminal = 'terminal'
@@ -827,7 +831,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'z', 'ui', u_ind, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'wui', u_ind, ('descript', None), 'x'))
 
     return options_tree, fixed_params
 

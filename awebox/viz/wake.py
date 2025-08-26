@@ -23,6 +23,7 @@
 #
 #
 import copy
+import pdb
 
 import matplotlib
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
@@ -1150,7 +1151,6 @@ def get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_e
         n_hat, _, _ = get_coordinate_axes(plot_dict, idx_at_eval, direction)
 
         u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
-
         a_sym = general_flow.compute_induction_factor(u_ind_sym, n_hat, u_normalizing)
     else:
         a_sym = cas.DM.zero((1, 1))
@@ -1235,6 +1235,12 @@ def get_kite_plane_induction_params(plot_dict, idx_at_eval, suppress_wind_option
         local_center = np.average(np.array(interpolated_outputs_si['performance']['trajectory_center' + str(layer)][dim]))
         center = cas.vertcat(center, local_center)
     kite_plane_induction_params['center'] = center
+
+    center = []
+    for dim in range(3):
+        local_center = interpolated_outputs_si['geometry']['x_center' + str(layer)][dim][idx_at_eval]
+        center = cas.vertcat(center, local_center)
+    kite_plane_induction_params['instantaneous_center'] = center
 
     wind_model = plot_dict['options']['model']['wind']['model']
     u_ref = plot_dict['options']['user_options']['wind']['u_ref']
@@ -1345,13 +1351,15 @@ def is_this_a_verification_test(test_name, verification_dict, thresh=0.01):
     return this_is_a_verification_test
 
 
-def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal'):
+def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal', threshhold=0.01):
 
     vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
 
         # include this once for the error message
         _ = get_kite_plane_induction_params(plot_dict, 0, suppress_wind_options_import_warning=False)
+        b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
+        wake = plot_dict['wake']
 
         tau_style_dict = tools.get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
         print_op.base_print('plotting the induction contours at taus in ' + repr(tau_style_dict.keys()))
@@ -1363,62 +1371,126 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
 
             print_op.base_print('generating_induction_factor_casadi_function...')
             idx_at_eval = int(np.floor((float(n_points_interpolation) -1.)  * tau_at_eval))
+            u_normalizing = get_induction_factor_normalizing_speed(plot_dict, idx_at_eval)
             a_fun = get_the_induction_factor_at_observer_function(plot_dict, cosmetics, idx_at_eval, direction=direction_induction)
 
             print_op.base_print('slicing the variables at the appropriate interpolated time...')
             variables_scaled = get_variables_scaled(plot_dict, cosmetics, idx_at_eval)
+            parameters = plot_dict['parameters_plot']
             scaling = plot_dict['model_variables'](plot_dict['model_scaling'])
             variables_si = plot_dict['model_variables'](struct_op.variables_scaled_to_si(plot_dict['model_variables'], variables_scaled, scaling))
             kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
             radius = kite_plane_induction_params['average_radius']
-            x_center = kite_plane_induction_params['center']
 
             print_op.base_print('deciding the circumstances of the contour plot...')
             this_is_haas_test = is_this_a_haas2017_test(plot_dict, kite_plane_induction_params, variables_si, thresh=0.01)
 
+            if this_is_haas_test:
+                center_position = 'center'
+            else:
+                center_position = 'instantaneous_center'
+            x_center = kite_plane_induction_params[center_position]
+
             ### compute the induction factors
             print_op.base_print('finding coordinates...')
-            side = get_induction_contour_side(plot_dict, idx_at_eval, direction=direction_plotting)
+            side = get_induction_contour_side(plot_dict, idx_at_eval, direction=direction_plotting, center_position=center_position)
             n_hat, a_hat, b_hat = get_coordinate_axes(plot_dict, idx_at_eval, direction=direction_plotting)
+
+            if (plot_dict['architecture'].number_of_kites == 2) and (kite_plane_induction_params['layer'] == 1):
+                print_op.base_print('running plotting sanity checks, part 1...')
+                q_kite = variables_si['x', 'q21']
+                a_computed_at_kite = a_fun(q_kite)
+                ui_var_computed = variables_si['z', 'wu_ind_2']
+                ui_var_applied = variables_si['z', 'wui2']
+                if direction_induction == 'normal':
+                    a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_normal2'][0][idx_at_eval]
+                    a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, n_hat, u_normalizing)
+                    a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, n_hat, u_normalizing)
+                elif direction_induction == 'wind':
+                    a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_wind2'][0][idx_at_eval]
+                    a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, vect_op.xhat_dm(), u_normalizing)
+                    a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, vect_op.xhat_dm(), u_normalizing)
+                a_sanity_dict = {'from_outputs': a_at_kite_from_outputs, 'from_var_computed': a_from_var_computed, 'from_var_applied': a_from_var_applied}
+                for a_name, a_val in a_sanity_dict.items():
+                    computed_a_value_matches = vect_op.norm(a_computed_at_kite - a_val) < threshhold
+                    if not computed_a_value_matches:
+                        message = 'something went seriously wrong when defining the wake plotting a_function, specifically related to the induction value expected ' + a_name
+                        print_op.base_print(message, level='warning')
 
             print_op.base_print('deciding the observation range...')
             plot_radius_scaled = kite_plane_induction_params['mu_end_by_path']
             delta_plot = plot_radius_scaled / float(n_points_contour)
-            yy_scaled, zz_scaled = np.meshgrid(np.arange(-1. * plot_radius_scaled, plot_radius_scaled, delta_plot),
-                                               np.arange(-1. * plot_radius_scaled, plot_radius_scaled, delta_plot))
+
+            # make sure that the kite position is represented in the mesh
+            yyzz_side_array = np.arange(-1. * plot_radius_scaled, plot_radius_scaled, delta_plot)
+            extra_point_offsets = np.arange(-1./2., 1./2., 0.1)
+            for kite in plot_dict['architecture'].kite_nodes:
+                parent = plot_dict['architecture'].parent_map[kite]
+                q_kite = variables_si['x', 'q' + str(kite) + str(parent)]
+                list_of_extra_points = [q_kite]
+                for tip in ['int', 'ext']:
+                    tip_point = []
+                    for dim in range(3):
+                        tip_point = cas.vertcat(tip_point, plot_dict['interpolation_si']['outputs']['aerodynamics']['wingtip_' + tip + str(kite)][dim][
+                            idx_at_eval])
+                    list_of_extra_points += [tip_point]
+
+                for extra_point in list_of_extra_points:
+                    # x_obs_centered_sym = (yy_scaled_sym * radius * a_hat + zz_scaled_sym * radius * b_hat) + x_center
+                    for e_hat in [a_hat, b_hat]:
+                        point_shifted = cas.mtimes((extra_point - x_center).T, e_hat) / radius
+                        for exta_offset in extra_point_offsets:
+                            coord_offset = exta_offset * b_ref / radius
+                            new_point = point_shifted + coord_offset
+                            yyzz_side_array = cas.vertcat(yyzz_side_array, new_point)
+
+            yyzz_side_array = np.array(vect_op.columnize(yyzz_side_array))
+            yyzz_side_array = yyzz_side_array.flatten()
+            yyzz_side_array = list(set(yyzz_side_array))  # remove duplicates
+            yyzz_side_array = np.sort(np.array(yyzz_side_array), axis=None) #the list(set()) ruins the sorting if it comes first.
+
+            yy_scaled, zz_scaled = np.meshgrid(yyzz_side_array, yyzz_side_array)
 
             print_op.base_print('making the casadi function map...')
-            aa = np.zeros(yy_scaled.shape)
-            yy_number_entries = yy_scaled.shape[0] * yy_scaled.shape[1]
+            yyzz_number_entries = yy_scaled.shape[0] * yy_scaled.shape[1]
             parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
-            a_map = a_fun.map(yy_number_entries, parallelization_type)
-
-            print_op.base_print('making induction contour plot...')
-            total_progress = yy_scaled.shape[0] * yy_scaled.shape[1]
 
             print_op.base_print('generating observation grid...')
-            observation_points_concatenated = []
-            pdx = 0
-            for idx in range(yy_scaled.shape[0]):
-                for jdx in range(yy_scaled.shape[1]):
-                    x_obs_centered = yy_scaled[idx, jdx] * radius * a_hat + zz_scaled[idx, jdx] * radius * b_hat
-                    x_obs = x_obs_centered + x_center
-                    observation_points_concatenated = cas.horzcat(observation_points_concatenated, x_obs)
-                    print_op.print_progress(pdx, total_progress)
-                    pdx += 1
-            print_op.close_progress()
+            yyzz_scaled_sym = cas.SX.sym('yyzz_scaled_sym', (2, 1))
+            yy_scaled_sym = yyzz_scaled_sym[0]
+            zz_scaled_sym = yyzz_scaled_sym[1]
+            x_obs_centered_sym = (yy_scaled_sym * radius * a_hat + zz_scaled_sym * radius * b_hat) + x_center
+            x_obs_centered_sym_fun = cas.Function('x_obs_centered_sym_fun', [yyzz_scaled_sym], [x_obs_centered_sym])
 
-            print_op.base_print('computing induction factors...')
-            aa_computed = a_map(observation_points_concatenated)
+            aa_computed_sym = a_fun(x_obs_centered_sym)
+            aa_computed_fun = cas.Function('aa_computed_fun', [yyzz_scaled_sym], [aa_computed_sym])
+            aa_computed_map = aa_computed_fun.map(yyzz_number_entries, parallelization_type)
+            yy_reshape = cas.DM(np.reshape(yy_scaled, (1, yyzz_number_entries)))
+            zz_reshape = cas.DM(np.reshape(zz_scaled, (1, yyzz_number_entries)))
+            yyzz_entries = cas.vertcat(yy_reshape, zz_reshape)
+            aa_computed_entries = np.array(aa_computed_map(yyzz_entries))
+            aa = np.reshape(aa_computed_entries, yy_scaled.shape)
 
-            print_op.base_print('reassigning computed induction factors...')
-            ldx = 0
-            for idx in range(yy_scaled.shape[0]):
-                for jdx in range(yy_scaled.shape[0]):
-                    aa[idx, jdx] = float(aa_computed[ldx])
-                    print_op.print_progress(ldx, total_progress)
-                    ldx += 1
-            print_op.close_progress()
+            if (plot_dict['architecture'].number_of_kites == 2) and (kite_plane_induction_params['layer'] == 1) and (direction_plotting == 'normal'):
+                print_op.base_print('running plotting sanity checks, part 2...')
+                q_kite2 = variables_si['x', 'q21']
+                q_kite3 = variables_si['x', 'q31']
+                center_diff = (q_kite3 + q_kite2) / 2. - x_center
+                center_at_midpoint_between_kites = cas.mtimes(center_diff.T, center_diff) < threshhold # should be True
+                kite_axis_perpendicular_to_nhat = cas.mtimes((q_kite3 - q_kite2).T, n_hat) < threshhold # should also be True
+
+                yyzz_kite2_expected = cas.vertcat(cas.mtimes((q_kite2 - x_center).T, a_hat) / radius,
+                                         cas.mtimes((q_kite2 - x_center).T, b_hat) / radius)
+                x_obs_corresponding_to_yyzz_expected = x_obs_centered_sym_fun(yyzz_kite2_expected)
+                x_obs_function_actually_gives_q_kite = vect_op.norm(x_obs_corresponding_to_yyzz_expected - q_kite2) < threshhold # should be True
+
+                a_calculated_with_yyzz = aa_computed_fun(yyzz_kite2_expected)
+                a_calculated_with_xyz = a_fun(q_kite2)
+                a_computed_with_contour_coordinates_as_expected = vect_op.abs(a_calculated_with_yyzz - a_calculated_with_xyz) < threshhold
+
+                if not (center_at_midpoint_between_kites and kite_axis_perpendicular_to_nhat and x_obs_function_actually_gives_q_kite and a_computed_with_contour_coordinates_as_expected):
+                    message = 'something went wrong with the definition of the kmp contour coordinates'
+                    print_op.base_print(message, level='warning')
 
             ### initialize the figure
             fig_new, ax = plt.subplots(num=int(tau_rounded * 1e4), facecolor='none')
@@ -1431,7 +1503,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             haas_levels = [-0.05, 0., 0.2]
             haas_linestyles = ['dashdot', 'solid', 'dashed']
             haas_colors = ['k', 'k', 'k']
-            general_levels = 10 #[-1.0, -0.5, -0.4, -0.3, -0.2, -0.1, -0.05, -0.01, 0., 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 1.0]
+            general_levels = [-1.0, -0.5, -0.2, -0.1, 0., 0.1, 0.2, 0.5, 1.0]
             general_colors = 'k'
             general_linestyles = 'solid'
             if this_is_haas_test and ((np.any(aa < haas_levels[0])) and (np.any(aa > haas_levels[-1]))):
@@ -1478,11 +1550,11 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
     return None
 
 
-def get_induction_contour_side(plot_dict, idx_at_eval, direction='normal'):
+def get_induction_contour_side(plot_dict, idx_at_eval, direction='normal', center_position='center'):
     kite_plane_induction_params = get_kite_plane_induction_params(plot_dict, idx_at_eval)
 
     radius = kite_plane_induction_params['average_radius']
-    x_center = kite_plane_induction_params['center']
+    x_center = kite_plane_induction_params[center_position]
     n_hat, a_hat, b_hat = get_coordinate_axes(plot_dict, idx_at_eval, direction=direction)
 
     side = (x_center, a_hat, b_hat, 1./radius)
@@ -1570,42 +1642,33 @@ def plot_induction_contour_on_vwt_cross_sections(plot_dict, cosmetics, fig_name,
                 ratio_points = float((x_max - x_min) / (a_max - a_min))
                 n_x = int(np.round(ratio_points * n_points_contour))
                 n_a = n_points_contour
-                xx_mesh, aa_mesh = np.meshgrid(np.linspace(x_min, x_max, n_x),
-                                               np.linspace(a_min, a_max, n_a),
+                xx_space = np.linspace(x_min, x_max, n_x)
+                aa_space = np.linspace(a_min, a_max, n_a)
+                xx_mesh, aa_mesh = np.meshgrid(xx_space, aa_space,
                                                indexing='xy'
                                                )
+                xxaa_number_of_entries = xx_mesh.shape[0] * xx_mesh.shape[1]
 
                 print_op.base_print('making the casadi function map...')
 
                 xx_number_entries = xx_mesh.shape[0] * xx_mesh.shape[1]
                 parallelization_type = plot_dict['options']['model']['construction']['parallelization']['type']
-                u_map = u_wind_proj_fun.map(xx_number_entries, parallelization_type)
 
                 print_op.base_print('making induction contour plot...')
-                total_progress = xx_mesh.shape[0] * xx_mesh.shape[1]
+
                 print_op.base_print('generating observation grid...')
-                observation_points_concatenated = []
-                pdx = 0
-                for idx in range(xx_mesh.shape[0]):
-                    for jdx in range(xx_mesh.shape[1]):
-                        x_obs = xx_mesh[idx, jdx] * vect_op.xhat_dm() + aa_mesh[idx, jdx] * a_hat + position_shift
-                        observation_points_concatenated = cas.horzcat(observation_points_concatenated, x_obs)
-                        print_op.print_progress(pdx, total_progress)
-                        pdx += 1
-                print_op.close_progress()
-
-                print_op.base_print('computing induction factors...')
-                uu_computed = u_map(observation_points_concatenated)
-
-                print_op.base_print('reassigning computed induction factors...')
-                ldx = 0
-                uu = np.zeros(xx_mesh.shape)
-                for idx in range(xx_mesh.shape[0]):
-                    for jdx in range(xx_mesh.shape[1]):
-                        uu[idx, jdx] = float(uu_computed[ldx])
-                        print_op.print_progress(ldx, total_progress)
-                        ldx += 1
-                print_op.close_progress()
+                xxaa_sym = cas.SX.sym('xxaa_sym', (2, 1))
+                xx_sym = xxaa_sym[0]
+                aa_sym = xxaa_sym[1]
+                x_obs_centered_sym = (xx_sym * x_hat + aa_sym * a_hat) + position_shift
+                uu_computed_sym = u_wind_proj_fun(x_obs_centered_sym)
+                uu_computed_fun = cas.Function('uu_computed_fun', [xxaa_sym], [uu_computed_sym])
+                uu_computed_map = uu_computed_fun.map(xx_number_entries, parallelization_type)
+                xx_reshape = cas.DM(np.reshape(xx_mesh, (1, xxaa_number_of_entries)))
+                aa_reshape = cas.DM(np.reshape(aa_mesh, (1, xxaa_number_of_entries)))
+                xxaa_entries = cas.vertcat(xx_reshape, aa_reshape)
+                uu_computed_entries = np.array(uu_computed_map(xxaa_entries))
+                uu = np.reshape(uu_computed_entries, xx_mesh.shape)
 
                 ### draw the contour
                 u_min = 0

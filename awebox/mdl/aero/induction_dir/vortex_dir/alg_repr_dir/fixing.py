@@ -131,6 +131,7 @@ def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, t
 
     u_local = model.wind.get_velocity(anchoring_position_si[2])
     if nlp_options['induction']['vortex_convection_type'] == 'free':
+        print_op.base_print('free wake convection does not work properly yet', level='warning')
         fixing_position_scaled = V['coll_var', ndx, ddx, 'z', fixing_name]
         fixing_position_si = struct_op.var_scaled_to_si('z', fixing_name, fixing_position_scaled, model.scaling, check_should_multiply=False)
         x_halfways = (fixing_position_si + anchoring_position_si) / 2.

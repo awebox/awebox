@@ -64,7 +64,7 @@ def initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num):
 def initial_guess_general(model, V_init):
 
     dict = {}
-    dict['ui'] = cas.DM.zeros((3, 1))  # remember that induction homotopy has not yet begun.
+    dict['wui'] = cas.DM.zeros((3, 1))  # remember that induction homotopy has not yet begun.
 
     for var_type in ['x', 'z']:
         for name in struct_op.subkeys(model.variables, var_type):
