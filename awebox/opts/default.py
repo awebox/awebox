@@ -574,7 +574,7 @@ def set_default_options(default_user_options, help_options):
         ('visualization', 'cosmetics', 'diagnostics', 'axisfont',   {'size': '20'}, ('???', None), 'x'),
         ('visualization', 'cosmetics', 'diagnostics', 'ylabelsize', 15,             ('???', None), 'x'),
         ('visualization', 'cosmetics', 'induction',   'comparison_data_for_velocity_distribution', 'not_in_use', ('whether to add comparison data from Rancourt2018 or Trevisi2023 to plot of spanwise velocity distribution', ['not_in_use', 'rancourt', 'trevisi']), 'x'),
-        ('visualization', 'cosmetics', 'induction',   'n_points_contour', 300,      ('number of observation points per-side of induction contour plot', None), 'x'),
+        ('visualization', 'cosmetics', 'induction',   'n_points_contour', 200,      ('number of observation points per-side of induction contour plot', None), 'x'),
         ('visualization', 'cosmetics', 'animation',   'snapshot_index', 0,          ('???', None), 'x'),
         ('visualization', 'cosmetics', None,          'show_when_ready', False,             ('display plots as soon as they are ready', [True, False]), 'x'),
         ('visualization', 'cosmetics', None,          'temporal_epigraph_locations',    ['switch', 1.0], ('draw temporal-orientation lines/gates into the plots at certain fractions of the optimizaton_period. switch includes the phase switching time; decimal values between 0. and 1. indicate fractions of period', None), 'x'),

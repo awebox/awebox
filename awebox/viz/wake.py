@@ -1351,7 +1351,7 @@ def is_this_a_verification_test(test_name, verification_dict, thresh=0.01):
     return this_is_a_verification_test
 
 
-def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal', threshhold=0.01):
+def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, direction_plotting='normal', direction_induction='normal', threshhold=0.1):
 
     vortex_info_exists = ('wake' in plot_dict.keys()) and (plot_dict['wake'] is not None)
     if vortex_info_exists:
@@ -1360,6 +1360,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
         _ = get_kite_plane_induction_params(plot_dict, 0, suppress_wind_options_import_warning=False)
         b_ref = plot_dict['options']['model']['params']['geometry']['b_ref']
         wake = plot_dict['wake']
+        architecture = plot_dict['architecture']
 
         tau_style_dict = tools.get_temporal_orientation_epigraphs_taus_and_linestyles(plot_dict)
         print_op.base_print('plotting the induction contours at taus in ' + repr(tau_style_dict.keys()))
@@ -1385,10 +1386,11 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             print_op.base_print('deciding the circumstances of the contour plot...')
             this_is_haas_test = is_this_a_haas2017_test(plot_dict, kite_plane_induction_params, variables_si, thresh=0.01)
 
-            if this_is_haas_test:
-                center_position = 'center'
-            else:
+            if direction_plotting == 'normal':
                 center_position = 'instantaneous_center'
+                # needed so that the plotting plane actually contains the kites
+            else:
+                center_position = 'center'
             x_center = kite_plane_induction_params[center_position]
 
             ### compute the induction factors
@@ -1396,26 +1398,27 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             side = get_induction_contour_side(plot_dict, idx_at_eval, direction=direction_plotting, center_position=center_position)
             n_hat, a_hat, b_hat = get_coordinate_axes(plot_dict, idx_at_eval, direction=direction_plotting)
 
-            if (plot_dict['architecture'].number_of_kites == 2) and (kite_plane_induction_params['layer'] == 1):
-                print_op.base_print('running plotting sanity checks, part 1...')
-                q_kite = variables_si['x', 'q21']
-                a_computed_at_kite = a_fun(q_kite)
-                ui_var_computed = variables_si['z', 'wu_ind_2']
-                ui_var_applied = variables_si['z', 'wui2']
-                if direction_induction == 'normal':
-                    a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_normal2'][0][idx_at_eval]
-                    a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, n_hat, u_normalizing)
-                    a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, n_hat, u_normalizing)
-                elif direction_induction == 'wind':
-                    a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_wind2'][0][idx_at_eval]
-                    a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, vect_op.xhat_dm(), u_normalizing)
-                    a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, vect_op.xhat_dm(), u_normalizing)
-                a_sanity_dict = {'from_outputs': a_at_kite_from_outputs, 'from_var_computed': a_from_var_computed, 'from_var_applied': a_from_var_applied}
-                for a_name, a_val in a_sanity_dict.items():
-                    computed_a_value_matches = vect_op.norm(a_computed_at_kite - a_val) < threshhold
-                    if not computed_a_value_matches:
-                        message = 'something went seriously wrong when defining the wake plotting a_function, specifically related to the induction value expected ' + a_name
-                        print_op.base_print(message, level='warning')
+            print_op.base_print('double check that induction factor function is correctly defined... (or sanity checks, part 1)')
+            kite_test = architecture.kite_nodes[0]
+            parent_test = architecture.parent_map[kite_test]
+            q_kite_test = variables_si['x', 'q' + str(kite_test) + str(parent_test)]
+            a_computed_at_kite = a_fun(q_kite_test)
+            ui_var_computed = variables_si['z', 'wu_ind_' + str(kite_test)]
+            ui_var_applied = variables_si['z', 'wui' + str(kite_test)]
+            if direction_induction == 'normal':
+                a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_normal' + str(kite_test)][0][idx_at_eval]
+                a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, n_hat, u_normalizing)
+                a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, n_hat, u_normalizing)
+            elif direction_induction == 'wind':
+                a_at_kite_from_outputs = plot_dict['interpolation_si']['outputs']['vortex']['local_a_wind' + str(kite_test)][0][idx_at_eval]
+                a_from_var_computed = general_flow.compute_induction_factor(ui_var_computed, vect_op.xhat_dm(), u_normalizing)
+                a_from_var_applied = general_flow.compute_induction_factor(ui_var_applied, vect_op.xhat_dm(), u_normalizing)
+            a_sanity_dict = {'from_outputs': a_at_kite_from_outputs, 'from_var_computed': a_from_var_computed, 'from_var_applied': a_from_var_applied}
+            for a_name, a_val in a_sanity_dict.items():
+                computed_a_value_matches = vect_op.norm(a_computed_at_kite - a_val) < threshhold
+                if not computed_a_value_matches:
+                    message = 'something went seriously wrong when defining the wake plotting a_function, specifically related to the induction value expected ' + a_name
+                    print_op.base_print(message, level='warning')
 
             print_op.base_print('deciding the observation range...')
             plot_radius_scaled = kite_plane_induction_params['mu_end_by_path']
@@ -1468,29 +1471,33 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             yy_reshape = cas.DM(np.reshape(yy_scaled, (1, yyzz_number_entries)))
             zz_reshape = cas.DM(np.reshape(zz_scaled, (1, yyzz_number_entries)))
             yyzz_entries = cas.vertcat(yy_reshape, zz_reshape)
+
+            print_op.base_print('computing induction factors...')
             aa_computed_entries = np.array(aa_computed_map(yyzz_entries))
             aa = np.reshape(aa_computed_entries, yy_scaled.shape)
 
-            if (plot_dict['architecture'].number_of_kites == 2) and (kite_plane_induction_params['layer'] == 1) and (direction_plotting == 'normal'):
-                print_op.base_print('running plotting sanity checks, part 2...')
-                q_kite2 = variables_si['x', 'q21']
-                q_kite3 = variables_si['x', 'q31']
-                center_diff = (q_kite3 + q_kite2) / 2. - x_center
-                center_at_midpoint_between_kites = cas.mtimes(center_diff.T, center_diff) < threshhold # should be True
-                kite_axis_perpendicular_to_nhat = cas.mtimes((q_kite3 - q_kite2).T, n_hat) < threshhold # should also be True
+            if len(architecture.layer_nodes) == 1 and (architecture.number_of_kites < 4) and (direction_plotting == 'normal'):
+                print_op.base_print(
+                    'double check that grid computations are correctly defined... (or sanity checks, part 2)')
 
-                yyzz_kite2_expected = cas.vertcat(cas.mtimes((q_kite2 - x_center).T, a_hat) / radius,
-                                         cas.mtimes((q_kite2 - x_center).T, b_hat) / radius)
-                x_obs_corresponding_to_yyzz_expected = x_obs_centered_sym_fun(yyzz_kite2_expected)
-                x_obs_function_actually_gives_q_kite = vect_op.norm(x_obs_corresponding_to_yyzz_expected - q_kite2) < threshhold # should be True
+                for kite_test in architecture.kite_nodes:
+                    parent_test = architecture.parent_map[kite_test]
+                    q_kite_test = variables_si['x', 'q' + str(kite_test) + str(parent_test)]
+                    vec_center_to_kite = q_kite_test - x_center
+                    kite_actually_on_designated_kmp = cas.mtimes(vec_center_to_kite.T, n_hat) < threshhold # should also be True
 
-                a_calculated_with_yyzz = aa_computed_fun(yyzz_kite2_expected)
-                a_calculated_with_xyz = a_fun(q_kite2)
-                a_computed_with_contour_coordinates_as_expected = vect_op.abs(a_calculated_with_yyzz - a_calculated_with_xyz) < threshhold
+                    yyzz_kite_expected = cas.vertcat(cas.mtimes(vec_center_to_kite.T, a_hat) / radius,
+                                             cas.mtimes(vec_center_to_kite.T, b_hat) / radius)
+                    x_obs_corresponding_to_yyzz_expected = x_obs_centered_sym_fun(yyzz_kite_expected)
+                    x_obs_function_actually_gives_q_kite = vect_op.norm(x_obs_corresponding_to_yyzz_expected - q_kite_test) < threshhold # should be True
 
-                if not (center_at_midpoint_between_kites and kite_axis_perpendicular_to_nhat and x_obs_function_actually_gives_q_kite and a_computed_with_contour_coordinates_as_expected):
-                    message = 'something went wrong with the definition of the kmp contour coordinates'
-                    print_op.base_print(message, level='warning')
+                    a_calculated_with_yyzz = aa_computed_fun(yyzz_kite_expected)
+                    a_calculated_with_xyz = a_fun(q_kite_test)
+                    a_computed_with_contour_coordinates_as_expected = vect_op.abs(a_calculated_with_yyzz - a_calculated_with_xyz) < threshhold
+
+                    if not (kite_actually_on_designated_kmp and x_obs_function_actually_gives_q_kite and a_computed_with_contour_coordinates_as_expected):
+                        message = 'something went wrong with the definition of the kmp contour coordinates, for kite ' + str(kite_test)
+                        print_op.base_print(message, level='warning')
 
             ### initialize the figure
             fig_new, ax = plt.subplots(num=int(tau_rounded * 1e4), facecolor='none')
@@ -1503,7 +1510,7 @@ def plot_induction_contour_on_kmp(plot_dict, cosmetics, fig_name, fig_num=None, 
             haas_levels = [-0.05, 0., 0.2]
             haas_linestyles = ['dashdot', 'solid', 'dashed']
             haas_colors = ['k', 'k', 'k']
-            general_levels = [-1.0, -0.5, -0.2, -0.1, 0., 0.1, 0.2, 0.5, 1.0]
+            general_levels = haas_levels #[-1.0, -0.5, -0.2, -0.1, 0., 0.1, 0.2, 0.5, 1.0]
             general_colors = 'k'
             general_linestyles = 'solid'
             if this_is_haas_test and ((np.any(aa < haas_levels[0])) and (np.any(aa > haas_levels[-1]))):
