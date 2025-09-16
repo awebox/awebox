@@ -178,6 +178,7 @@ def generate_structure(options, architecture):
         pass
     else:
         system_states.extend([('e', (1, 1))])  # energy
+        system_states.extend([('e_without_fictitious', (1, 1))])  # energy
 
         if options['integration']['include_integration_test']:
             system_states.extend([('total_time_unscaled', (1, 1))])
@@ -232,7 +233,7 @@ def generate_structure(options, architecture):
 
 def extend_general_induction(options, system_lifted, system_states, architecture):
     for kite in architecture.kite_nodes:
-        system_lifted.extend([('ui' + str(kite), (3, 1))])
+        system_lifted.extend([('wui' + str(kite), (3, 1))])
 
     return system_lifted, system_states
 

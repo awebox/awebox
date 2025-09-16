@@ -3,7 +3,8 @@
 
 @author: Thilo Bronnenmeyer, kiteswarms 2018
 
-- edit: Rachel Leuthold, Jochem De Schutter ALU-FR 2020-21
+- edited: Jochem De Schutter ALU-FR 2020-21
+- edited: rachel leuthold, alu-fr, 2020-2025
 """
 
 import collections
@@ -23,8 +24,8 @@ import awebox.tools.struct_operations as struct_op
 import numpy as np
 
 from awebox.logger.logger import Logger as awelogger
+
 import matplotlib.pyplot as plt
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 awelogger.logger.setLevel(10)
 
 
@@ -151,6 +152,12 @@ def test_vortex(final_homotopy_step='final', overwrite_options={}):
     return None
 
 # 18
+def test_vortex_3_dof(final_homotopy_step='final', overwrite_options={}):
+    trial_name = 'vortex_3_dof_trial'
+    run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
+    return None
+
+# 19
 def test_segmented_tether(final_homotopy_step='final', overwrite_options={}):
     trial_name = 'segmented_tether_trial'
     run_test(trial_name, final_homotopy_step=final_homotopy_step, overwrite_options=overwrite_options)
@@ -225,7 +232,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.hippo_strategy'] = False
 
     basic_health_options['solver.health_check.when'] = 'success'
-    basic_health_options['nlp.collocation.name_constraints'] = False
+    basic_health_options['nlp.collocation.name_constraints'] = True
     basic_health_options['solver.health_check.help_with_debugging'] = False
 
     basic_health_options['solver.homotopy_method.advance_despite_max_iter'] = False
@@ -237,7 +244,7 @@ def make_basic_health_variant(base_options):
     basic_health_options['solver.ipopt.autoscale'] = False
     basic_health_options['solver.health_check.spy_matrices'] = False
     basic_health_options['quality.when'] = 'never'
-    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'scaled'
+    basic_health_options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
     basic_health_options['solver.health_check.save_health_indicators'] = True
     basic_health_options['solver.health_check.thresh.condition_number'] = 1e10
 
@@ -260,8 +267,6 @@ def generate_options_dict():
     single_kite_options['model.tether.aero_elements'] = 1
     single_kite_options['user_options.induction_model'] = 'not_in_use'
     single_kite_options['solver.linear_solver'] = 'ma57'
-    single_kite_options['solver.cost.beta.0'] = 1e3
-    single_kite_options['model.scaling.other.tension_estimate'] = 'average_force'
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True
@@ -336,8 +341,6 @@ def generate_options_dict():
     actuator_qaxi_options['visualization.cosmetics.trajectory.kite_bodies'] = True
     actuator_qaxi_options['model.system_bounds.theta.a'] = [-0., 0.5]
     actuator_qaxi_options['user_options.trajectory.lift_mode.windings'] = 3
-    # actuator_qaxi_options['solver.cost.iota.1'] = 1.e3 #1e3
-    # actuator_qaxi_options['solver.cost.psi.1'] = 1.e3  # 1e3
 
     actuator_qaxi_basic_health_options = make_basic_health_variant(actuator_qaxi_options)
 
@@ -362,15 +365,12 @@ def generate_options_dict():
     vortex_options['user_options.induction_model'] = 'vortex'
     vortex_options['model.aero.vortex.representation'] = 'alg'
     vortex_options['quality.test_param.vortex_truncation_error_thresh'] = 1e20
-    vortex_options['visualization.cosmetics.trajectory.wake_nodes'] = True
-    vortex_options['visualization.cosmetics.save_figs'] = True
     vortex_options['model.aero.vortex.far_wake_element_type'] = 'semi_infinite_filament'
-    wake_nodes = 2
-    vortex_options['model.aero.vortex.wake_nodes'] = wake_nodes
-    vortex_options['solver.max_cpu_time'] = 1.e7
+    vortex_options['model.aero.vortex.wake_nodes'] = 2
     vortex_options['quality.raise_exception'] = False
 
     vortex_basic_health_options = make_basic_health_variant(vortex_options)
+    vortex_basic_health_options['model.aero.vortex.double_check_wingtip_fixing'] = True
 
     vortex_force_zero_options = copy.deepcopy(vortex_options)
     vortex_force_zero_options['model.aero.induction.force_zero'] = True
@@ -378,6 +378,10 @@ def generate_options_dict():
     vortex_force_zero_options['quality.raise_exception'] = True
 
     vortex_force_zero_basic_health_options = make_basic_health_variant(vortex_force_zero_options)
+    vortex_force_zero_basic_health_options['model.aero.vortex.double_check_wingtip_fixing'] = True
+
+    vortex_3_dof_options = copy.deepcopy(vortex_options)
+    vortex_3_dof_options['user_options.system_model.kite_dof'] = 3
 
     dual_kite_tracking_options = copy.deepcopy(dual_kite_6_dof_options)
     dual_kite_tracking_options['user_options.trajectory.type'] = 'tracking'
@@ -427,6 +431,7 @@ def generate_options_dict():
     options_dict['vortex_force_zero_basic_health_trial'] = vortex_force_zero_basic_health_options
     options_dict['vortex_trial'] = vortex_options
     options_dict['vortex_basic_health_trial'] = vortex_basic_health_options
+    options_dict['vortex_3_dof_trial'] = vortex_3_dof_options
     options_dict['dual_kite_tracking_trial'] = dual_kite_tracking_options
     options_dict['dual_kite_tracking_winch_trial'] = dual_kite_tracking_winch_options
     # options_dict['nominal_landing_trial'] = nominal_landing_options
@@ -452,7 +457,9 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     # compute trajectory solution
     trial = awe_trial.Trial(trial_options, trial_name)
     trial.build()
+
     trial.optimize(final_homotopy_step=final_homotopy_step)
+    trial.print_cost_information()
 
     if not trial.optimization.solve_succeeded:
         message = 'optimization of trial ' + trial_name + ' failed'
@@ -461,38 +468,108 @@ def run_test(trial_name, final_homotopy_step='final', overwrite_options={}):
     return None
 
 
+def this_test_is_intended_to_fail():
+    raise ValueError("This test has correctly failed. Good!")
+
 
 if __name__ == "__main__":
 
-    test_single_kite_basic_health()
-    test_single_kite()
-    test_single_kite_6_dof_basic_health()
-    test_single_kite_6_dof()
-    test_segmented_tether()
-    test_poly()
-    test_drag_mode()
-    test_save_trial()
-    test_dual_kite_basic_health()
-    test_dual_kite()
-    test_dual_kite_6_dof_basic_health()
-    test_dual_kite_6_dof()
+    parallel_or_serial = 'serial'
 
-    # # # test_small_dual_kite()
-    # # # test_small_dual_kite_basic_health()
-    # # # test_large_dual_kite()
-    # # # test_large_dual_kite_basic_health()
-    #
-    test_dual_kite_tracking()
-    test_dual_kite_tracking_winch()
+    types_of_problems = {'single_kites': True,
+                         'base_alternatives': True,
+                         'dual_kites': True,
+                         'tracking': True,
+                         'size_alternatives': False,
+                         'vortex': True,
+                         'actuator': False}
 
-    test_vortex_force_zero_basic_health()
-    test_vortex_force_zero()
-    test_vortex_basic_health()
-    test_vortex()
+    if parallel_or_serial == 'parallel':
 
-    # test_actuator_qaxi_basic_health()
-    # test_actuator_qaxi()
-    # test_actuator_qasym()
-    # test_actuator_uaxi()
-    # test_actuator_uasym()
-    # test_actuator_comparison()
+        list_functions = [] #this_test_is_intended_to_fail]
+        if types_of_problems['single_kites']:
+            list_functions += [test_single_kite_basic_health, test_single_kite, test_single_kite_6_dof_basic_health, test_single_kite_6_dof]
+        if types_of_problems['base_alternatives']:
+            list_functions += [test_segmented_tether, test_poly, test_drag_mode, test_save_trial]
+        if types_of_problems['dual_kites']:
+            list_functions += [test_dual_kite_basic_health, test_dual_kite, test_dual_kite_6_dof_basic_health, test_dual_kite_6_dof]
+        if types_of_problems['tracking']:
+            list_functions += [test_dual_kite_tracking, test_dual_kite_tracking_winch]
+        # if types_of_problems['size_alternatives']:
+        #     list_functions += [test_small_dual_kite_basic_health, test_small_dual_kite, test_large_dual_kite_basic_health, test_large_dual_kite]
+        if types_of_problems['vortex']:
+            list_functions += [test_vortex_force_zero_basic_health, test_vortex_force_zero, test_vortex_basic_health, test_vortex, test_vortex_3_dof]
+        # if types_of_problems['actuator']:
+        #     list_functions += [test_actuator_qaxi_basic_health, test_actuator_qaxi, test_actuator_qasym, test_actuator_uaxi, test_actuator_uasym, test_actuator_comparison]
+
+        from concurrent.futures import ProcessPoolExecutor, wait, FIRST_EXCEPTION
+        import multiprocessing
+
+        max_workers = multiprocessing.cpu_count() - 1
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(f) for f in list_functions]
+
+            done, not_done = wait(futures, return_when=FIRST_EXCEPTION)
+
+            for future in done:
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"A function failed: {e}")
+                    # Cancel the rest (they may not actually stop if already running)
+                    for f in not_done:
+                        f.cancel()
+                    raise RuntimeError("At least one function failed") from e
+
+
+    elif parallel_or_serial == 'serial':
+
+        if types_of_problems['single_kites']:
+            test_single_kite_basic_health()
+            test_single_kite()
+            test_single_kite_6_dof_basic_health()
+            test_single_kite_6_dof()
+
+        if types_of_problems['base_alternatives']:
+            test_segmented_tether()
+            test_poly()
+            test_drag_mode()
+            test_save_trial()
+
+        if types_of_problems['dual_kites']:
+            test_dual_kite_basic_health()
+            test_dual_kite()
+            test_dual_kite_6_dof_basic_health()
+            test_dual_kite_6_dof()
+
+        if types_of_problems['tracking']:
+            test_dual_kite_tracking()
+            test_dual_kite_tracking_winch()
+
+        # if types_of_problems['size_alternatives']:
+        #     test_small_dual_kite_basic_health()
+        #     test_small_dual_kite()
+        #     test_large_dual_kite_basic_health()
+        #     test_large_dual_kite()
+
+        if types_of_problems['vortex']:
+            test_vortex()
+            test_vortex_basic_health()
+            test_vortex_force_zero_basic_health()
+            test_vortex_force_zero()
+            test_vortex_3_dof()
+
+        # if types_of_problems['actuator']:
+        #     test_actuator_qaxi_basic_health()
+        #     test_actuator_qaxi()
+        #     test_actuator_qasym()
+        #     test_actuator_uaxi()
+        #     test_actuator_uasym()
+        #     test_actuator_comparison()
+
+
+    else:
+        message = 'unexpected method of running test_trials trials'
+        print_op.log_and_raise_error(message)
+
+    print('done')

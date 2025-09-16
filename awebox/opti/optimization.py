@@ -24,12 +24,11 @@
 #
 ##################################
 # Class Optimization solves the NLP of the multi-kite system
+# - edited: rachel leuthold, 2017-2025
 ###################################
 # import matplotlib
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
-
-
 import pickle
 from . import scheduling
 from . import preparation
@@ -38,8 +37,10 @@ from . import diagnostics
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
+import awebox.tools.vector_operations as vect_op
 import awebox.tools.callback as callback
 
+import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 from numpy import linspace
 
 from sys import platform
@@ -101,7 +102,7 @@ class Optimization(object):
         return None
 
     def solve(self, trial_name, options, nlp, model, formulation, visualization,
-              final_homotopy_step='final', warmstart_file=None, debug_flags=[],
+              final_homotopy_step='final', warmstart_file=None, reference_file=None, debug_flags=[],
               debug_locations=[], intermediate_solve=False):
 
         self.__debug_flags = debug_flags
@@ -131,8 +132,20 @@ class Optimization(object):
             self.define_update_counter(nlp, formulation, model)
 
             # classifications
-            use_warmstart = not (warmstart_file == None)
+            use_warmstart = warmstart_file is not None
             make_steps = not (final_homotopy_step == 'initial_guess')
+
+            if not (reference_file == None):
+                if ('V_opt' in reference_file.keys()) and (nlp.V.shape == reference_file['V_opt'].shape):
+                    self.__V_ref = reference_file['V_opt']
+                    self.__p_fix_num['p', 'ref'] = reference_file['V_opt'].cat
+                elif ('solution_dict' in reference_file.keys()) and ('V_opt' in reference_file['solution_dict'].keys()) and (nlp.V.shape == reference_file['solution_dict']['V_opt'].shape):
+                    self.__V_ref = reference_file['solution_dict']['V_opt']
+                    self.__p_fix_num['p', 'ref'] = reference_file['solution_dict']['V_opt'].cat
+                else:
+                    message = 'proposed reference solution does not have the same number shape as nlp.V.'
+                    message += ' unable to import V_ref.'
+                    print_op.log_and_raise_error(message)
 
             # solve the problem
             if make_steps:
@@ -365,6 +378,11 @@ class Optimization(object):
             if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
                 self.__solve_succeeded = False
 
+            if self.__solve_succeeded and hasattr(model, 'wake') and (model.wake is not None) and model.options['aero']['vortex']['double_check_wingtip_fixing'] and (nlp.Outputs_struct is not None):
+                vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(nlp.options, self.__p_fix_num,
+                                                                            nlp.Outputs_struct(vect_op.columnize(self.__outputs_opt)), model,
+                                                                            V_scaled=nlp.V(self.__solution['x']))
+
             self.allow_next_homotopy_step()
 
             if step_name in self.__debug_locations or self.__debug_locations == 'all':
@@ -453,14 +471,15 @@ class Optimization(object):
         return None
 
     def extract_warmstart_trial(self, warmstart_file):
-        if type(warmstart_file) == str:
+
+        if isinstance(warmstart_file, str):
             try:
                 filehandler = open(warmstart_file, 'r')
                 load_trial = pickle.load(filehandler)
                 warmstart_trial = load_trial.generate_solution_dict()
             except:
                 raise ValueError('Specified warmstart trial does not exist.')
-        elif type(warmstart_file) == dict:
+        elif isinstance(warmstart_file, dict):
             warmstart_trial = warmstart_file
         else:
             warmstart_trial = warmstart_file.generate_solution_dict()
@@ -516,12 +535,17 @@ class Optimization(object):
 
     def modify_schedule_for_warmstart(self, final_homotopy_step, warmstart_trial, nlp, model):
 
+        # final homotopy step of upcoming problem
+        final_index = self.__schedule['homotopy'].index(final_homotopy_step)
+
         # final homotopy step of warmstart file
-        warmstart_step = warmstart_trial['final_homotopy_step']
-        initial_index = self.__schedule['homotopy'].index(warmstart_step)
+        if 'final_homotopy_step' in warmstart_trial.keys():
+            warmstart_step = warmstart_trial['final_homotopy_step']
+            initial_index = self.__schedule['homotopy'].index(warmstart_step)
+        else:
+            initial_index = final_index
 
         # check if schedule is still consistent
-        final_index = self.__schedule['homotopy'].index(final_homotopy_step)
         if final_index < initial_index:
             raise ValueError('Final homotopy step has a lower schedule index than final step of warmstart file')
 
@@ -707,7 +731,9 @@ class Optimization(object):
             'Final max. iterations': self.__options['max_iter'],
             'Homotopy max. iterations': self.__options['max_iter_hippo'],
             'Homotopy barrier param': self.__options['mu_hippo'],
-            'Homotopy method': self.__options['homotopy_method']
+            'Homotopy method': self.__options['homotopy_method'],
+            'Generation': self.__options['generation_method'],
+            'Expand': self.__options['expand']
         }
 
         if self.__options['homotopy_method'] == 'classic':
@@ -733,6 +759,14 @@ class Optimization(object):
     @status.setter
     def status(self, value):
         awelogger.logger.warning('Cannot set status object.')
+
+    @property
+    def options(self):
+        return self.__options
+
+    @options.setter
+    def options(self, value):
+        awelogger.logger.warning('Cannot set options object.')
 
     @property
     def solvers(self):

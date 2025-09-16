@@ -27,15 +27,15 @@ simple initialization intended for awe systems
 initializes to a simple uniform circle path for kites, and constant location for tether nodes
 no reel-in or out, as inteded for base of tracking problem
 _python _version 2.7 / casadi-3.4.5
-- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 22)
+- _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+- edited: rachel leuthold, 2021-2025
 '''
-import copy
-
 
 import numpy as np
 import casadi.tools as cas
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.vector_operations as vect_op
 
 import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.landing_scenario as landing
@@ -201,7 +201,7 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
 
         ret = guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
 
-        for var_type in ['x', 'z']:
+        for var_type in ['x', 'z', 'xdot', 'u']:
             for name in struct_op.subkeys(model.variables, var_type):
                 if (name in ret.keys()) and (var_type == 'x' or ndx < n_k) and var_type in V_init_si.keys():
                     V_init_si[var_type, ndx, name] = ret[name]
@@ -216,6 +216,12 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                     for name in struct_op.subkeys(model.variables, var_type):
                         if name in ret.keys():
                             V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
+
+    test_rotational_axes = init_options['check_rotational_axes']['perform_check']
+    if init_options['type'] not in ['nominal_landing', 'compromised_landing', 'transition'] and test_rotational_axes:
+        variables_si = struct_op.get_variables_at_time(nlp.options, V_init_si, None, model.variables, 0, 0)
+        t = tgrid_coll[0, 0]
+        standard.test_that_rotational_axes_are_consistent_at_snapshot(t, init_options, model, variables_si)
 
     return V_init_si
 

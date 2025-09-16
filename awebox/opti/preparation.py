@@ -28,6 +28,7 @@ python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
 
+
 from . initialization_dir import modular as initialization_modular, initialization
 
 from . import reference
@@ -124,7 +125,6 @@ def add_weights_and_refs_to_opti_parameters(p_fix_num, V_ref, nlp, model, V_init
                 # then, this is a vortex wake variable
                 var_name = 'vortex'
 
-
             if var_name in list(options['weights'].keys()):  # global variable
                 p_fix_num['p', 'weights', variable_type, name] = options['weights'][var_name]
             else:
@@ -181,13 +181,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
     initial_scaled_time = struct_op.var_si_to_scaled('theta', 't_f', initial_si_time, model.scaling)
     V_bounds['lb']['theta', 't_f'] = initial_scaled_time
     V_bounds['ub']['theta', 't_f'] = initial_scaled_time
-
-    # if 'P_max' in model.variables_dict['theta'].keys():
-    #     if options['cost']['P_max'][0] == 1.0:
-    #         V_bounds['lb']['theta', 'P_max'] = 1e3
-    #         V_bounds['ub']['theta', 'P_max'] = 1e3
-    #         nlp.V_bounds['lb']['theta', 'P_max'] = 1e3
-    #         nlp.V_bounds['ub']['theta', 'P_max'] = 1e3
 
     # set fictitious forces bounds
     for name in list(model.variables_dict['u'].keys()):
@@ -315,23 +308,38 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
     dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
     dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
     dict_of_bundled_nlp_and_options['final']['opts'] = final_opts
+    bundled_nlp = {'V': nlp.V, 'P': nlp.P, 'f_fun': nlp.f_fun, 'g_fun': nlp.g_fun}
+    dict_of_bundled_nlp_and_options = {}
+    ordered_names = ['initial', 'middle', 'final']
+    for name in ordered_names:
+        dict_of_bundled_nlp_and_options[name] = copy.deepcopy(bundled_nlp)
+
+    dict_of_bundled_nlp_and_options['initial']['opts'] = initial_opts
+    dict_of_bundled_nlp_and_options['middle']['opts'] = middle_opts
+    dict_of_bundled_nlp_and_options['final']['opts'] = final_opts
 
     solvers = {}
 
-    generation_method = options['generation_method']
-
-    if generation_method == 'serial':
+    parallelization_type = options['generation_method']
+    if parallelization_type in ['serial', 'thread']:
+        print_op.base_print('making hippo solvers...', level='info')
+        number_expected = len(ordered_names)
+        edx = 0
         for name in ordered_names:
             solvers[name] = construct_single_solver_from_bundle(dict_of_bundled_nlp_and_options[name])
+            edx += 1
+            print_op.print_progress(edx, number_expected)
+
+        print_op.close_progress()
         results = None
 
-    elif generation_method == 'multiprocessing_pool':
+    elif parallelization_type == 'multiprocessing_pool':
         from multiprocessing import Pool, Lock
         list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
         pool = Pool(processes=len(list_of_bundles))
         results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
 
-    elif generation_method == 'concurrent_futures':
+    elif parallelization_type == 'concurrent_futures':
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor() as executor:
             # Submit tasks for each argument
@@ -340,17 +348,17 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
             # Optionally: Collect results (if the function returns anything)
             results = [future.result() for future in futures]
 
-    elif generation_method == 'pathos':
+    elif parallelization_type == 'pathos':
         from pathos.multiprocessing import ProcessingPool as Pool
         list_of_bundles = [dict_of_bundled_nlp_and_options[name] for name in ordered_names]
         with Pool() as pool:
             results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
 
-    elif generation_method == 'joblib':
+    elif parallelization_type == 'joblib':
         from joblib import Parallel, delayed
         results = Parallel(n_jobs=len(ordered_names))(delayed(construct_single_solver_from_bundle)(dict_of_bundled_nlp_and_options[name]) for name in ordered_names)
 
-    elif generation_method == 'gevent':
+    elif parallelization_type == 'gevent':
         import gevent
         from gevent.pool import Pool
 
@@ -359,11 +367,11 @@ def generate_hippo_strategy_solvers(awebox_callback, nlp, options):
         results = pool.map(construct_single_solver_from_bundle, list_of_bundles)
 
     else:
-        message = 'unfamiliar solver generation method (' + generation_method + ')'
+        message = 'unfamiliar solver generation method (' + parallelization_type + ')'
         print_op.log_and_raise_error(message)
 
 
-    if (generation_method != 'serial') and (results is not None):
+    if (parallelization_type != 'serial') and (results is not None):
         for idx in range(len(ordered_names)):
             solvers[ordered_names[idx]] = results[idx]
     return solvers
@@ -398,6 +406,7 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
         message = 'unfamiliar nlp solver (' + nlp_solver + ') requested'
         print_op.log_and_raise_error(message)
 
+    print_op.base_print('making non-hippo solver...', level='info')
     solver = cas.nlpsol('solver', nlp_solver, nlp.get_nlp(), opts)
 
     solvers = {}

@@ -35,11 +35,18 @@ theta = trial.optimization.V_final_si['theta']
 
 ### How do I access the solved performance metrics, like the power harvesting factor 'zeta' or the average power ?
 
+You can find values computed from on the basis of the interolated solution via:
+```
     plot_dict = trial.visualization.plot_dict
     zeta = plot_dict['power_and_performance']['zeta']
     avg_power = plot_dict['power_and_performance']['avg_power']
-
-
+```
+But the time period, average power, and total energy are also calculated directly within the OCP's global outputs:
+``` 
+    time_period = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
+    avg_power_watts = trial.optimization.global_outputs_opt['avg_power_watts'].full()[0][0]
+    e_final_joules = trial.optimization.global_outputs_opt['e_final_joules'].full()[0][0]
+```
 
 ### How do I get the IPOPT verbose output to print during the optimization process?
 
@@ -295,7 +302,7 @@ These are defined in mdl/aero/indicators.
 
 ### Where are the global performance outputs (eg. 'power_and_performance') actually defined?
 
-These are defined in opti/diagnostics.
+These are, in general, defined in opti/diagnostics, but the time period, total energy, and average power are defined in ocp/ocp_outputs.
 
 ### My awebox script gets "Killed" unexpectedly. What should I do? 
 
@@ -397,23 +404,33 @@ A converged trial will have a "return_status_numeric" value of 1 or 2.
 You will need to remove the ground constraints, remove gravity, and make the wind and atmosphere uniform. You can do this with:
 
 ```
-options['user_options']['wind']['model'] = 'uniform'
-options['user_options']['atmosphere'] = 'uniform'
-options['model']['system_bounds']['xd']['q'] = [np.array([-cas.inf, -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])]
-options['model']['system_bounds']['xd']['wz_ext'] = [-cas.inf, cas.inf]
-options['model']['system_bounds']['xd']['wz_int'] = [-cas.inf, cas.inf]
-options['params']['atmosphere']['g'] = 0.
+options['user_options.wind.model'] = 'uniform'
+options['user_options.atmosphere'] = 'uniform'
+options['model.system_bounds.x.q'] = [np.array([-cas.inf, -cas.inf, -cas.inf]), np.array([cas.inf, cas.inf, cas.inf])]
+options['params.atmosphere.g'] = 0.
+options['quality.test_param.z_min'] = -cas.inf
+options['model.aero.actuator.normal_vector_model'] = 'xhat'
 ```
 
 It's also helpful to initialize according to the axi-symmetry that you're expecting:
 ```
-options['solver']['initialization']['inclination_deg'] = 0.
+options['solver.initialization.inclination_deg'] = 0.
+```
+
+You may also want to change the default method of position scaling:
+```
+options['model.scaling.other.position_scaling_method'] = 'radius_and_tether'
 ```
 
 Please note that at least one of the solution quality control tests will automatically fail, because there will be node locations "below-ground". If you want to turn off the quality tests, you can do that with:
 ```
-options['quality']['when'] = 'never'
+options['quality.when'] = 'never'
 ```
+Otherwise, you should adjust the minimum-altitude quality check:
+```
+options['quality.test_param.z_min'] = -1e20
+```
+ 
 
 ### How do I find out how much the various terms within the objective actually add to the objective, after my trial has been optimized?
 

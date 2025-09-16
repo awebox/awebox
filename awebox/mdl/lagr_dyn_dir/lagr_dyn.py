@@ -55,7 +55,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # generalized forces in the system
     # --------------------------------
 
-    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables['SI'], outputs, parameters, architecture, scaling)
+    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], work_holonomic, outputs,
                                                   architecture)
 

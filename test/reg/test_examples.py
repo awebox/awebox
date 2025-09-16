@@ -2,19 +2,28 @@
 """Test that the examples work.
 
 @author: Rachel Leuthold, ALU-FR 2024
+- edited: rachel leuthold, 2024-2025
 """
 
 import os
+
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 import matplotlib.pyplot as plt
 import importlib.util
 
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
+
 def get_example_directory():
     current_directory = os.getcwd()
-    test_reg_index = current_directory.find("test/reg")
+
+    current_file = "awebox/test/reg"
+
+    test_reg_index = current_directory.find(current_file)
     base_directory = current_directory[:test_reg_index]
-    example_directory = base_directory + 'examples/'
+    example_directory = base_directory + 'awebox/examples/'
     return example_directory
 
 def get_local_module(module_name):

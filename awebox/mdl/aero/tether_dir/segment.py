@@ -48,6 +48,7 @@ def get_segment_drag(n_elements, variables, upper_node, architecture, element_dr
 
     return combined_drag
 
+
 def get_distributed_segment_forces(n_elements, variables, upper_node, architecture, element_drag_fun, parameters):
 
     q_upper, q_lower, _, _ = element.get_upper_and_lower_pos_and_vel(variables, upper_node, architecture)
@@ -60,10 +61,38 @@ def get_distributed_segment_forces(n_elements, variables, upper_node, architectu
     s_grid = np.linspace(0.5*ds, 1 - 0.5*ds, n_elements)
 
     # numerical evaluation of analytic drag force expressions
+    # distributes the force according to the distance of each element from the segment endpoints
     force_upper = sum([s_grid[k]*combined_drag[:, k] for k in range(n_elements)])
     force_lower = sum([(1-s_grid[k])*combined_drag[:, k] for k in range(n_elements)])
 
     return force_lower, force_upper
+
+
+def get_trivial_segment_forces(atmos, wind, variables, upper_node, architecture, parameters):
+
+    force_lower = cas.DM.zeros((3, 1))
+    force_upper = cas.DM.zeros((3, 1))
+
+    if upper_node in architecture.kite_nodes:
+
+        q_upper, q_lower, dq_upper, dq_lower = element.get_upper_and_lower_pos_and_vel(variables, upper_node,
+                                                                                       architecture)
+        diam = element.get_element_diameter(variables, upper_node, architecture)
+
+        length = vect_op.norm(q_upper - q_lower)
+        q_average = 0.5 * (q_upper + q_lower)
+        dq_average = 0.5 * (dq_upper + dq_lower)
+        rho = atmos.get_density(q_average[2])
+
+        u_a = wind.get_velocity(q_average[2]) - dq_average
+
+        cd = parameters['theta0','tether','cd']
+        drag_force = cd * 0.5 * rho * vect_op.smooth_norm(u_a, 1e-6) * u_a * diam * length
+
+        force_upper = drag_force / 2.
+        force_lower = drag_force / 2.
+
+    return [force_lower, force_upper]
 
 
 def get_kite_only_segment_forces(atmos, outputs, variables, upper_node, architecture, cd_tether_fun, parameters):

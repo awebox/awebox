@@ -2,9 +2,9 @@
 #    This file is part of awebox.
 #
 #    awebox -- A modeling and optimization framework for multi-kite AWE systems.
-#    Copyright (C) 2017-2020 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
+#    Copyright (C) 2017-2019 Jochem De Schutter, Rachel Leuthold, Moritz Diehl,
 #                            ALU Freiburg.
-#    Copyright (C) 2018-2020 Thilo Bronnenmeyer, Kiteswarms Ltd.
+#    Copyright (C) 2018-2019 Thilo Bronnenmeyer, Kiteswarms Ltd.
 #    Copyright (C) 2016      Elena Malz, Sebastien Gros, Chalmers UT.
 #
 #    awebox is free software; you can redistribute it and/or
@@ -28,45 +28,53 @@ from casadi.tools import vertcat
 def data_dict():
 
     data_dict = {}
-    data_dict['name'] = 'ampyx'
-
-    data_dict['geometry'] = geometry() # kite geometry
+    data_dict['name'] = 'c5a'
+    data_dict['geometry'] = geometry()
 
     stab_derivs, aero_validity = aero()
     data_dict['stab_derivs'] = stab_derivs # stability derivatives
     data_dict['aero_validity'] = aero_validity
 
-    # (optional: on-board battery model)
-    coeff_min = np.array([0, -80*np.pi/180.0])
-    coeff_max = np.array([2, 80*np.pi/180.0])
-    data_dict['battery'] = battery_model_parameters(coeff_max, coeff_min)
+    data_dict['battery'] = {}
 
     return data_dict
 
 def geometry():
+    # data from Heffley, Robert K. and Jewell, Wayne F.
+    # Aircraft handling qualities data
+    # NASA CR-2144
+    # Hawthorne, CA.
 
     geometry = {}
-    # 'aerodynamic parameter identification for an airborne wind energy pumping system', licitra, williams, gillis, ghandchi, sierbling, ruiterkamp, diehl, 2017
-    # 'numerical optimal trajectory for system in pumping mode described by differential algebraic equation (focus on ap2)' licitra, 2014
-    geometry['b_ref'] = 5.5  # [m]
-    geometry['s_ref'] = 3.  # [m^2]
+
+    # from Haas paper
+    geometry['b_ref'] = 68.  # [m]
+
+    # value from wikipedia
+    geometry['s_ref'] = 580.  # [m^2]
     geometry['c_ref'] = geometry['s_ref'] / geometry['b_ref']  # [m]
 
-    geometry['m_k'] = 36.8  # [kg]
+    # value from wikipedia
+    geometry['m_k'] = 172365.  # [kg]
 
     geometry['ar'] = geometry['b_ref'] / geometry['c_ref']
-    geometry['j'] = np.array([[25., 0.0, 0.47],
-                              [0.0, 32., 0.0],
-                              [0.47, 0.0, 56.]])
 
-    geometry['length'] = geometry['b_ref']  # only for plotting
-    geometry['height'] = geometry['b_ref'] / 5.  # only for plotting
 
-    # the below delta_max and ddelta_max will be used for scaling. if you want to set these bounds to cas.inf,
-    # please use options['model.geometry.overwrite.delta_max'] and options['model.geometry.overwrite.ddelta_max']
-    geometry['delta_max'] = np.array([5., 10., 5.]) * np.pi / 180.
+
+    ########## everything below this line is copied from boeing 747!!!!!
+
+
+    geometry['ar'] = geometry['b_ref'] / geometry['c_ref']
+    geometry['j'] = np.array([[24.67588669e6, 0., 1.315143e6],
+                              [0.0, 44.87757e6, 0.0],
+                              [1.315143e6, 0.0, 67.38415e6]])
+
+    geometry['delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
     geometry['ddelta_max'] = np.array([2., 2., 2.])
 
+    # only for plotting
+    geometry['length'] = geometry['b_ref']  # only for plotting
+    geometry['height'] = geometry['b_ref'] / 5.  # only for plotting
     geometry['c_root'] = 1.4 * geometry['c_ref']
     geometry['c_tip'] = 2. * geometry['c_ref'] - geometry['c_root']
 
@@ -82,7 +90,7 @@ def geometry():
 
 def battery_model_parameters(coeff_max, coeff_min):
 
-    #todo: some of these things have nothing to do with batteries?
+    # copied from ampyx ap2
 
     battery_model = {}
 
@@ -105,6 +113,9 @@ def battery_model_parameters(coeff_max, coeff_min):
     battery_model['charge_fraction'] = 1.
 
     return battery_model
+
+
+    ########## everything below this line is copied from ampyx ap2!!!!!
 
 def aero():
     # commented values are not currently supported, future implementation
@@ -239,3 +250,4 @@ def aero():
 
 
     return stab_derivs, aero_validity
+

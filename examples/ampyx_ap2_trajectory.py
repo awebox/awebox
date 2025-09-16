@@ -46,7 +46,7 @@ def run(plot_show_block=True, overwrite_options={}):
     options['nlp.collocation.u_param'] = 'zoh'
     options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # 'single_reelout'
     options['solver.linear_solver'] = 'ma57'  # if HSL is installed, otherwise 'mumps'
-    options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
+    options['nlp.cost.beta'] = True # penalize side-slip (can improve convergence)
 
     # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
     # note: this may result in slightly slower solution timings
@@ -128,10 +128,14 @@ def make_comparison(trial):
                 'avg_power_kw': {}}
 
     criteria['avg_power_kw']['found'] = plot_dict['power_and_performance']['avg_power']/1e3
-    criteria['avg_power_kw']['expected'] = 4.7
+    criteria['avg_power_kw']['expected'] = 4.4 # see Fig. 10., page 580. "circular trajectory"
+    
+    # Notice that the value of 4.6kW given on page 579 ("In an optimal scenario the expected average power output PAV is roughly 4.6 kW") very clearly corresponds (see Figures 6 and 7, page 577) to the lemniscate trajectory, when we are generating a topologically "circular" trajectory as a result of our initialization. The difference in power between 4.6kW and 4.4kW is not large, but choosing the wrong 'expected solution' means that the optimization period will be different - and this may cause the test_examples test to fail.
 
     criteria['winding_period_s']['found'] = plot_dict['time_grids']['ip'][-1]
-    criteria['winding_period_s']['expected'] = 35.0
+    criteria['winding_period_s']['expected'] = 39.6 # see Fig. 11, page 580. "circular trajectory"
+
+    # https://publications.syscop.de/Licitra2019a.pdf
 
     return criteria
 

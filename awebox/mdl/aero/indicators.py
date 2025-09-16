@@ -39,6 +39,7 @@ import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
+import awebox.mdl.aero.kite_dir.frames as frames
 
 
 def get_mach(options, atmos, ua, q):
@@ -63,26 +64,34 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
     c_ref = parameters['theta0', 'geometry', 'c_ref']
 
     for kite in kite_nodes:
-        f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
-        f_lift_norm = f_aero_wind[2]
-        f_lift_earth_overwrite = model_options['aero']['overwrite']['f_lift_earth']
-        if f_lift_earth_overwrite is not None:
-            f_lift_earth = f_lift_earth_overwrite
-            f_lift_norm = vect_op.smooth_norm(f_lift_earth)
+        parent = architecture.parent_map[kite]
 
         rho = outputs['aerodynamics']['air_density' + str(kite)]
-
         air_velocity = outputs['aerodynamics']['air_velocity' + str(kite)]
         airspeed = outputs['aerodynamics']['airspeed' + str(kite)]
+        ehat_chord = outputs['aerodynamics']['ehat_chord' + str(kite)]
         ehat_span = outputs['aerodynamics']['ehat_span' + str(kite)]
+        ehat_up = outputs['aerodynamics']['ehat_up' + str(kite)]
+        kite_dcm = cas.horzcat(ehat_chord, ehat_span, ehat_up)
         CL = outputs['aerodynamics']['CL' + str(kite)]
 
+        f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
+        f_lift_norm = f_aero_wind[2]
+
+        lift_hat_wind = vect_op.zhat_dm()
+        lift_hat_earth = frames.from_wind_to_earth(air_velocity, kite_dcm, lift_hat_wind)
+
+        # Kutta-Joukowski
+        # vec_lift / span = rho circulation (vec_u_eff \cross \ehat2)
+        # lift / span = rho circulation
+        # circulation = lift / (rho span) / ((vec_u_eff \cross \ehat2) \dot \lhat)
+        circulation_dot = f_lift_norm / (rho * b_ref) / (cas.mtimes(lift_hat_earth.T, vect_op.cross(air_velocity, ehat_span)))
         circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
         circulation_cl = 0.5 * airspeed**2. * CL * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
-
+        outputs['aerodynamics']['circulation_dot' + str(kite)] = circulation_dot
         outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
         outputs['aerodynamics']['circulation_cl' + str(kite)] = circulation_cl
-        outputs['aerodynamics']['circulation' + str(kite)] = circulation_cross
+        outputs['aerodynamics']['circulation' + str(kite)] = circulation_dot
 
     for parent in layer_nodes:
         if len(architecture.get_kite_children(parent)) > 0:
@@ -95,6 +104,12 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
             vec_u_zero = outputs['geometry']['vec_u_zero' + str(parent)]
             average_period_of_rotation = outputs['geometry']['average_period_of_rotation' + str(parent)]
             outputs['aerodynamics']['far_wake_cylinder_pitch' + str(parent)] = general_flow.get_far_wake_cylinder_pitch(wind.get_wind_direction(), vec_u_zero, total_circulation, average_period_of_rotation)
+
+            thrust = cas.DM(0.)
+            nhat = outputs['rotation']['ehat_normal' + str(parent)]
+            for kite in architecture.get_kite_children(parent):
+                thrust += cas.mtimes(outputs['aerodynamics']['f_aero_earth' + str(kite)].T, nhat)
+            outputs['aerodynamics']['thrust' + str(parent)] = thrust
 
     return outputs
 
@@ -210,7 +225,6 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
 
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
         outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
-
 
     outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
 

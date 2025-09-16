@@ -26,9 +26,12 @@
 constraints to create "intermediate condition" fixing constraints on the positions of the wake nodes,
 to be referenced/used from ocp.constraints
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2020-21
+- author: rachel leuthold, alu-fr 2020-25
 '''
+
 import numpy as np
+from pandas.core.indexes.api import union_indexes
+
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.structure as alg_structure
@@ -44,13 +47,155 @@ from awebox.logger.logger import Logger as awelogger
 
 ################# define the actual constraint
 
-def get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
+def get_constraint(nlp_options, V, P, Xdot, Outputs, Integral_outputs, model, time_grids):
     cstr_list = cstr_op.ConstraintList()
     abbreviated_variables = vortex_tools.get_list_of_abbreviated_variables(nlp_options)
     for abbreviated_var_name in abbreviated_variables:
-        cstr_list.append(get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids))
+
+        if 'wx' in abbreviated_var_name:
+            cstr_list.append(get_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids))
+        elif 'wg' in abbreviated_var_name:
+            cstr_list.append(get_circulation_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids))
+        else:
+            cstr_list.append(get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids))
 
     return cstr_list
+
+##############################################
+##############################################
+
+def get_node_position_constraint(nlp_options, V, P, Xdot, Outputs, model, time_grids):
+
+    wake_nodes = nlp_options['induction']['vortex_wake_nodes']
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
+    t_f_scaled = V['theta', 't_f']
+    t_f_si = struct_op.var_scaled_to_si('theta', 't_f', t_f_scaled, model.scaling)
+    tgrid_coll = time_grids['coll'](t_f_si)
+
+    message = 'adding vortex ocp constraints: convected position constraints'
+    print_op.base_print(message, level='info')
+    expected_number = len(model.architecture.kite_nodes) * 2 * (wake_nodes - 1) * n_k
+    edx = 0
+
+    resi_expr = []
+    for kite_shed in model.architecture.kite_nodes:
+        for tip in ['int', 'ext']:
+            for wake_node in range(1, wake_nodes):
+                fixing_name = vortex_tools.get_wake_node_position_name(kite_shed=kite_shed, tip=tip,
+                                                                       wake_node=wake_node)
+
+                for ndx in range(n_k):
+
+                    for ddx in [None]:
+                        fixing_position_scaled = V['z', ndx, fixing_name]
+                        convected_position_scaled = try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, tip, wake_node, tgrid_coll, V, P, Xdot, model, ndx, ddx)
+                        local_resi = fixing_position_scaled - convected_position_scaled
+                        resi_expr = cas.vertcat(resi_expr, local_resi)
+
+                    for ddx in range(d):
+                        fixing_position_scaled = V['coll_var', ndx, ddx, 'z', fixing_name]
+                        convected_position_scaled = try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, tip, wake_node, tgrid_coll, V, P, Xdot, model, ndx, ddx)
+                        local_resi = fixing_position_scaled - convected_position_scaled
+                        resi_expr = cas.vertcat(resi_expr, local_resi)
+
+                    edx += 1
+                    print_op.print_progress(edx, expected_number)
+
+    local_cstr = cstr_op.Constraint(expr=resi_expr,
+                                    name='wx_convection',
+                                    cstr_type='eq')
+
+    print_op.close_progress()
+
+    return local_cstr
+
+
+def try_getting_convected_position_scaled(nlp_options, fixing_name, kite_shed, tip, wake_node, tgrid_coll, V, P, Xdot, model, ndx, ddx):
+    t_period = tgrid_coll[-1, -1]
+
+    if ddx is None:
+        ndx = ndx - 1
+        ddx = -1
+
+    anchor_name = vortex_tools.get_wake_node_position_name(kite_shed=kite_shed, tip=tip, wake_node=wake_node - 1)
+    anchor_ndx = ndx - 1
+
+    anchoring_position_scaled = V['coll_var', anchor_ndx, ddx, 'z', anchor_name]
+    anchoring_position_si = struct_op.var_scaled_to_si('z', anchor_name, anchoring_position_scaled, model.scaling, check_should_multiply=False)
+    convection_time = tgrid_coll[ndx, ddx] - tgrid_coll[anchor_ndx, ddx]
+    if anchor_ndx < 0:
+        convection_time += t_period
+
+    u_local = model.wind.get_velocity(anchoring_position_si[2])
+    if nlp_options['induction']['vortex_convection_type'] == 'free':
+        print_op.base_print('free wake convection does not work properly yet', level='warning')
+        fixing_position_scaled = V['coll_var', ndx, ddx, 'z', fixing_name]
+        fixing_position_si = struct_op.var_scaled_to_si('z', fixing_name, fixing_position_scaled, model.scaling, check_should_multiply=False)
+        x_halfways = (fixing_position_si + anchoring_position_si) / 2.
+        variables_scaled = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, ndx, ddx)
+        parameters = struct_op.get_parameters_at_time(V, P, model.parameters)
+        u_ind = model.wake.calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_halfways)
+        u_local += u_ind
+
+    convection_distance_si = convection_time * u_local
+    convection_distance_scaled = struct_op.var_si_to_scaled('z', fixing_name, convection_distance_si, model.scaling, check_should_multiply=False)
+    return anchoring_position_scaled + convection_distance_scaled
+
+
+##############################################
+##############################################
+
+def get_circulation_strength_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
+    wake_nodes = nlp_options['induction']['vortex_wake_nodes']
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+
+    message = 'adding vortex ocp constraints: ring strength constraints'
+    print_op.base_print(message, level='info')
+    expected_number = len(model.architecture.kite_nodes) * wake_nodes * n_k
+    edx = 0
+
+    resi_expr = []
+    for kite_shed in model.architecture.kite_nodes:
+        for ring in range(wake_nodes):
+            fixing_name = vortex_tools.get_vortex_ring_strength_name(kite_shed, ring)
+
+            for ndx in range(n_k):
+                for ddx in [None]:
+                    fixing_strength_scaled = V['z', ndx, fixing_name]
+                    strength_si = get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids,
+                                                   kite_shed, ring, ndx, ddx)
+                    strength_scaled = struct_op.var_si_to_scaled('z', fixing_name, strength_si, model.scaling)
+                    local_resi = fixing_strength_scaled - strength_scaled
+                    resi_expr = cas.vertcat(resi_expr, local_resi)
+
+                for ddx in range(d):
+                    fixing_strength_scaled = V['coll_var', ndx, ddx, 'z', fixing_name]
+                    strength_si = get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids,
+                                                   kite_shed, ring, ndx, ddx)
+                    strength_scaled = struct_op.var_si_to_scaled('z', fixing_name, strength_si, model.scaling)
+                    local_resi = fixing_strength_scaled - strength_scaled
+                    resi_expr = cas.vertcat(resi_expr, local_resi)
+
+                edx += 1
+                print_op.print_progress(edx, expected_number)
+
+    local_cstr = cstr_op.Constraint(expr=resi_expr,
+                                    name='wg_fixing',
+                                    cstr_type='eq')
+
+    print_op.close_progress()
+
+    return local_cstr
+
+
+
+##############################################
+##############################################
 
 
 def get_specific_constraint(abbreviated_var_name, nlp_options, V, Outputs, Integral_outputs, model, time_grids):
@@ -103,13 +248,7 @@ def get_specific_local_constraint(abbreviated_var_name, nlp_options, V, Outputs,
         var_symbolic_si = struct_op.var_scaled_to_si('z', var_name, var_symbolic_scaled, model.scaling)
 
         # look-up the actual value from the Outputs. Keep the computing here minimal.
-        if abbreviated_var_name == 'wx':
-            var_value_si = get_local_convected_position_value(nlp_options, V, Outputs, model, time_grids, kite_shed_or_parent_shed, tip, wake_node_or_ring, ndx, ddx)
-            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
-        elif abbreviated_var_name == 'wg':
-            var_value_si = get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
-            resi_scaled = get_simple_residual(var_name, var_symbolic_si, var_value_si, model.scaling)
-        elif abbreviated_var_name == 'wh':
+        if abbreviated_var_name == 'wh':
             resi_scaled = get_local_cylinder_pitch_residual(nlp_options, V, Outputs, model, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
         elif abbreviated_var_name == 'wx_center':
             var_value_si = get_local_cylinder_center_value(nlp_options, Outputs, kite_shed_or_parent_shed, wake_node_or_ring, ndx, ddx)
@@ -215,6 +354,40 @@ def get_the_wingtip_position_at_shedding_indices(Outputs, kite, tip, ndx_shed, d
 
 
 ############## ring strength
+
+def get_shedding_circulation_value(nlp_options, V, Outputs, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
+    filament_strength_from_circulation = model.options['aero']['vortex']['filament_strength_from_circulation']
+    use_circulation_equality_pattern = model.options['aero']['vortex']['use_circulation_equality_pattern']
+
+    if use_circulation_equality_pattern and ring > 0:
+        arbitrary_tip = 'ext'
+        pattern_var_name = vortex_tools.get_var_name('wg', kite_shed_or_parent_shed=kite_shed,
+                                             tip=arbitrary_tip, wake_node_or_ring=0)
+        ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, ring,
+                                                                                                ndx, ddx)
+        pattern_var_symbolic_scaled = V['coll_var', ndx_shed, ddx_shed, 'z', pattern_var_name]
+        var_symbolic_si = struct_op.var_scaled_to_si('z', pattern_var_name, pattern_var_symbolic_scaled, model.scaling)
+        return var_symbolic_si
+
+
+    if filament_strength_from_circulation == 'averaged':
+        return get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx)
+    elif filament_strength_from_circulation == 'instantaneous':
+        return get_local_instantaneous_circulation_value(nlp_options, Outputs, kite_shed, ring, ndx, ddx)
+    else:
+        message = 'unfamiliar option for how to determine the vortex ring strength (' + filament_strength_from_circulation + ')'
+        print_op.log_and_raise_error(message)
+    return None
+
+def get_local_instantaneous_circulation_value(nlp_options, Outputs, kite_shed, ring, ndx, ddx):
+
+    out_name = 'circulation' + str(kite_shed)
+    ndx_shed, ddx_shed, _ = get_the_shedding_indices_from_the_current_indices_and_wake_node(nlp_options, ring, ndx,
+                                                                                            ddx)
+    instantaneous_circulation = Outputs['coll_outputs', ndx_shed, ddx_shed, 'aerodynamics', out_name]
+
+    return instantaneous_circulation
+
 
 def get_local_average_circulation_value(nlp_options, V, Integral_outputs, model, time_grids, kite_shed, ring, ndx, ddx):
 

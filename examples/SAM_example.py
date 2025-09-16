@@ -13,7 +13,7 @@ Energy, Vol.173, pp. 569-585, 2019.
 from typing import List, Dict
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
-from examples.paper_benchmarks.reference_options import set_reference_options
+from examples.De_Schutter_2023_paper_benchmarks.reference_options import set_reference_options
 import matplotlib.pyplot as plt
 import numpy as np
 

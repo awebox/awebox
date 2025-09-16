@@ -26,6 +26,7 @@
 options_tree extension functions for options initially related to heading 'model'
 _python-3.5 / casadi-3.4.5
 - author: jochem de scutter, rachel leuthold, thilo bronnenmeyer, alu-fr/kiteswarms 2017-20
+- edited: rachel leuthold, 2017-2025
 '''
 
 import numpy as np
@@ -44,13 +45,14 @@ import awebox.mdl.aero.induction_dir.actuator_dir.flow as actuator_flow
 import awebox.mdl.aero.induction_dir.vortex_dir.alg_repr_dir.scaling as vortex_alg_repr_scaling
 
 import awebox.mdl.wind as wind
+from awebox.tools.vector_operations import is_numeric_scalar
 
 
 def build_model_options(options, help_options, user_options, options_tree, fixed_params, architecture):
 
     # kite
     options_tree, fixed_params = build_geometry_options(options, help_options, options_tree, fixed_params)
-    options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params)
+    options_tree, fixed_params = build_kite_dof_options(options, options_tree, fixed_params, architecture)
 
     options_tree, fixed_params = build_scaling_options(options, options_tree, fixed_params, architecture)
 
@@ -223,22 +225,28 @@ def get_dependent_params(geometry, geometry_data):
     return geometry
 
 
-def get_position_scaling(options, architecture):
+def get_position_scaling(options, architecture, suppress_help_statement=False):
 
     position = estimate_position_of_main_tether_end(options)
-    flight_radius = estimate_flight_radius(options, architecture)
+    flight_radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
     geometry = get_geometry(options)
     b_ref = geometry['b_ref']
 
+    position_scaling_dict = {'radius': flight_radius * cas.DM.ones((3, 1)),
+                             'altitude': position[2] * cas.DM.ones((3, 1)),
+                             'b_ref': b_ref * cas.DM.ones((3, 1)),
+                             'radius_and_tether': cas.vertcat(position[0], flight_radius, flight_radius),
+                             'radius_and_altitude': cas.vertcat(position[0], flight_radius, position[2])
+                             }
+    position_scaling_dict['altitude_and_radius'] = position_scaling_dict['radius_and_altitude']
+
+    if options['model']['scaling']['other']['print_help_with_scaling'] and not suppress_help_statement:
+        print_op.base_print('available position estimates are:', level='debug')
+        print_op.print_dict_as_table(position_scaling_dict, level='debug')
+
     position_scaling_method = options['model']['scaling']['other']['position_scaling_method']
-    if position_scaling_method == 'radius':
-        q_scaling = flight_radius * cas.DM.ones((3, 1))
-    elif position_scaling_method == 'altitude':
-        q_scaling = position[2] * cas.DM.ones((3, 1))
-    elif position_scaling_method == 'b_ref':
-        q_scaling = b_ref * cas.DM.ones((3, 1))
-    elif ('radius' in position_scaling_method) and ('altitude' in position_scaling_method):
-        q_scaling = cas.vertcat(position[0], flight_radius, position[2])
+    if position_scaling_method in position_scaling_dict.keys():
+        q_scaling = position_scaling_dict[position_scaling_method]
     else:
         message = 'unexpected position scaling source (' + position_scaling_method + ')'
         print_op.log_and_raise_error(message)
@@ -251,15 +259,25 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
     length = options['solver']['initialization']['l_t']
     length_scaling = length
     options_tree.append(('model', 'scaling', 'x', 'l_t', length_scaling, ('???', None), 'x'))
+    options_tree.append(('model', 'scaling', 'theta', 'l_t', length_scaling, ('???', None), 'x'))
+
+    flight_radius = estimate_flight_radius(options, architecture) # include this even though radius is not needed here,
+    # so that we get a print-out of radius options
 
     q_scaling = get_position_scaling(options, architecture)
     options_tree.append(('model', 'scaling', 'x', 'q', q_scaling, ('???', None),'x'))
 
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))
-    dq_scaling = u_altitude
-    options_tree.append(('model', 'scaling', 'x', 'dq', dq_scaling, ('???', None), 'x'))
+    groundspeed = options['solver']['initialization']['groundspeed']
+    for node in range(1, architecture.number_of_nodes):
+        parent = architecture.parent_map[node]
+        dq_name = 'dq' + str(node) + str(parent)
+        if node in architecture.kite_nodes:
+            options_tree.append(('model', 'scaling', 'x', dq_name, groundspeed, ('???', None), 'x'))
+        else:
+            options_tree.append(('model', 'scaling', 'x', dq_name, u_altitude, ('???', None), 'x'))
 
-    dl_t_scaling = u_altitude
+    dl_t_scaling = u_altitude / 3. #loyd result
     options_tree.append(('model', 'scaling', 'x', 'dl_t', dl_t_scaling, ('???', None), 'x'))
 
     kappa_scaling = options['model']['scaling']['x']['kappa']
@@ -274,7 +292,7 @@ def build_scaling_options(options, options_tree, fixed_params, architecture):
 
 ##### kite dof
 
-def build_kite_dof_options(options, options_tree, fixed_params):
+def build_kite_dof_options(options, options_tree, fixed_params, architecture):
 
     user_options = options['user_options']
 
@@ -290,15 +308,34 @@ def build_kite_dof_options(options, options_tree, fixed_params):
         geometry = get_geometry(options)
         delta_max = geometry['delta_max']
         ddelta_max = geometry['ddelta_max']
-        omega_max = options['model']['system_bounds']['x']['omega'][1]
+
+        t_f_guess = estimate_time_period(options, architecture)
+        windings = options['user_options']['trajectory']['lift_mode']['windings']
+        omega_guess = 2. * np.pi / (t_f_guess / float(windings))
 
         options_tree.append(('model', 'system_bounds', 'x', 'delta', [-1. * delta_max, delta_max], ('control surface deflection bounds', None),'x'))
         options_tree.append(('model', 'system_bounds', 'u', 'ddelta', [-1. * ddelta_max, ddelta_max],
                              ('control surface deflection rate bounds', None),'x'))
 
-        options_tree.append(('model', 'scaling', 'x', 'delta', cas.DM(delta_max)/2., ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'u', 'ddelta', cas.DM(ddelta_max)/2., ('???', None), 'x'))
-        options_tree.append(('model', 'scaling', 'x', 'omega', cas.DM(omega_max)/2., ('???', None), 'x'))
+        standard_geometry = load_kite_geometry(options['user_options']['kite_standard'])
+        delta_scaling = []
+        ddelta_scaling = []
+        for idx in range(delta_max.shape[0]):
+            if vect_op.is_numeric_scalar(delta_max[idx]):
+                local_delta = delta_max[idx]/2.
+            else:
+                local_delta = standard_geometry['delta_max'][idx] / 2.
+            delta_scaling = cas.vertcat(delta_scaling, local_delta)
+
+            if vect_op.is_numeric_scalar(ddelta_max[idx]):
+                local_ddelta = ddelta_max[idx]/2.
+            else:
+                local_ddelta = standard_geometry['ddelta_max'][idx] / 2.
+            ddelta_scaling = cas.vertcat(ddelta_scaling, local_ddelta)
+
+        options_tree.append(('model', 'scaling', 'x', 'delta', delta_scaling, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'u', 'ddelta', ddelta_scaling, ('???', None), 'x'))
+        options_tree.append(('model', 'scaling', 'x', 'omega', omega_guess, ('???', None), 'x'))
         options_tree.append(('model', 'scaling', 'x', 'r', cas.DM.ones((9, 1)), ('descript', None), 'x'))
 
     return options_tree, fixed_params
@@ -324,10 +361,18 @@ def build_constraint_applicablity_options(options, options_tree, fixed_params, a
 
         coeff_max = cas.DM(options['model']['system_bounds']['x']['coeff'][1])
         coeff_scaling = coeff_max
+        if not vect_op.is_numeric_scalar(coeff_scaling[0]):
+            coeff_scaling[0] = estimate_CL(options)
+        if not vect_op.is_numeric_scalar(coeff_scaling[1]):
+            coeff_scaling[1] = 20. * np.pi / 180.
         options_tree.append(('model', 'scaling', 'x', 'coeff', coeff_scaling, ('???', None), 'x'))
 
         dcoeff_max = cas.DM(options['model']['system_bounds']['u']['dcoeff'][1])
         dcoeff_scaling = dcoeff_max
+        if not vect_op.is_numeric_scalar(dcoeff_scaling[0]):
+            dcoeff_scaling[0] = 2.5 #todo: currently taken from default values, find better approx.
+        if not vect_op.is_numeric_scalar(dcoeff_scaling[1]):
+            dcoeff_scaling[1] = 40. #todo: currently taken from default values, find better approx.
         options_tree.append(('model', 'scaling', 'u', 'dcoeff', dcoeff_scaling, ('???', None), 'x'))
 
         options_tree.append(('model', 'model_bounds', 'aero_validity', 'include', False,
@@ -381,6 +426,10 @@ def build_trajectory_options(options, options_tree, fixed_params, architecture):
 
     if user_options['trajectory']['type'] not in ['nominal_landing', 'transitions', 'compromised_landing', 'launch']:
         fixed_params = user_options['trajectory']['fixed_params']
+        options_tree.append(('model', 'system_bounds_other', None, 'fixed_params', fixed_params,
+                         ('user input for fixed bounds on theta', None), 'x'))
+
+
     else:
         if user_options['trajectory']['type'] == 'launch':
             initial_or_terminal = 'terminal'
@@ -612,7 +661,7 @@ def build_actuator_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('nlp', 'induction', None, 'comparison_labels', comparison_labels, ('????', None), 'x')),
     options_tree.append(('solver', 'initialization', 'induction', 'comparison_labels', comparison_labels, ('????', None), 'x')),
 
-    flight_radius = estimate_flight_radius(options, architecture)
+    flight_radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
     geometry = get_geometry(options)
     b_ref = geometry['b_ref']
     induction_varrho_ref = flight_radius / b_ref
@@ -714,6 +763,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
     options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'wake_nodes'), 'vortex_wake_nodes')
 
+    options_tree = share_among_induction_subaddresses(options, options_tree, ('model', 'aero', 'vortex', 'convection_type'), 'vortex_convection_type')
 
     u_ref = get_u_ref(options['user_options'])
     vortex_u_ref = u_ref
@@ -755,7 +805,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     options_tree.append(('formulation', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
     options_tree.append(('nlp', 'induction', None, 'vortex_rings', rings, ('????', None), 'x')),
 
-    flight_radius = estimate_flight_radius(options, architecture)
+    flight_radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
     b_ref = geometry['b_ref']
     varrho_ref = flight_radius / b_ref
     t_f_guess = estimate_time_period(options, architecture)
@@ -770,7 +820,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
         options_tree.append(('nlp', 'induction', None, 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
         options_tree.append(('solver', 'initialization', 'induction', 'integrated_circulation' + str(kite), integrated_circulation, ('????', None), 'x')),
 
-    q_scaling = get_position_scaling(options, architecture)
+    q_scaling = get_position_scaling(options, architecture, suppress_help_statement=True)
     u_altitude = get_u_at_altitude(options, estimate_altitude(options))
     options_tree = vortex_alg_repr_scaling.append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)
 
@@ -781,7 +831,7 @@ def build_vortex_options(options, options_tree, fixed_params, architecture):
     clockwise_rotation_about_xhat = options['solver']['initialization']['clockwise_rotation_about_xhat']
     options_tree.append(('model', 'aero', 'vortex', 'clockwise_rotation_about_xhat', clockwise_rotation_about_xhat, ('descript', None), 'x'))
 
-    options_tree.append(('model', 'scaling', 'z', 'ui', u_ind, ('descript', None), 'x'))
+    options_tree.append(('model', 'scaling', 'z', 'wui', u_ind, ('descript', None), 'x'))
 
     return options_tree, fixed_params
 
@@ -884,19 +934,28 @@ def build_tether_control_options(options, options_tree, fixed_params):
 
     control_name = options['model']['tether']['control_var']
 
+    gravity = options['model']['scaling']['other']['g']
+    ddl_t_scaling = ddl_t_bounds[1] / 2.
+    if not vect_op.is_numeric_scalar(ddl_t_scaling):
+        ddl_t_scaling = gravity
+
+    dddl_t_scaling = dddl_t_bounds[1] / 2.
+    if not vect_op.is_numeric_scalar(dddl_t_scaling):
+        dddl_t_scaling = 2. * gravity #todo: this is arbitrary. find something more physics-based.
+
     if in_drag_mode_operation:
         options_tree.append(('model', 'system_bounds', 'u', control_name, [0.0, 0.0], ('main tether reel-out acceleration', None), 'x'))
 
     else:
         if control_name == 'ddl_t':
             options_tree.append(('model', 'system_bounds', 'u', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
-            options_tree.append(('model', 'scaling', 'u', 'ddl_t', np.max(np.array(ddl_t_bounds)) / 2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
 
         elif control_name == 'dddl_t':
             options_tree.append(('model', 'system_bounds', 'x', 'ddl_t', ddl_t_bounds,   ('main tether max acceleration [m/s^2]', None),'x'))
             options_tree.append(('model', 'system_bounds', 'u', 'dddl_t', dddl_t_bounds,   ('main tether max jerk [m/s^3]', None),'x'))
-            options_tree.append(('model', 'scaling', 'x', 'ddl_t', np.max(np.array(ddl_t_bounds))/2., ('???', None), 'x'))
-            options_tree.append(('model', 'scaling', 'u', 'dddl_t', np.max(np.array(dddl_t_bounds))/2., ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'x', 'ddl_t', ddl_t_scaling, ('???', None), 'x'))
+            options_tree.append(('model', 'scaling', 'u', 'dddl_t', dddl_t_scaling, ('???', None), 'x'))
 
         else:
             raise ValueError('invalid tether control variable chosen')
@@ -920,6 +979,7 @@ def build_wind_options(options, options_tree, fixed_params):
     options_tree.append(('model', 'wind', None, 'z_ref', z_ref, ('?????', None), 'x'))
     options_tree.append(('model', 'wind', 'log_wind', 'z0_air', z0_air, ('?????', None), 'x'))
     options_tree.append(('model', 'wind', 'power_wind', 'exp_ref', exp_ref, ('?????', None), 'x'))
+    options_tree.append(('model', 'wind', 'parallelization', 'type', options['model']['construction']['parallelization']['type'], ('?????', None), 'x'))
 
     options_tree.append(('solver', 'initialization', 'model', 'wind_u_ref', u_ref, ('reference wind speed [m/s]', None),'x'))
     options_tree.append(('solver', 'initialization', 'model', 'wind_model', options['user_options']['wind']['model'], ('???', None), 'x'))
@@ -975,7 +1035,7 @@ def get_q_at_altitude(options, zz):
 
 ####### scaling
 
-def build_fict_scaling_options(options, options_tree, fixed_params, architecture):
+def build_fict_scaling_options(options, options_tree, fixed_params, architecture, suppress_help_statement=False):
 
     geometry = get_geometry(options)
     b_ref = geometry['b_ref']
@@ -989,31 +1049,33 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     acc_max = options['model']['model_bounds']['acceleration']['acc_max']
     max_acceleration_force = float(mass_kite * acc_max * gravity)
 
-    aero_force = float(estimate_aero_force(options, architecture))
+    aero_force = float(estimate_aero_force(options))
 
     total_mass = estimate_total_mass(options, architecture)
     gravity_force = total_mass * gravity / float(architecture.number_of_kites)
 
-    tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture)
+    tension_per_unit_length = estimate_main_tether_tension_per_unit_length(options, architecture, suppress_help_statement=True)
     length = options['solver']['initialization']['l_t']
     tension = tension_per_unit_length * length
 
     available_estimates = [max_acceleration_force, tension, gravity_force, centripetal_force, aero_force]
     synthesized_force = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
+    force_scaling_dict = {'max_acceleration': max_acceleration_force,
+                          'tension': tension,
+                          'gravity': gravity_force,
+                          'centripetal': centripetal_force,
+                          'aero': aero_force,
+                          'synthesized': synthesized_force
+                          }
+
+    if options['model']['scaling']['other']['print_help_with_scaling'] and not suppress_help_statement:
+        print_op.base_print('available force estimates are:', level='debug')
+        print_op.print_dict_as_table(force_scaling_dict, level='debug')
+
     force_scaling_method = options['model']['scaling']['other']['force_scaling_method']
-    if force_scaling_method == 'max_acceleration':
-        f_scaling = max_acceleration_force
-    elif force_scaling_method == 'tension':
-        f_scaling = tension
-    elif force_scaling_method == 'gravity':
-        f_scaling = gravity_force
-    elif force_scaling_method == 'centripetal':
-        f_scaling = centripetal_force
-    elif force_scaling_method == 'aero':
-        f_scaling = aero_force
-    elif force_scaling_method == 'synthesized':
-        f_scaling = synthesized_force
+    if force_scaling_method in force_scaling_dict.keys():
+        f_scaling = force_scaling_dict[force_scaling_method]
     else:
         message = 'unknown force_scaling_method (' + force_scaling_method + ')'
         print_op.log_and_raise_error(message)
@@ -1025,7 +1087,8 @@ def build_fict_scaling_options(options, options_tree, fixed_params, architecture
     options_tree.append(('model', 'scaling', 'z', 'f_aero', f_scaling, ('scaling of aerodynamic forces', None),'x'))
     options_tree.append(('model', 'scaling', 'z', 'm_aero', f_scaling * moment_scaling_factor, ('scaling of aerodynamic moments', None),'x'))
 
-    area = 2. * np.pi * estimate_flight_radius(options, architecture) * b_ref
+    radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
+    area = 2. * np.pi * radius * b_ref
     q_infty = get_q_at_altitude(options, estimate_altitude(options))
     a_ref = options['model']['aero']['actuator']['a_ref']
     actuator_thrust = 4. * a_ref * (1. - a_ref) * area * q_infty
@@ -1062,6 +1125,7 @@ def build_lambda_e_power_scaling(options, options_tree, fixed_params, architectu
         options_tree.append(('model', 'scaling', 'z', 'lambda', lambda_scaling, ('scaling of tether tension per length', None),'x'))
 
     options_tree.append(('model', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
+    options_tree.append(('model', 'scaling', 'x', 'e_without_fictitious', energy_scaling, ('scaling of the energy', None),'x'))
     options_tree.append(('nlp', 'scaling', 'x', 'e', energy_scaling, ('scaling of the energy', None),'x'))
     options_tree.append(('solver', 'cost', 'power', 1, power_cost, ('update cost for power', None),'x'))
 
@@ -1165,7 +1229,7 @@ def get_suggested_lambda_energy_power_scaling(options, architecture):
 
     return lambda_scaling, corrected_estimated_energy, power_cost, estimated_average_power
 
-def estimate_flight_radius(options, architecture):
+def estimate_flight_radius(options, architecture, suppress_help_statement=False):
 
     b_ref = get_geometry(options)['b_ref']
     anticollision_radius = b_ref * options['model']['model_bounds']['anticollision']['safety_factor']
@@ -1185,30 +1249,45 @@ def estimate_flight_radius(options, architecture):
     available_estimates = [anticollision_radius, centripetal_radius, cone_radius]
     synthesized_radius = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
+    radius_dict = {'anticollision': anticollision_radius,
+                   'centripetal': centripetal_radius,
+                   'cone': cone_radius,
+                   'synthesized': synthesized_radius
+                   }
+
+    if options['model']['scaling']['other']['print_help_with_scaling'] and not suppress_help_statement:
+        print_op.base_print('available flight radius estimates are:', level='debug')
+        print_op.print_dict_as_table(radius_dict, level='debug')
+
     flight_radius_estimate = options['model']['scaling']['other']['flight_radius_estimate']
-    if flight_radius_estimate == 'anticollision':
-        return anticollision_radius
-    elif flight_radius_estimate == 'centripetal':
-        return centripetal_radius
-    elif flight_radius_estimate == 'cone':
-        return cone_radius
-    elif flight_radius_estimate == 'synthesized':
-        return synthesized_radius
+    if flight_radius_estimate in radius_dict.keys():
+        radius = radius_dict[flight_radius_estimate]
     else:
         message = 'unknown flight radius scaling method (' + flight_radius_estimate + ')'
         print_op.log_and_raise_error(message)
 
-    return None
+    return radius
 
 
-def estimate_aero_force(options, architecture):
+def estimate_aero_force(options):
+
+    overwrite_f_aero = options['model']['aero']['overwrite']['f_aero_rot']
+    if overwrite_f_aero is not None:
+        return vect_op.norm(overwrite_f_aero)
+
     geometry = get_geometry(options)
-
-    CL = estimate_CL(options)
-    q_altitude = get_q_at_altitude(options, estimate_altitude(options))
     s_ref = geometry['s_ref']
 
-    aero_force = CL * q_altitude * s_ref
+    CL = estimate_CL(options)
+
+    zz = estimate_altitude(options)
+    u_wind = get_u_at_altitude(options, zz)
+    groundspeed = options['solver']['initialization']['groundspeed']
+    u_app = (u_wind**2 + groundspeed**2.)**0.5
+
+    q_app = 0.5 * options['params']['atmosphere']['rho_ref'] * u_app ** 2
+
+    aero_force = CL * q_app * s_ref
     return aero_force
 
 def estimate_centripetal_force(options, architecture):
@@ -1216,7 +1295,7 @@ def estimate_centripetal_force(options, architecture):
     geometry = get_geometry(options)
     m_k = geometry['m_k']
     groundspeed = options['solver']['initialization']['groundspeed']
-    radius = estimate_flight_radius(options, architecture)
+    radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
 
     centripetal_force = m_k * groundspeed**2. / radius
     return centripetal_force
@@ -1273,15 +1352,18 @@ def estimate_CL(options):
     kite_standard = options['user_options']['kite_standard']
     aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
 
-    alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
-    cos = cas.cos(alpha)
-    sin = cas.sin(alpha)
-
     kite_dof = get_kite_dof(options['user_options'])
     if kite_dof == 3:
         coeff_bounds = options['model']['system_bounds']['x']['coeff']
         CL = coeff_bounds[1][0]
+        if not vect_op.is_numeric_scalar(CL):
+            CL = 1.5 #todo: this is arbitrary
+
     else:
+        alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
+        cos = cas.cos(alpha)
+        sin = cas.sin(alpha)
+
         if 'CL' in aero_deriv.keys():
             CL = aero_deriv['CL']['0'][0] + aero_deriv['CL']['alpha'][0] * alpha
         elif 'CZ' in aero_deriv.keys():
@@ -1306,12 +1388,22 @@ def estimate_CD(options):
     kite_standard = options['user_options']['kite_standard']
     aero_deriv, aero_validity = load_stability_derivatives(kite_standard)
 
+    AR = kite_standard['geometry']['b_ref'] / kite_standard['geometry']['c_ref']
+
+    kite_dof = get_kite_dof(options['user_options'])
+    if kite_dof == 3 and ('CD' in aero_deriv.keys()):
+        CL = estimate_CL(options)
+        CD0 = aero_deriv['CD']['0'][0]
+        return (CD0 + CL**2. / (np.pi * AR))
+
     alpha = aero_validity['alpha_max_deg'] * np.pi / 180.
     cos = cas.cos(alpha)
     sin = cas.sin(alpha)
 
-    if 'CD' in aero_deriv.keys():
-        CD = aero_deriv['CD']['0'][0] + aero_deriv['CD']['alpha'][0] * alpha
+    if ('CD' in aero_deriv.keys()):
+        CD0 = aero_deriv['CD']['0'][0]
+        CD = CD0 + aero_deriv['CD']['alpha'][0] * alpha
+
     elif 'CZ' in aero_deriv.keys():
         CX = aero_deriv['CX']['0'][0] + aero_deriv['CX']['alpha'][0] * alpha
         CZ = aero_deriv['CZ']['0'][0] + aero_deriv['CZ']['alpha'][0] * alpha
@@ -1319,6 +1411,7 @@ def estimate_CD(options):
         zhat = cas.vertcat(-1. * sin, -1. * cos)
         rot = CX * xhat + CZ * zhat
         CD = rot[0]
+
     elif 'CN' in aero_deriv.keys():
         CA = aero_deriv['CA']['0'][0] + aero_deriv['CA']['alpha'][0] * alpha
         CN = aero_deriv['CN']['0'][0] + aero_deriv['CN']['alpha'][0] * alpha
@@ -1341,13 +1434,13 @@ def estimate_altitude(options):
     return q_t[2]
 
 
-def estimate_main_tether_tension_per_unit_length(options, architecture):
+def estimate_main_tether_tension_per_unit_length(options, architecture, suppress_help_statement=False):
 
     power = estimate_power(options, architecture)
     reelout_speed = estimate_reelout_speed(options)
     tension_estimate_via_power = float(power/reelout_speed)
 
-    aero_force_per_kite = estimate_aero_force(options, architecture)
+    aero_force_per_kite = estimate_aero_force(options)
     cone_angle_rad = options['solver']['initialization']['cone_deg'] * np.pi / 180.
     aero_force_per_kite_in_main_tether_direction = aero_force_per_kite * np.cos(cone_angle_rad)
     aero_force_projected_and_summed = aero_force_per_kite_in_main_tether_direction * architecture.number_of_kites
@@ -1372,17 +1465,26 @@ def estimate_main_tether_tension_per_unit_length(options, architecture):
     available_estimates = [tension_estimate_via_power, tension_estimate_via_max_stress, tension_estimate_via_average_force, tension_estimate_via_force_summation]
     tension_estimate_via_synthesis = vect_op.synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates)
 
+    tension_estimate_dict = {'power': tension_estimate_via_power,
+                             'max_stress': tension_estimate_via_max_stress,
+                             'average_force': tension_estimate_via_average_force,
+                             'force_summation': tension_estimate_via_force_summation,
+                             'synthesized': tension_estimate_via_synthesis
+                             }
+
+    if options['model']['scaling']['other']['print_help_with_scaling'] and not suppress_help_statement:
+        print_op.base_print('available tension estimates are:', level='debug')
+        print_op.print_dict_as_table(tension_estimate_dict, level='debug')
+
+        print_op.base_print('tension estimates correspond to following power estimates:', level='debug')
+        power_estimate_dict = {}
+        for name, val in tension_estimate_dict.items():
+            power_estimate_dict[name] = val * reelout_speed
+        print_op.print_dict_as_table(power_estimate_dict, level='debug')
+
     tension_estimate = options['model']['scaling']['other']['tension_estimate']
-    if tension_estimate == 'power':
-        tension = tension_estimate_via_power
-    elif tension_estimate == 'max_stress':
-        tension = tension_estimate_via_max_stress
-    elif tension_estimate == 'average_force':
-        tension = tension_estimate_via_average_force
-    elif tension_estimate == 'force_summation':
-        tension = tension_estimate_via_force_summation
-    elif tension_estimate == 'synthesized':
-        tension = tension_estimate_via_synthesis
+    if tension_estimate in tension_estimate_dict.keys():
+        tension = tension_estimate_dict[tension_estimate]
     else:
         message = 'unknown tension estimation method (' + tension_estimate + ')'
         print_op.log_and_raise_error(message)
@@ -1430,9 +1532,12 @@ def estimate_energy(options, architecture):
 
 def estimate_time_period(options, architecture):
 
+    if 't_f' in options['user_options']['trajectory']['fixed_params']:
+        return options['user_options']['trajectory']['fixed_params']['t_f']
+
     windings = options['user_options']['trajectory']['lift_mode']['windings']
     groundspeed = options['solver']['initialization']['groundspeed']
-    radius = estimate_flight_radius(options, architecture)
+    radius = estimate_flight_radius(options, architecture, suppress_help_statement=True)
 
     time_period = float((2. * np.pi * windings * radius) / groundspeed)
 

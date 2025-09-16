@@ -87,11 +87,21 @@ def is_possibly_a_filename_containing_reloadable_seed(filename):
 
     return True
 
+def is_filename_acceptable_length(file_name):
+    if len(file_name) > 250:
+        message = 'sorry, but the filename ' + file_name + ' is too long for us to save this object. skipping this step'
+        print_op.base_print(message, level='warning')
+        return False
+    else:
+        return True
+
+
 def save(data, file_name, file_type):
 
-    file_pi = open(file_name + '.' + file_type, 'wb')
-    pickle.dump(data, file_pi)
-    file_pi.close()
+    if is_filename_acceptable_length(file_name):
+        file_pi = open(file_name + '.' + file_type, 'wb')
+        pickle.dump(data, file_pi)
+        file_pi.close()
 
     return None
 
@@ -119,11 +129,12 @@ def write_or_append_two_column_dict_to_csv(table_dict, filename):
         open_style = 'w'
         add_header = True
 
-    with open(filename, open_style, newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        if add_header:
-            writer.writeheader()
-        writer.writerow(table_dict)
+    if is_filename_acceptable_length(filename):
+        with open(filename, open_style, newline='') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            if add_header:
+                writer.writeheader()
+            writer.writerow(table_dict)
 
     return None
 
@@ -149,11 +160,12 @@ def write_csv_data(data_dict, filename, rotation_representation='dcm'):
     write_csv_dict = init_write_csv_dict(data_dict)
 
     # write into .csv
-    with open(filename + '.csv', 'w') as point_cloud:
-        pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
-        pcdw.writeheader()
-        for k in range(data_dict['time_grids']['ip'].shape[0]):
-            write_data_row(pcdw, data_dict, write_csv_dict, data_dict['time_grids']['ip'], k, rotation_representation)
+    if is_filename_acceptable_length(filename):
+        with open(filename + '.csv', 'w') as point_cloud:
+            pcdw = csv.DictWriter(point_cloud, delimiter=',', fieldnames=write_csv_dict)
+            pcdw.writeheader()
+            for k in range(data_dict['time_grids']['ip'].shape[0]):
+                write_data_row(pcdw, data_dict, write_csv_dict, data_dict['time_grids']['ip'], k, rotation_representation)
 
 
 def init_write_csv_dict(data_dict):

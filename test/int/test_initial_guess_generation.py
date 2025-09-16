@@ -25,6 +25,7 @@ def build_initial_guess_problem(initialization_type='default'):
     options['solver.generate_solvers'] = False
     options['user_options.trajectory.lift_mode.windings'] = 1
     options['nlp.n_k'] = 10
+    options['solver.initialization.check_rotational_axes.perform_check'] = True
 
     # make trial, build and run
     trial = awe.Trial(name='test', seed=options)
@@ -72,6 +73,28 @@ def test_modular_generation():
     perform_initial_guess_generation_test(initialization_type='modular')
     return None
 
+def test_counter_clockwise_initialization_for_dual_kite():
+    options = {}
+    options['user_options.system_model.architecture'] = {1: 0, 2:1, 3:1}
+    options['user_options.system_model.kite_dof'] = 6
+    options['user_options.induction_model'] = 'not_in_use'
+    options['user_options.kite_standard'] = ampyx_data.data_dict()
+    options['model.tether.control_var'] = 'ddl_t'
+    options['solver.hippo_strategy'] = False
+    options['solver.generate_solvers'] = False
+    options['user_options.trajectory.lift_mode.windings'] = 1
+    options['nlp.n_k'] = 10
+    options['solver.initialization.clockwise_rotation_about_xhat'] = False
+    options['solver.initialization.check_rotational_axes.perform_check'] = True
+
+    # make trial, build and run
+    trial = awe.Trial(name='test', seed=options)
+    trial.build()
+    trial.optimize(final_homotopy_step='initial_guess')
+
+    return None
+
 if __name__ == "__main__":
     test_modular_generation()
     test_default_generation()
+    test_counter_clockwise_initialization_for_dual_kite()

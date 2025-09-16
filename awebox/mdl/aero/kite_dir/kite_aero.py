@@ -39,14 +39,16 @@ import awebox.mdl.aero.kite_dir.six_dof_kite as six_dof_kite
 import awebox.mdl.aero.kite_dir.frames as frames
 import awebox.mdl.aero.kite_dir.tools as tools
 import awebox.mdl.aero.geometry_dir.geometry as geom
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 from awebox.logger.logger import Logger as awelogger
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import casadi.tools as cas
 
-def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+def get_forces_and_moments(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
 
+    variables_si = system_variables['SI']
     outputs = get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     outputs = geom.collect_geometry_outputs(options, wind, variables_si, outputs, parameters, architecture, scaling)
@@ -54,7 +56,7 @@ def get_forces_and_moments(options, atmos, wind, wake, variables_si, outputs, pa
     outputs = indicators.get_performance_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture)
 
     if not (options['induction_model'] == 'not_in_use'):
-        outputs = induction.collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling)
+        outputs = induction.collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
 
     return outputs
 
@@ -115,6 +117,7 @@ def get_framed_forces_and_moments(options, variables_si, atmos, wind, architectu
     return framed_forces, framed_moments, kite_dcm, q_eff, vec_u_eff, q, dq
 
 def get_aerodynamic_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture):
+    outputs = unit_normal.get_rotation_axes_outputs(options, variables_si, outputs, architecture, wind)
 
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']

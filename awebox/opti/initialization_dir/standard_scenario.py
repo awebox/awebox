@@ -26,16 +26,19 @@
 initialization functions specific to the standard path scenario
 _python _version 2.7 / casadi-3.4.5
 - _author: rachel leuthold, jochem de schutter, thilo bronnenmeyer (alu-fr, 2017 - 21)
+- edited: rachel leuthold, 2021-2025
 '''
-
 
 import numpy as np
 import casadi.tools as cas
+from joblib.externals.loky.backend.utils import recursive_terminate
+
 import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.struct_operations as struct_op
 import awebox.opti.initialization_dir.induction as induction
 import awebox.opti.initialization_dir.tools as tools
+import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
@@ -93,8 +96,9 @@ def guess_values_at_time(t, init_options, model):
             radius = init_options['precompute']['radius']
 
             ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, node, ret)
+            unit_vector_pointing_radially_outward = tools.get_unit_vector_pointing_outwards_radially_from_ehat_radial(init_options, ehat_radial)
 
-            tether_vector = ehat_radial * radius + ehat_normal * height
+            tether_vector = unit_vector_pointing_radially_outward * radius + ehat_normal * height
 
             position = parent_position + tether_vector
             velocity = tools.get_velocity_vector(t, init_options, model, node, ret)
@@ -118,19 +122,64 @@ def guess_values_at_time(t, init_options, model):
             ret['f_tether' + str(node) + str(parent)] = cd_tether * approx_dyn_pressure * vect_op.norm(tether_vector) * diam
             ret['f_aero' + str(node) + str(parent)] = cd_aero * approx_dyn_pressure * planform_area
 
-            dcm = tools.get_kite_dcm(init_options, model, node, ret)
+            dcm, ddcm = tools.get_kite_dcm(t, init_options, model, node, ret)
             if init_options['cross_tether']:
                 if init_options['cross_tether_attachment'] in ['com','stick']:
                     dcm = get_cross_tether_dcm(init_options, dcm)
             dcm_column = cas.reshape(dcm, (9, 1))
 
-            omega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
+            omega_vector, domega_vector = tools.get_omega_vector(t, init_options, model, node, ret)
 
             if int(kite_dof) == 6:
                 ret['omega' + str(node) + str(parent)] = omega_vector
+                ret['domega' + str(node) + str(parent)] = domega_vector
                 ret['r' + str(node) + str(parent)] = dcm_column
+                if ddcm is not None:
+                    ret['dr' + str(node) + str(parent)] = cas.reshape(ddcm, (9, 1))
 
     return ret
+
+def test_that_rotational_axes_are_consistent_at_snapshot(t, init_options, model, variables_si):
+    kite = model.architecture.kite_nodes[0]
+    parent = model.architecture.parent_map[kite]
+    tol = init_options['check_rotational_axes']['norm_squared_threshold']
+
+    ret = variables_si
+
+    ehat_normal, ehat_radial, ehat_tangential = tools.get_rotating_reference_frame(t, init_options, model, kite, ret)
+    ehat_dict = {'normal': ehat_normal, 'radial': ehat_radial, 'tangential': ehat_tangential}
+
+    rotation_outputs = unit_normal.get_rotation_axes_outputs(model.options, ret, {}, model.architecture, model.wind)['rotation']
+
+    node_identifier = {'radial': kite, 'tangential': kite, 'normal': parent}
+
+    for dir in ehat_dict.keys():
+        init_ehat = ehat_dict[dir]
+        model_ehat = rotation_outputs['ehat_' + dir + str(node_identifier[dir])]
+        vec_diff = (init_ehat - model_ehat)
+        norm_squared_diff = cas.mtimes(vec_diff.T, vec_diff)
+        if norm_squared_diff > tol:
+            message = 'the rotational unit vectors are not the same in initialization and model (outputs). '
+            message += 'for unit vector ' + dir + ', initialization ehat is ' + str(init_ehat) + ', '
+            message += 'while model ehat is ' + str(model_ehat)
+            print_op.log_and_raise_error(message)
+
+    if model.kite_dof == 6:
+        vec_omega = variables_si['x', 'omega' + str(kite) + str(parent)]
+        omega_about_kite_ehat2 = vec_omega[2]
+        clockwise_criteria = (init_options['clockwise_rotation_about_xhat']) and (omega_about_kite_ehat2 > 0)
+        anticlockwise_criteria = (not init_options['clockwise_rotation_about_xhat']) and (omega_about_kite_ehat2 < 0)
+        if not (clockwise_criteria or anticlockwise_criteria):
+            message = 'something went wrong when initializing the angular velocity. rotation is supposed to be initialized '
+            if init_options['clockwise_rotation_about_xhat']:
+                message += ' clockwise'
+            else:
+                message += ' anti-clockwise'
+            message += ', but the omega found around ehat_2 was: ' + str(omega_about_kite_ehat2)
+            print_op.log_and_raise_error(message)
+
+    return None
+
 
 
 def get_tether_node_position(init_options, parent_position, node, l_t):
@@ -223,9 +272,8 @@ def set_user_radius(init_options):
 def set_user_winding_period(init_options):
 
     ground_speed = init_options['groundspeed']
-    windings = init_options['windings']
     radius = init_options['precompute']['radius']
-    time_period = (2. * np.pi * windings * radius) / ground_speed
+    time_period = (2. * np.pi * radius) / ground_speed
     init_options['precompute']['winding_period'] = time_period
 
     return init_options

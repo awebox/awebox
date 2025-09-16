@@ -28,7 +28,7 @@ import matplotlib
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
-from megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
+from awebox.opts.kite_data.megawes_settings import set_megawes_path_generation_settings, set_megawes_path_tracking_settings
 
 
 # ----------------- compile dependencies ----------------- #

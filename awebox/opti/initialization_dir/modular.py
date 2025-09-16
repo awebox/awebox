@@ -1064,7 +1064,6 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
 
     if nlp.discretization == 'direct_collocation':
         d_max = time_grid_parameters['d_max']
-        d_current = time_grid_parameters['d_current']
         tgrid_coll = time_grid_parameters['tgrid_coll']
 
     #set xi initial guess
@@ -1088,6 +1087,7 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                     V_init['u', k + n_current, 'ddl_t'] = continuous_guess['ddl_t']
 
         if nlp.discretization == 'direct_collocation':
+            derivs_in_coll_vars = '[coll_var,0,0,xdot,dq10,0]' in V_init.labels()
             if k == n_max:
                 d_vals = d_max
             else:
@@ -1099,8 +1099,7 @@ def __generate_vals(V_init, primitive, nlp, model, time_grid_parameters, interpo
                     V_init['coll_var', k, j, 'x', name] = continuous_guess[name]
 
                     deriv_name = 'd' + name
-                    test_label = '[coll_var,' + str(k) +',' + str(j) + ',0,xdot,' + deriv_name + ',0]'
-                    if (test_label in V_init.labels()) and (deriv_name in continuous_guess.keys()):
+                    if derivs_in_coll_vars and (deriv_name in continuous_guess.keys()):
                         V_init['coll_var', k, j, 'xdot', deriv_name] = continuous_guess[deriv_name]
 
                 if model.options['tether']['control_var'] == 'ddl_t':
@@ -1233,9 +1232,6 @@ def __assemble_lse_for_s_curve(tgrid_s_curve, boundary_conditions):
 
     # generate symbolic A_mat
     A_mat = ct.jacobian(equations, V['c_vec'])
-
-    # generate function for A_mat
-    A_mat_fun = ct.Function('A_mat_fun', [V], [A_mat])
 
     # generate numerical V
     V_num = V(0.0)

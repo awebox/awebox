@@ -118,7 +118,7 @@ class Wake():
         vec_u_ind = cas.DM.zeros((3, 1))
         initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
         for substructure_type in initialized_types:
-            local_u_ind = self.get_substructure(substructure_type).calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs)
+            local_u_ind = self.get_substructure(substructure_type).calculate_total_biot_savart_at_x_obs(variables_scaled, parameters, x_obs=x_obs)
             vec_u_ind += local_u_ind
 
         return vec_u_ind
@@ -129,7 +129,8 @@ class Wake():
         initialized_types = self.get_initialized_substructure_types_with_at_least_one_element()
         for substructure_type in initialized_types:
             local = self.get_substructure(substructure_type).evaluate_total_biot_savart_induction(x_obs)
-        vec_u_ind += local
+            vec_u_ind += local
+
         return vec_u_ind
 
 

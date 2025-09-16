@@ -29,7 +29,6 @@ python-3.5 / casadi-3.4.5
 - authors: jochem de schutter, rachel leuthold alu-fr 2017-20
 '''
 
-
 import casadi.tools as cas
 import numpy as np
 
@@ -84,7 +83,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     # define the equality constraints (aka. dynamics)
     # ---------------------------------
 
-    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables['SI'], parameters)
+    wake = induction.get_wake_if_vortex_model_is_included_in_comparison(options, architecture, wind, system_variables, parameters)
 
     # enforce the lagrangian dynamics
     lagr_dyn_cstr, outputs = lagr_dyn.get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling)
@@ -141,7 +140,7 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, rotation_cstr = rotation_inequality(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(rotation_cstr)
  
-    power, outputs = get_power(options, system_variables, parameters, outputs, architecture, scaling)
+    power, outputs, _ = get_power(options, system_variables, parameters, outputs, architecture, scaling)
     max_power_cstr = max_power_inequality(options, system_variables['SI'], power)
     cstr_list.append(max_power_cstr)
 
@@ -209,9 +208,9 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
     # ensure that energy matches power integration
-    power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+    power_si, _, power_si_without_fictitious = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
     energy_scaling = model_options['scaling']['x']['e']
-    derivative_dict = {'e': (power_si, energy_scaling)}
+    derivative_dict = {'e': (power_si, energy_scaling), 'e_without_fictitious': (power_si_without_fictitious, energy_scaling)}
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
@@ -322,20 +321,33 @@ def get_drag_power_from_kite(kite, variables_si, parameters, outputs, architectu
         )
     return kite_drag_power
 
-
 def get_power(options, system_variables, parameters, outputs, architecture, scaling):
     variables_si = system_variables['SI']
     if options['trajectory']['system_type'] == 'drag_mode':
-        power = cas.SX.zeros(1, 1)
+        power_si = cas.SX.zeros(1, 1)
         for kite in architecture.kite_nodes:
-            power += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
-        outputs['performance']['p_current'] = power
-        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
-    else:
-        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
-        outputs['performance']['p_current'] = power
+            power_si += get_drag_power_from_kite(kite, variables_si, parameters, outputs, architecture)
 
-    return power, outputs
+        outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power_si, system_variables['scaled'], architecture, scaling)
+        power_si_without_fictitious = power_si
+
+    else:
+        power_si = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+
+        total_fictitious_forces = cas.DM.zeros((3, 1))
+        for var_name in struct_op.subkeys(system_variables['scaled'], 'u'):
+            if 'f_fict' in var_name:
+                total_fictitious_forces += variables_si['u'][var_name]
+        ehat_tether = vect_op.normalize(variables_si['x']['q10'])
+        fictitious_contribution_to_tension = cas.mtimes(total_fictitious_forces.T, ehat_tether)
+        original_tension = variables_si['z']['lambda10'] * variables_si['x']['l_t']
+        tension_estimated_without_fictitious = original_tension - fictitious_contribution_to_tension
+        power_si_without_fictitious = tension_estimated_without_fictitious * variables_si['x']['dl_t']
+
+    outputs['performance']['p_current'] = power_si
+    outputs['performance']['p_current_without_fictitious'] = power_si_without_fictitious
+
+    return power_si, outputs, power_si_without_fictitious
 
 
 def drag_mode_outputs(variables_si, parameters, outputs, architecture):

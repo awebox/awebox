@@ -26,22 +26,30 @@
 file to provide structure operations to the awebox,
 _python-3.5 / casadi-3.4.5
 - author: thilo bronnenmeyer, jochem de schutter, rachel leuthold, 2017-20
+- edited: rachel leuthold, 2017-2025
 '''
 from typing import Dict
 
-import casadi as ca
 import casadi.tools as cas
 import numpy as np
 import operator
 
 import copy
 from functools import reduce
+
+from reportlab.platypus.para import lengthSequence
+
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
 from awebox.ocp.discretization import construct_time_grids
 from awebox.tools.sam_functionalities import construct_time_grids_SAM_reconstruction, originalTimeToSAMTime
 
+from itertools import chain
+import matplotlib.pyplot as plt
+from multiprocessing import Pool, Lock
+import multiprocessing
+from concurrent.futures import ThreadPoolExecutor
 
 def subkeys(casadi_struct, key):
 
@@ -230,16 +238,29 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
     n_k = nlp_options['n_k']
     d = nlp_options['collocation']['d']
 
+    # reminder: if ddx == d - 1:
+    #     kdx = kdx + 1
+    #     ddx = None
     at_control_node = (ddx is None)
 
-    passed_Xdot_is_meaningful = (Xdot is not None)
+    passed_Xdot_is_meaningful = (Xdot is not None) and not (Xdot == Xdot(0.))
 
     derivs_lifted_in_V = ('xdot' in list(V.keys()))
+
+    sample_deriv = 'd' + subkeys(model_variables, 'x')[0]
+    sample_deriv_label = '[' + coll_var_name + ',0,0,xdot,' + sample_deriv + ',0]'
+    derivs_lifted_in_coll_vars = sample_deriv_label in V.labels()
+
+    sample_control = subkeys(model_variables, 'u')[0]
+    sample_control_label = '[' + coll_var_name + ',0,0,u,' + sample_control + ',0]'
+    controls_lifted_in_coll_vars = sample_control_label in V.labels()
 
     if at_control_node and derivs_lifted_in_V and kdx < n_k:
         return V[var_type, kdx]
     elif at_control_node and passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['x', kdx]
+    elif derivs_lifted_in_coll_vars and kdx < n_k:
+        return V[coll_var_name, kdx, ddx, 'xdot']
     elif passed_Xdot_is_meaningful and kdx < n_k:
         return Xdot['coll_x', kdx, ddx]
     else:
@@ -269,13 +290,13 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                     local_val = V['x', kdx, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx < n_k:
                     local_val = V['u', kdx, deriv_name, dim]
-                elif at_control_node and deriv_name_in_controls and not u_is_zoh:
+                elif at_control_node and deriv_name_in_controls and controls_lifted_in_coll_vars:
                     kdx_local = kdx - 1
                     ddx_local = -1
                     local_val = V[coll_var_name, kdx_local, ddx_local, 'u', deriv_name, dim]
                 elif deriv_name_in_states and V_has_collocation_vars and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
-                elif deriv_name_in_controls and V_has_collocation_vars and not u_is_zoh and kdx < n_k:
+                elif deriv_name_in_controls and V_has_collocation_vars and controls_lifted_in_coll_vars and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'u', deriv_name, dim]
                 else:
                     local_val = cas.DM.zeros((1, 1))
@@ -769,7 +790,7 @@ def check_and_rearrange_scaling_value_before_assignment(var_type, var_name, scal
 
 
 def var_si_to_scaled(var_type, var_name, var_si, scaling, check_should_multiply = True):
-    
+
     if check_should_multiply:
         should_multiply, message = should_variable_be_scaled(var_type, var_name, var_si, scaling)
         if message is not None:
@@ -958,7 +979,55 @@ def get_variable_type(container, name):
 
     return None
 
+def concurrent_future_map(casadi_fun, list_of_horzcatted_inputs):
 
+    if (not hasattr(list_of_horzcatted_inputs, 'len')) and (isinstance(list_of_horzcatted_inputs, cas.DM) or isinstance(list_of_horzcatted_inputs, cas.SX) or isinstance(list_of_horzcatted_inputs, cas.MX)):
+        list_of_horzcatted_inputs = [list_of_horzcatted_inputs]
+
+    number_of_inputs = len(list_of_horzcatted_inputs)
+
+    lengths_of_inputs = [horzcat_input.shape[0] for horzcat_input in list_of_horzcatted_inputs]
+    new_horzcatted_inputs = []
+    for ndx in range(number_of_inputs):
+        new_horzcatted_inputs = cas.vertcat(new_horzcatted_inputs, list_of_horzcatted_inputs[ndx])
+
+    def function_in_parallel(new_vertical_input):
+        old_input_list = []
+        for ndx in range(number_of_inputs):
+            start_idx = int(np.sum(np.array(lengths_of_inputs[:ndx])))
+            end_idx = int(np.sum(np.array(lengths_of_inputs[:ndx + 1])))
+            old_input_list += [new_vertical_input[start_idx:end_idx]]
+
+        if number_of_inputs == 1:
+            return casadi_fun(old_input_list[0])
+        elif number_of_inputs == 2:
+            return casadi_fun(old_input_list[0], old_input_list[1])
+        elif number_of_inputs == 3:
+            return casadi_fun(old_input_list[0], old_input_list[1], old_input_list[2])
+        else:
+            message = 'sorry: multiprocessing_map is not available yet for casadi functions with more than 3 inputs'
+            print_op.log_and_raise_error(message)
+        return None
+
+    allowed_cpus = 5
+
+    # results = []
+    # listed_new_inputs = [new_horzcatted_inputs[:, ndx] for ndx in range(new_horzcatted_inputs.shape[1])]
+    # chunk_size = int(np.ceil(float(number_of_inputs) / float(allowed_cpus)))
+    # with ProcessPoolExecutor() as executor:
+    #     for result in executor.map(function_in_parallel, listed_new_inputs, chunksize=chunk_size):
+    #         results.append(result)
+
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(function_in_parallel, new_horzcatted_inputs[:, ndx]) for ndx in
+                   range(new_horzcatted_inputs.shape[1])]
+        results = [future.result() for future in futures]
+
+    horzcatted_outputs = []
+    for local_result in results:
+        horzcatted_outputs = cas.horzcat(horzcatted_outputs, local_result)
+
+    return horzcatted_outputs
 
 def convert_return_status_string_to_number(return_string):
 
@@ -1191,6 +1260,9 @@ def setup_warmstart_data(nlp, warmstart_solution_dict):
 
         else:
             raise ValueError('Warmstart from multiple shooting to collocation not supported')
+
+    elif 'solution_dict' in warmstart_solution_dict.keys():
+        V_init_proposed, lam_x_proposed, lam_g_proposed = setup_warmstart_data(nlp, warmstart_solution_dict['solution_dict'])
 
     else:
 
@@ -1630,7 +1702,7 @@ def test():
     return None
 
 
-def eval_time_grids_SAM(nlp_options: dict, tf_opt: ca.DM) -> Dict[str, np.ndarray]:
+def eval_time_grids_SAM(nlp_options: dict, tf_opt: cas.DM) -> Dict[str, np.ndarray]:
     """
     Calculate the time grids for the SAM discretization.
     This makes use of a function that translates the original nlp time to the SAM time.

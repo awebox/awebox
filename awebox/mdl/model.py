@@ -188,6 +188,8 @@ class Model(object):
         if self.__options['cross_tether']:
             options_dict['Cross-tether attachment'] = self.__options['tether']['cross_tether']['attachment']
 
+        options_dict['Induction model'] = self.__options['induction_model']
+
         print_op.print_dict_as_table(options_dict)
 
         awelogger.logger.info('Model dimensions:')

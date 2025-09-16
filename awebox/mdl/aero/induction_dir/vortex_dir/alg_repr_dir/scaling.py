@@ -43,36 +43,42 @@ import awebox.tools.print_operations as print_op
 
 
 def append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
-    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period)
-    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period)
+    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
+
+    options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, inputs, q_scaling, varrho_ref, winding_period)
+    options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude)
     return options_tree
 
 
-def get_filament_strength(options, geometry, CL, varrho_ref, winding_period):
+def get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period):
     c_ref = geometry['c_ref']
     b_ref = geometry['b_ref']
 
-    u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
 
-    axial_speed = u_ref * (1. - a_ref)
-    airspeed_ref = axial_speed
+    flight_radius = varrho_ref * b_ref
+    rotational_speed = 2. * np.pi * flight_radius / winding_period
+    axial_speed = u_altitude * (1 - a_ref)
+    airspeed = (rotational_speed**2. + axial_speed**2.)**0.5
 
-    if not (options['model']['aero']['overwrite']['f_lift_earth'] is None):
+    if not (options['model']['aero']['overwrite']['f_aero_rot'] is None):
         # L/b = rho v gamma
         # gamma = L / (b rho v)
-        flight_radius = varrho_ref * b_ref
-        rotational_speed = 2. * np.pi * flight_radius / winding_period
         rho_ref = options['params']['atmosphere']['rho_ref']
-        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_lift_earth']) / (b_ref * rho_ref * rotational_speed)
+        gamma = vect_op.norm(options['model']['aero']['overwrite']['f_aero_rot']) / (b_ref * rho_ref * airspeed)
         filament_strength = gamma
     else:
-        filament_strength = 0.5 * CL * airspeed_ref * c_ref
+        # gamma = L / (b rho v) = (CL/2) (rho v^2 b c) / (b rho v) = (CL/2) (v c)
+        filament_strength = 0.5 * CL * airspeed * c_ref
+
+    strength_dict = {'CL': CL, 'varrho_ref': varrho_ref, 'airspeed': airspeed, 'c_ref': c_ref, 'strength': filament_strength}
+    print_op.base_print('initialization values related to filament strength are:')
+    print_op.print_dict_as_table(strength_dict)
 
     return filament_strength
 
 
-def append_geometric_scaling(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
+def append_geometric_scaling(options, geometry, options_tree, architecture, inputs, q_scaling, varrho_ref, winding_period):
     # the part that describes the wake nodes and consequent vortex rings
     wingtips = ['ext', 'int']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
@@ -80,19 +86,23 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     u_ref = options['user_options']['wind']['u_ref']
 
-    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
-
-    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
+    filament_strength = inputs['filament_strength_ref']
 
     properties_ref = vortex_tools.get_biot_savart_reference_object_properties(options, geometry=geometry, kite_obs_index=0, kite_shed_index=0, inputs=inputs)
     avg_downstream = properties_ref['far_wake_l_start'] / 2.
+    near_wake_unit_length = properties_ref['near_wake_unit_length']
     position_scaling_method = options['model']['aero']['vortex']['position_scaling_method']
     if position_scaling_method == 'q10':
         position_scaling = q_scaling
     elif position_scaling_method == 'convection':
+        position_scaling = q_scaling
+        # add the convection below
+    elif position_scaling_method == 'average':
         position_scaling = q_scaling + avg_downstream * vect_op.xhat_dm()
     elif position_scaling_method in ['radius', 'b_ref', 'c_ref']:
         position_scaling = properties_ref[position_scaling_method]
+    elif position_scaling_method in ['wingspan', 'span']:
+        position_scaling = properties_ref['b_ref']
     else:
         message = 'unexpected vortex-position-variable wx scaling method (' + position_scaling_method + ').'
         print_op.log_and_raise_error(message)
@@ -107,6 +117,10 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
 
     for kite_shed in architecture.kite_nodes:
         for wake_node in range(wake_nodes):
+
+            if position_scaling_method == 'convection':
+                wx_scale = q_scaling + near_wake_unit_length * wake_node * vect_op.xhat_dm()
+
             for tip in wingtips:
 
                 var_name = vortex_tools.get_wake_node_position_name(kite_shed, tip, wake_node)
@@ -122,10 +136,10 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, q_sc
             options_tree.append(('model', 'scaling', 'z', var_name, wg_scale, ('descript', None), 'x'))
     options_tree.append(('solver', 'initialization', 'induction', 'vortex_gamma_scale', wg_scale, ('????', None), 'x')),
 
-    circulation_max_estimate = 10. * wg_scale
+    ratio_circulation_max_estimate_to_scaling_estimate = options['model']['aero']['vortex']['ratio_circulation_max_estimate_to_scaling_estimate']
+    circulation_max_estimate = wg_scale * ratio_circulation_max_estimate_to_scaling_estimate
     options_tree.append(('model', 'aero', 'vortex', 'filament_strength_ref', wg_scale, ('????', None), 'x')),
     options_tree.append(('visualization', 'cosmetics', 'trajectory', 'circulation_max_estimate', circulation_max_estimate, ('????', None), 'x')),
-
 
     far_wake_element_type = options['model']['aero']['vortex']['far_wake_element_type']
     if 'cylinder' in far_wake_element_type:
@@ -149,7 +163,7 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    filament_strength = get_filament_strength(options, geometry, CL, varrho_ref, winding_period)
+    filament_strength = get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period)
 
     inputs = {
         'u_ref': u_ref * a_ref,
@@ -163,11 +177,10 @@ def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_r
     return inputs
 
 
-def append_induced_velocity_scaling(options, geometry, options_tree, architecture, u_altitude, CL, varrho_ref, winding_period):
+def append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude):
 
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
-    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
         architecture)
@@ -177,7 +190,22 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
         message = 'unexpected degree_of_induced_velocity_lifting (' + str(degree_of_induced_velocity_lifting) + ').'
         print_op.log_and_raise_error(message)
 
-    wu_ind_scale = u_ref * a_ref
+    scaling_method = options['model']['aero']['vortex']['wu_ind_scaling_method']
+    # choosing larger values may seem counter-intuitive here considering how low the effective induction
+    # factors are at solution, but a larger value will decrease the kkt entries corresponding to the
+    # wu_ind_induced_velocity constraints, and so will help the vortex_basic_health_trial test pass
+    if scaling_method == 'ref_full':
+        wu_ind_scale = u_ref
+    elif scaling_method == 'ref_betz':
+        wu_ind_scale = u_ref * a_ref
+    elif scaling_method == 'infty_full':
+        wu_ind_scale = u_altitude
+    elif scaling_method == 'infty_betz':
+        wu_ind_scale = u_altitude * a_ref
+    else:
+        message = 'unfamiliar wu_ind_scaling_method (' + scaling_method + ').'
+        print_op.log_and_raise_error(message)
+
     for kite_obs in architecture.kite_nodes:
         var_name = vortex_tools.get_induced_velocity_at_kite_name(kite_obs)
         options_tree.append(('model', 'scaling', 'z', var_name, wu_ind_scale, ('descript', None), 'x'))

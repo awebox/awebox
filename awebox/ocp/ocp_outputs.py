@@ -37,18 +37,66 @@ import awebox.tools.struct_operations as struct_op
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
 
-def collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P):
+def collect_global_outputs(nlp_options, Integral_outputs, model, V, P):
 
     global_outputs = {}
     global_outputs = include_time_period(nlp_options, V, global_outputs)
-
-    if 'Outputs_structured' != None and ('vortex' in model.outputs.keys()):
-        global_outputs = vortex.compute_global_performance(global_outputs, Outputs_structured, model.architecture)
+    global_outputs = include_total_energy_si(model, Integral_outputs, V, global_outputs)
+    global_outputs = include_total_energy_si_without_fictitious(model, Integral_outputs, V, global_outputs)
+    global_outputs = include_power_watts(global_outputs)
+    global_outputs = include_power_watts_without_fictitious(global_outputs)
 
     [outputs_struct, outputs_dict] = make_output_structure(global_outputs)
 
     return outputs_struct, outputs_dict
 
+
+def include_total_energy_si(model, Integral_outputs, V, global_outputs):
+
+    if 'e' in model.integral_outputs.keys():
+        e_final_scaled = Integral_outputs['int_out', -1, 'e']
+        e_final_si = e_final_scaled * model.integral_scaling['e']
+    else:
+        e_final_scaled = V['x', -1, 'e']
+        e_final_si = struct_op.var_scaled_to_si('x', 'e', e_final_scaled, model.scaling)
+
+    if 'e_final_joules' not in list(global_outputs.keys()):
+        global_outputs['e_final_joules'] = {}
+    global_outputs['e_final_joules']['val'] = e_final_si
+
+    return global_outputs
+
+
+def include_total_energy_si_without_fictitious(model, Integral_outputs, V, global_outputs):
+
+    if 'e_without_fictitious' in model.integral_outputs.keys():
+        e_final_scaled = Integral_outputs['int_out', -1, 'e_without_fictitious']
+        e_final_si = e_final_scaled * model.integral_scaling['e']
+    else:
+        e_final_scaled = V['x', -1, 'e_without_fictitious']
+        e_final_si = struct_op.var_scaled_to_si('x', 'e', e_final_scaled, model.scaling)
+
+    if 'e_final_joules_without_fictitious' not in list(global_outputs.keys()):
+        global_outputs['e_final_joules_without_fictitious'] = {}
+    global_outputs['e_final_joules_without_fictitious']['val'] = e_final_si
+
+    return global_outputs
+
+def include_power_watts(global_outputs):
+    power_kw = global_outputs['e_final_joules']['val'] / global_outputs['time_period']['val']
+
+    if 'avg_power_watts' not in list(global_outputs.keys()):
+        global_outputs['avg_power_watts'] = {}
+    global_outputs['avg_power_watts']['val'] = power_kw
+    return global_outputs
+
+def include_power_watts_without_fictitious(global_outputs):
+    power_kw = global_outputs['e_final_joules_without_fictitious']['val'] / global_outputs['time_period']['val']
+
+    if 'avg_power_watts_without_fictitious' not in list(global_outputs.keys()):
+        global_outputs['avg_power_watts_without_fictitious'] = {}
+    global_outputs['avg_power_watts_without_fictitious']['val'] = power_kw
+    return global_outputs
 
 def include_time_period(nlp_options, V, outputs):
 

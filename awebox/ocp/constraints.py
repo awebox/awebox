@@ -96,10 +96,12 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         if len(periodic_cstr.eq_list) != 0:
             ocp_cstr_entry_list.append(cas.entry('periodic', shape=periodic_cstr.get_expression_list('all').shape))
 
-        vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, Outputs_structured, Integral_outputs, model, time_grids)
-        ocp_cstr_list.append(vortex_ocp_cstr_list)
-        if len(vortex_ocp_cstr_list.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))
+        if model.wake is not None:
+            vortex_ocp_cstr_list = vortex.get_ocp_constraints(nlp_options, V, P, Xdot, Outputs_structured, Integral_outputs, model, time_grids)
+            ocp_cstr_list.append(vortex_ocp_cstr_list)
+            if len(vortex_ocp_cstr_list.eq_list) != 0:
+                ocp_cstr_entry_list.append(cas.entry('vortex', shape=vortex_ocp_cstr_list.get_expression_list('all').shape))
+            vortex.test_that_wake_related_ocp_variables_are_all_constrained_using_cstr_names(nlp_options, V, ocp_cstr_list)
 
         if direct_collocation:
             integral_cstr = get_integral_constraints(Integral_constraint_list, formulation.integral_constants)
@@ -128,7 +130,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
     if (nlp_options['system_type'] == 'lift_mode') and (nlp_options['phase_fix'] == 'single_reelout'):
         t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
-        shape = t_f_cstr_list.get_expression_list('ineq').shape
+        shape = t_f_cstr_list.get_expression_list('all').shape
         ocp_cstr_list.append(t_f_cstr_list)
         ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
     else:
@@ -151,22 +153,33 @@ def get_t_f_bounds_contraints(nlp_options, V, model):
 
     cstr_list = cstr_op.OcpConstraintList()
     t_f = ocp_outputs.find_time_period(nlp_options, V)
+
     upper_bound = model.variable_bounds['theta']['t_f']['ub']
     lower_bound = model.variable_bounds['theta']['t_f']['lb']
 
     scale = phase_fix_reelout
 
-    t_f_max = (t_f - upper_bound) / scale
-    t_f_min = (lower_bound - t_f) / scale
+    if 't_f' in model.options['system_bounds_other']['fixed_params'].keys():
+        upper_bound = model.variable_bounds['theta']['t_f']['ub']
+        t_f_pin = (t_f - upper_bound) / scale
+        t_f_pin_cstr = cstr_op.Constraint(expr=t_f_pin,
+                                          name='t_f_pin',
+                                          cstr_type='eq')
+        cstr_list.append(t_f_pin_cstr)
 
-    t_f_max_cstr = cstr_op.Constraint(expr=t_f_max,
-                                      name='t_f_max',
-                                      cstr_type='ineq')
-    cstr_list.append(t_f_max_cstr)
-    t_f_min_cstr = cstr_op.Constraint(expr=t_f_min,
-                                      name='t_f_min',
-                                      cstr_type='ineq')
-    cstr_list.append(t_f_min_cstr)
+    else:
+
+        t_f_max = (t_f - upper_bound) / scale
+        t_f_min = (lower_bound - t_f) / scale
+
+        t_f_max_cstr = cstr_op.Constraint(expr=t_f_max,
+                                          name='t_f_max',
+                                          cstr_type='ineq')
+        cstr_list.append(t_f_max_cstr)
+        t_f_min_cstr = cstr_op.Constraint(expr=t_f_min,
+                                          name='t_f_min',
+                                          cstr_type='ineq')
+        cstr_list.append(t_f_min_cstr)
     return cstr_list
 
 def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
@@ -239,7 +252,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
         mdl_eq_fun = cf.CachedFunction(nlp_options['compilation_file_name']+'_mdl_eq', mdl_eq_fun, do_compile=nlp_options['compile_subfunctions'])
 
     # evaluate constraint functions
-    if nlp_options['parallelization']['map_type'] == 'for-loop':
+    if nlp_options['parallelization']['type'] == 'for-loop':
 
         if inequalities_at_collocation_nodes:
             ocp_ineqs_list = []
@@ -263,7 +276,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
             ocp_eqs_list.append(mdl_eq_fun(shooting_vars[:,k], shooting_params[:,k]))
         ocp_eqs_shooting_expr = cas.horzcat(*ocp_eqs_list)
 
-    elif nlp_options['parallelization']['map_type'] == 'map':
+    elif nlp_options['parallelization']['type'] in ['openmp', 'thread', 'serial', 'map']:
 
         if inequalities_at_shooting_nodes:
             mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, shooting_nodes, [], [])
@@ -353,13 +366,13 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
 
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']
-    
+
     if u_zoh_ineq_shoot:
         entry_tuple += (
             cas.entry('shooting',       repeat = [n_k],     struct = mdl_dyn_constraints),
             cas.entry('path',           repeat = [n_k],     struct = mdl_path_constraints),
         )
-    
+
     elif u_zoh_ineq_coll:
         entry_tuple += (
             cas.entry('shooting',       repeat = [n_k],       struct = mdl_dyn_constraints),
@@ -397,7 +410,7 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
     model_parameters = model.parameters
     model_constraints_list = model.constraints_list
 
-    parallellization = nlp_options['parallelization']['type']
+    parallelization_type = nlp_options['parallelization']['type']
 
     # algebraic constraints
     z_from_V = []
@@ -407,16 +420,28 @@ def expand_with_multiple_shooting(nlp_options, V, model, dae, Multiple_shooting,
 
     z_at_time_sym = cas.MX.sym('z_at_time_sym',dae.z.shape)
     z_from_V_sym =  cas.MX.sym('z_from_V_sym',dae.z.shape)
+
+    # evaluate mapped constraint functions
     alg_fun = cas.Function('alg_fun', [z_at_time_sym, z_from_V_sym], [z_at_time_sym - z_from_V_sym])
-    alg_map = alg_fun.map('alg_map', parallellization, n_k, [], [])
+    if parallelization_type in ['serial', 'openmp', 'thread']:
+        alg_map = alg_fun.map('alg_map', parallelization_type, n_k, [], [])
+        alg_expr = alg_map(ms_z0, z_from_V)
+    elif parallelization_type == 'concurrent_futures':
+        alg_expr = struct_op.concurrent_future_map(alg_fun, [ms_z0, z_from_V])
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     # inequality constraints
     mdl_ineq_fun = model_constraints_list.get_function(nlp_options, model_variables, model_parameters, 'ineq')
-    mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallellization, n_k, [], [])
-
-    # evaluate mapped constraint functions
-    alg_expr = alg_map(ms_z0, z_from_V)
-    ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    if parallelization_type in ['serial', 'openmp', 'thread']:
+        mdl_ineq_map = mdl_ineq_fun.map('mdl_ineq_map', parallelization_type, n_k, [], [])
+        ocp_ineqs_expr = mdl_ineq_map(ms_vars, ms_params)
+    elif parallelization_type == 'concurrent_futures':
+        ocp_ineqs_expr = struct_op.concurrent_future_map(mdl_ineq_fun, [ms_vars, ms_params])
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     for kdx in range(n_k):
 

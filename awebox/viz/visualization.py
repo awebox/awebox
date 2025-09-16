@@ -25,6 +25,7 @@
 ##################################
 # Class Visualization contains plotting functions to visualize data
 # of trials and sweeps
+# - edited: rachel leuthold, 2017-2025
 ###################################
 from . import tools
 from . import trajectory
@@ -42,6 +43,8 @@ matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
+import awebox.tools.save_operations as save_op
+
 from awebox.logger.logger import Logger as awelogger
 
 from typing import Dict, Tuple
@@ -186,6 +189,7 @@ class Visualization(object):
         integral_variables = self.plot_dict['integral_output_names']
 
         plot_logic_dict = {}
+        plot_logic_dict['power'] = (output.plot_power, None)
         plot_logic_dict['isometric'] = (trajectory.plot_trajectory, {'side':'isometric'})
         plot_logic_dict['projected_xy'] = (trajectory.plot_trajectory, {'side':'xy'})
         plot_logic_dict['projected_yz'] = (trajectory.plot_trajectory, {'side':'yz'})
@@ -193,10 +197,11 @@ class Visualization(object):
         plot_logic_dict['quad'] = (trajectory.plot_trajectory, {'side':'quad'})
         plot_logic_dict['animation'] = (animation.animate_monitor_plot, None)
         plot_logic_dict['animation_snapshot'] = (animation.animate_snapshot, None)
-        plot_logic_dict['vortex_haas_verification'] = (wake.plot_haas_verification_test, None)
         plot_logic_dict['local_induction_factor'] = (output.plot_local_induction_factor, None)
+        plot_logic_dict['local_induction_factor_all_projections'] = (output.plot_local_induction_factor_all_projections, None)
         plot_logic_dict['average_induction_factor'] = (output.plot_annulus_average_induction_factor, None)
         plot_logic_dict['relative_radius'] = (output.plot_relative_radius, None)
+        plot_logic_dict['relative_radius_of_curvature'] = (output.plot_relative_radius_of_curvature, None)
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
         plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
@@ -204,10 +209,21 @@ class Visualization(object):
         plot_logic_dict['actuator_xy'] = (wake.plot_actuator, {'side':'xy'})
         plot_logic_dict['actuator_yz'] = (wake.plot_actuator, {'side':'yz'})
         plot_logic_dict['actuator_xz'] = (wake.plot_actuator, {'side':'xz'})
-        plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
+        plot_logic_dict['velocity_distribution'] = (wake.plot_velocity_distribution, None)
+        plot_logic_dict['velocity_distribution_comparison'] = (wake.plot_velocity_distribution_comparison_only, None)
+        plot_logic_dict['velocity_deficits'] = (wake.plot_velocity_deficits, None)
+        plot_logic_dict['induction_contour_wind_wind'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'wind', 'direction_induction': 'wind'})
+        plot_logic_dict['induction_contour_normal_wind'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'normal', 'direction_induction': 'wind'})
+        plot_logic_dict['induction_contour_normal_normal'] = (wake.plot_induction_contour_on_kmp,
+                                                          {'direction_plotting': 'normal', 'direction_induction': 'normal'})
+        plot_logic_dict['induction_wind_tunnel'] = (wake.plot_induction_contour_on_vwt_cross_sections, {'direction_induction': 'wind'})
         plot_logic_dict['wake_xy'] = (wake.plot_wake, {'side':'xy'})
         plot_logic_dict['wake_yz'] = (wake.plot_wake, {'side':'yz'})
         plot_logic_dict['wake_xz'] = (wake.plot_wake, {'side':'xz'})
+        plot_logic_dict['wake_isometric'] = (wake.plot_wake, {'side':'isometric'})
+        plot_logic_dict['wake_legend'] = (wake.plot_wake_legend, None)
         plot_logic_dict['circulation'] = (output.plot_circulation, None)
         plot_logic_dict['states'] = (variables.plot_states, None)
         plot_logic_dict['wake_states'] = (variables.plot_wake_states, None)
@@ -221,6 +237,8 @@ class Visualization(object):
         plot_logic_dict['wake_lifted_variables'] = (variables.plot_wake_lifted, None)
         plot_logic_dict['lifted_variables'] = (variables.plot_lifted, None)
         plot_logic_dict['constraints'] = (output.plot_constraints, None)
+        plot_logic_dict['additionally_observed_induction'] = (output.plot_additionally_observed_induction, None)
+        plot_logic_dict['thrust'] = (output.plot_thrust, None)
 
         for output_top_name in list(outputs.keys()):
             plot_logic_dict['outputs:' + output_top_name] = (output.plot_outputs, {'output_top_name': output_top_name})
@@ -260,8 +278,10 @@ class Visualization(object):
                 os.mkdir(directory)
 
             save_name = directory + '/' + name_rep + '_' + flag
-            plt.savefig(save_name + '.eps', bbox_inches='tight', format='eps', dpi=1000)
-            plt.savefig(save_name + '.pdf', bbox_inches='tight', format='pdf', dpi=1000)
+
+            if save_op.is_filename_acceptable_length(save_name):
+                for format in cosmetics['save']['format_list']:
+                    plt.savefig(save_name + '.' + format, bbox_inches='tight', format=format, dpi=1000)
 
         return None
 

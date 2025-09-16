@@ -117,25 +117,25 @@ def compute_power_indicators(power_and_performance, plot_dict):
     s_ref = kite_geometry['s_ref']
 
     # the actual power indicators
-    if 'e' in plot_dict['integral_output_names']:
-        e_final_scaled = plot_dict['integral_output_vals']['opt']['int_out', -1, 'e']
-        e_final = e_final_scaled * plot_dict['options']['nlp']['scaling']['x']['e']
-
-    else:
-        e_final = plot_dict['interpolation_si']['x']['e'][0][-1]
-
+    e_final_joules = plot_dict['global_output_vals']['e_final_joules'].full()[0][0]
     time_period = plot_dict['global_output_vals']['time_period'].full()[0][0]
-    avg_power = e_final / time_period
+    avg_power_watts = plot_dict['global_output_vals']['avg_power_watts'].full()[0][0]
     surface_area = float(len(plot_dict['architecture'].kite_nodes)) * s_ref
-    power_per_surface_area = avg_power / surface_area
+    power_per_surface_area = avg_power_watts / surface_area
 
-    zeta = np.mean(plot_dict['outputs_dict']['performance']['phf'][0])
+    e_final_joules_without_fictitious = plot_dict['global_output_vals']['e_final_joules_without_fictitious'].full()[0][0]
+    avg_power_watts_without_fictitious = plot_dict['global_output_vals']['avg_power_watts_without_fictitious'].full()[0][0]
 
-    power_and_performance['e_final'] = e_final
+    zeta = np.mean(plot_dict['interpolation_si']['outputs']['performance']['phf'][0])
+
+    power_and_performance['e_final'] = e_final_joules
     power_and_performance['time_period'] = time_period
-    power_and_performance['avg_power'] = avg_power
+    power_and_performance['avg_power'] = avg_power_watts
     power_and_performance['zeta'] = zeta
     power_and_performance['power_per_surface_area'] = power_per_surface_area
+
+    power_and_performance['e_final_without_fictitious'] = e_final_joules_without_fictitious
+    power_and_performance['avg_power_without_fictitious'] = avg_power_watts_without_fictitious
 
     if 'l_t' in plot_dict['interpolation_si']['x'].keys():
         power_and_performance['l_t_max'] = np.max(np.abs(np.array(plot_dict['interpolation_si']['x']['l_t'][0])))
@@ -154,7 +154,7 @@ def compute_power_indicators(power_and_performance, plot_dict):
 
 def compute_efficiency_measures(power_and_performance, plot_dict):
 
-    power_outputs = plot_dict['outputs_dict']['power_balance']
+    power_outputs = plot_dict['interpolation_si']['outputs']['power_balance']
     N = plot_dict['time_grids']['ip'].shape[0]
 
     # sum different power types over all system nodes
@@ -318,20 +318,20 @@ def compute_position_indicators(power_and_performance, plot_dict):
 def compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict):
 
     cmax = 0.0
-    for constraint in list(plot_dict['outputs_dict']['invariants'].keys()):
+    for constraint in list(plot_dict['interpolation_si']['outputs']['invariants'].keys()):
         if constraint[0] == 'c':
-            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['outputs_dict']['invariants'][constraint]))])
+            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['interpolation_si']['outputs']['invariants'][constraint]))])
     power_and_performance['cmax'] = cmax
 
     return power_and_performance
 
 def compute_tether_tension_indicators(power_and_performance, plot_dict):
 
-    max_tension = np.max(plot_dict['outputs_dict']['local_performance']['tether_force10'])
+    max_tension = np.max(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'])
     power_and_performance['tension_max'] = max_tension
 
     # tension average over time
-    avg_tension = np.average(plot_dict['outputs_dict']['local_performance']['tether_force10'])
+    avg_tension = np.average(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'])
     power_and_performance['tension_avg'] = avg_tension
 
     return power_and_performance

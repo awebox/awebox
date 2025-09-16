@@ -283,22 +283,20 @@ def power_balance_key_belongs_to_node(keyname, node):
 def test_tracked_vortex_periods(trial, test_param_dict, results, input_values, global_input_values):
 
     if 'vortex' in input_values['outputs']:
+        results['vortex_truncation_error'] = True
 
         vortex_truncation_error_thresh = test_param_dict['vortex_truncation_error_thresh']
 
-        local_max = []
-        for keyname in input_values['outputs']['vortex'].keys():
-            if 'est_truncation_error' in keyname:
-                local_max += [np.max(np.array(input_values['outputs']['vortex'][keyname]))]
-        max_est_truncation_error = np.max(np.array(local_max))
-        if max_est_truncation_error > vortex_truncation_error_thresh:
+        est_truncation_error = trial.visualization.plot_dict['interpolation_si']['outputs']['vortex']['est_truncation_error']
+        est_truncation_error = np.array(est_truncation_error)
+
+        max_trunc_error = np.max(est_truncation_error)
+        if max_trunc_error > vortex_truncation_error_thresh:
             message = 'Vortex model estimates a large truncation error' \
-                      + str(max_est_truncation_error) + ' > ' + str(vortex_truncation_error_thresh) \
+                      + str(max_trunc_error) + ' > ' + str(vortex_truncation_error_thresh) \
                       + '. We recommend increasing the number of wake nodes.'
             awelogger.logger.warning(message)
             results['vortex_truncation_error'] = False
-        else:
-            results['vortex_truncation_error'] = True
 
     return results
 

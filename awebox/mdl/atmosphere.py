@@ -109,7 +109,7 @@ class Atmosphere:
         if options['model'] == 'isa':
             mu = params['mu_ref'] * (params['t_ref'] + params['c_sutherland']) / (self.get_temperature(zz) +
                  params['c_sutherland']) * (self.get_temperature(zz) / params['t_ref']) ** (3.0 / 2.0)
-        elif options['model'] == 'log_wind':
+        elif options['model'] == 'log_wind': #todo: 'log wind' should not be the name of an option here.
             mu = params['mu_ref']
         elif options['model'] == 'uniform':
             mu = params['mu_ref']

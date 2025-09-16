@@ -53,7 +53,7 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 
-def build(options, architecture, wind, variables_si, parameters):
+def build(options, architecture, wind, variables_si, variables_scaled, parameters):
 
     vortex_tools.check_positive_vortex_wake_nodes(options)
 
@@ -68,12 +68,13 @@ def build(options, architecture, wind, variables_si, parameters):
 
     degree_of_induced_velocity_lifting = options['induction']['vortex_degree_of_induced_velocity_lifting']
     wake.define_biot_savart_induction_residual_functions(degree_of_induced_velocity_lifting)
+    wake.define_model_variables_to_info_functions(variables_scaled, parameters)
 
     return wake
 
 
-def get_ocp_constraints(nlp_options, V, Outputs, Integral_outputs, model, time_grids):
-    return alg_fixing.get_constraint(nlp_options, V, Outputs, Integral_outputs, model, time_grids)
+def get_ocp_constraints(nlp_options, V, P, Xdot, Outputs, Integral_outputs, model, time_grids):
+    return alg_fixing.get_constraint(nlp_options, V, P, Xdot, Outputs, Integral_outputs, model, time_grids)
 
 
 def get_initialization(nlp_options, V_init_si, p_fix_num, nlp, model):
@@ -110,4 +111,6 @@ def test(test_includes_visualization=False):
 
     return None
 
-# test()
+
+if __name__ == "__main__":
+    test(test_includes_visualization=True)

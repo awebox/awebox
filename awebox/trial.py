@@ -28,6 +28,7 @@
 ###################################
 
 import awebox.tools.print_operations as print_op
+import awebox.tools.performance_operations as perf_op
 import awebox.trial_funcs as trial_funcs
 import awebox.ocp.nlp as nlp
 import awebox.opti.optimization as optimization
@@ -139,7 +140,7 @@ class Trial(object):
         awelogger.logger.info('')
 
     def optimize(self, options_seed=[], final_homotopy_step='final',
-                 warmstart_file=None, debug_flags=[],
+                 warmstart_file=None, reference_file=None, debug_flags=[],
                  debug_locations=[], save_flag=False, intermediate_solve=False, recalibrate_viz=True):
 
         if not options_seed:
@@ -164,10 +165,9 @@ class Trial(object):
         awelogger.logger.info(60*'=')
         awelogger.logger.info('')
 
-
         self.__optimization.solve(self.__name, options['solver'], self.__nlp, self.__model,
                                   self.__formulation, self.__visualization,
-                                  final_homotopy_step, warmstart_file, debug_flags=debug_flags,
+                                  final_homotopy_step=final_homotopy_step, warmstart_file=warmstart_file, reference_file=reference_file, debug_flags=debug_flags,
                                   debug_locations=debug_locations, intermediate_solve=intermediate_solve)
 
         self.__solution_dict = self.generate_solution_dict()
@@ -244,25 +244,20 @@ class Trial(object):
 
     def print_solution(self):
 
-        # the actual power indicators
-        if 'e' in self.__model.integral_outputs.keys():
-            e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
-        else:
-            e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
-
         time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
-        avg_power = e_final / time_period
+        avg_power_watts = self.__optimization.global_outputs_opt['avg_power_watts'].full()[0][0]
+        avg_power_kw = avg_power_watts * 1.e-3
 
-        parameter_label = 'Parameter or Output'
         optimal_label = 'Value at Optimal Solution'
         dimension_label = 'Dimension'
 
         dict_parameters = {
-            'Average power output': {optimal_label: str(avg_power/1.e3),
+            'Average power output': {optimal_label: str(avg_power_kw),
                                      dimension_label: 'kW'},
             'Time period': {optimal_label: str(round(time_period, 2)),
                             dimension_label: 's'}
             }
+
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),
@@ -350,6 +345,7 @@ class Trial(object):
         solution_dict['V_opt'] = self.__optimization.V_opt
         solution_dict['V_final_si'] = self.__optimization.V_final_si
         solution_dict['V_ref'] = self.__optimization.V_ref
+        solution_dict['V_init'] = self.__optimization.V_init
         solution_dict['p_fix_num'] = self.__optimization.p_fix_num
         solution_dict['options'] = self.__options
         solution_dict['output_vals'] = copy.deepcopy(self.__optimization.output_vals)
@@ -361,6 +357,7 @@ class Trial(object):
         cost = struct_op.evaluate_cost_dict(cost_fun, self.__optimization.V_opt, self.__optimization.p_fix_num)
         solution_dict['cost'] = cost
         solution_dict['global_outputs_opt'] = self.__optimization.global_outputs_opt
+        solution_dict['solve_succeeded'] = self.__optimization.solve_succeeded
 
         # warmstart data
         solution_dict['final_homotopy_step'] = self.__optimization.final_homotopy_step

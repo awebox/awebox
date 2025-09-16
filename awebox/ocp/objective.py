@@ -27,20 +27,22 @@ objective code of the awebox
 constructs an objective function from the various fictitious costs.
 python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
-- edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
+- edited: jochem de schutter alu-fr 2018-2021
+- edited: rachel leuthold alu-fr 2018-2025
 '''
 from typing import Union, Dict
 
-import casadi as ca
 import casadi.tools as cas
 import numpy as np
 from . import collocation
 from . import ocp_outputs
 
+import time
 import collections
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
+
 import awebox.tools.cached_functions as cf
 from awebox.mdl.model import Model
 
@@ -221,17 +223,20 @@ def find_general_regularisation(nlp_options, V, P, Xdot, model):
     if nlp_options['compile_subfunctions']:
         reg_costs_fun = cf.CachedFunction(nlp_options['compilation_file_name'], reg_costs_fun, do_compile=nlp_options['compile_subfunctions'])
 
-    if nlp_options['parallelization']['map_type'] == 'for-loop':
-
+    if parallellization in ['openmp', 'thread', 'serial', 'map']:
+        reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
+        reg_costs = reg_costs_map(vars, refs, weights)
+    elif parallellization == 'concurrent_futures':
+        list_of_horzcatted_inputs = [vars, refs, weights]
+        reg_costs = struct_op.concurrent_future_map(reg_costs_fun, list_of_horzcatted_inputs)
+    elif parallellization == 'for-loop':
         reg_costs_list = []
         for k in range(vars.shape[1]):
             reg_costs_list.append(reg_costs_fun(vars[:,k], refs[:,k], weights[:,k]))
         reg_costs = cas.horzcat(*reg_costs_list)
-
-    elif nlp_options['parallelization']['map_type'] == 'map':
-
-        reg_costs_map = reg_costs_fun.map('reg_costs_map', parallellization, N_steps, [], [])
-        reg_costs = reg_costs_map(vars, refs, weights)
+    else:
+        message = 'sorry, but the awebox has not yet set up ' + parallellization + ' parallelization'
+        print_op.log_and_raise_error(message)
 
     summed_reg_costs = cas.sum2(reg_costs)
 
@@ -262,9 +267,6 @@ def find_int_weights(nlp_options):
     return int_weights
 
 
-
-
-
 def find_homotopy_parameter_costs(component_costs, V, P):
 
     for name in struct_op.subkeys(V, 'phi'):
@@ -274,16 +276,20 @@ def find_homotopy_parameter_costs(component_costs, V, P):
 
 
 def find_time_cost(nlp_options, V, P):
-
-    time_period = ocp_outputs.find_time_period(nlp_options, V)
-    tf_init = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
-
-    time_cost = P['cost', 't_f'] * (time_period - tf_init) * (time_period - tf_init)
+    # this deliberately penalizes deviations in all t_f values, not just the final time.
+    # otherwise, you end up with situations where (when trying to match t_f), the optimizer
+    # adjusts the size of the control intervals on each side of t_switch.
+    diff = V['theta', 't_f'] - P['p', 'ref', 'theta', 't_f']
+    size_correction = float(V['theta', 't_f'].shape[0])
+    total_period_ref = ocp_outputs.find_time_period(nlp_options, P.prefix['p', 'ref'])
+    normalization = total_period_ref**2.
+    time_cost = P['cost', 't_f'] * cas.mtimes(diff.T, diff) / (size_correction * normalization)
 
     return time_cost
 
 
-def find_power_cost(nlp_options, model, V, P, Integral_outputs):
+
+def get_average_power(nlp_options, V, Integral_outputs):
 
     # maximization term for average power
     time_period = ocp_outputs.find_time_period(nlp_options, V)
@@ -294,6 +300,12 @@ def find_power_cost(nlp_options, model, V, P, Integral_outputs):
         total_energy_scaled = Integral_outputs['int_out', -1, 'e']
 
     average_scaled_power = total_energy_scaled / time_period
+
+    return average_scaled_power
+
+def find_power_cost(nlp_options, V, P, Integral_outputs):
+
+    average_scaled_power = get_average_power(nlp_options, V, Integral_outputs)
 
     if nlp_options['cost']['P_max']:
         max_power_cost = (1.0 - P['cost', 'P_max']) * V['theta', 'P_max']
@@ -344,11 +356,9 @@ def find_transition_problem_cost(component_costs, P):
     return transition_cost
 
 
-def find_tracking_problem_cost(component_costs, P):
-
+def find_tracking_problem_cost(component_costs):
     tracking_cost = component_costs['tracking_cost']
     tracking_problem_cost = tracking_cost
-
     return tracking_problem_cost
 
 
@@ -402,6 +412,8 @@ def find_beta_cost(nlp_options, model, Integral_outputs, P):
     else:
         beta_cost = 0
 
+    # todo: divide by number of kites
+
     return beta_cost
 
 
@@ -450,18 +462,18 @@ def find_objective(component_costs, V, nlp_options):
 
 ##### use the component_cost_dictionary to only do the calculation work once
 
-def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
+def get_component_cost_dictionary(nlp_options, V, P, variables, xdot, model, Integral_outputs):
 
     component_costs = find_general_regularisation(nlp_options, V, P, xdot, model)
 
     component_costs = find_homotopy_parameter_costs(component_costs, V, P)
 
     component_costs['time_cost'] = find_time_cost(nlp_options, V, P)
-    component_costs['power_cost'] = find_power_cost(nlp_options, model, V, P, Integral_outputs)
+    component_costs['power_cost'] = find_power_cost(nlp_options, V, P, Integral_outputs)
     component_costs['nominal_landing_cost'] = find_nominal_landing_problem_cost(nlp_options, V, P, variables)
     component_costs['transition_cost'] = find_transition_problem_cost(component_costs, P)
     component_costs['beta_cost'] = find_beta_cost(nlp_options, model, Integral_outputs, P)
-    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs, P)
+    component_costs['tracking_problem_cost'] = find_tracking_problem_cost(component_costs)
     component_costs['power_problem_cost'] = find_power_problem_cost(component_costs)
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
@@ -476,7 +488,7 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     return component_costs
 
 
-def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Dict[str,Union[ca.SX,float]]:
+def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Dict[str,Union[cas.SX,float]]:
     """
     Compute the regularization cost to enforce the geometric assumptions of the Stroboscopy Average Method (SAM).
     This consists of penalizing:
@@ -489,7 +501,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     :param nlp_options: dictionary containing the options of the NLP, i.e. trial.options['nlp']
     :param V: casidi symbolic struct containing the variables of the NLP
     :param model: awebox model objects
-    :return: a dictionary of ca.SX for each type of regularization
+    :return: a dictionary of cas.SX for each type of regularization
     """
     if not nlp_options['SAM']['use']:
         return {'NotInUse':0}
@@ -521,7 +533,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     sam_regularizaion_third_deriv_x_average = 0
     for i, c_i in enumerate(macro_int.c):
         # compute the 3rd derivative of the state (2nd derivative of the collocation poly)
-        l_i_dot = ca.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE - 1)(c_i) for l in macro_int.polynomials])
+        l_i_dot = cas.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE - 1)(c_i) for l in macro_int.polynomials])
         v_i_dot = V_matrix @ l_i_dot  # the value of the 3rd derivative of the state at the collocation point
 
         # compute the quadrature of the 3rd derivative of the state
@@ -537,7 +549,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     W_z = cas.diag(cas.vertcat(*[weights_state.cat for n in range(len(SAM_regions[0]))]))
     for i, c_i in enumerate(macro_int.c):
         # compute the 3rd derivative of the polynomial for the algebraic variables
-        l_i_dot = ca.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE)(c_i) for l in macro_int.polynomials])
+        l_i_dot = cas.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE)(c_i) for l in macro_int.polynomials])
         z_i_dot = Z_matrix @ l_i_dot  # value of the 3rd derivative of the algebraic variables at the collocation point
 
         # compute the quadrature of the squared 3rd derivative of the algebraic variables
@@ -557,7 +569,7 @@ def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, 
     tfs_cycles = V['theta', 't_f', 0:-1]
     for i, c_i in enumerate(macro_int.c):
         # compute the 3rd derivative of the polynomial for the algebraic variables
-        l_i_dot = ca.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
+        l_i_dot = cas.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
         T_i_dot = tfs_cycles.T @ l_i_dot  # value of the first derivative of the cycle duration variables at the collocation point
 
         factor_time = N_SAM/N_SAM**2
@@ -598,9 +610,9 @@ def get_component_cost_structure(component_costs):
 
     return component_cost_struct
 
-def get_cost_function_and_structure(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs):
+def get_cost_function_and_structure(nlp_options, V, P, variables, xdot, model, Integral_outputs):
 
-    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot, Outputs, model, Integral_outputs)
+    component_costs = get_component_cost_dictionary(nlp_options, V, P, variables, xdot, model, Integral_outputs)
 
     component_cost_function = get_component_cost_function(component_costs, V, P)
     component_cost_structure = get_component_cost_structure(component_costs)

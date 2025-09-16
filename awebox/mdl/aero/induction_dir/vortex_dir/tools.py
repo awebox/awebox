@@ -25,7 +25,7 @@
 '''
 various structural tools for the vortex model
 _python-3.5 / casadi-3.4.5
-- author: rachel leuthold, alu-fr 2019-2021
+- author: rachel leuthold, alu-fr 2019-2025
 '''
 import copy
 
@@ -61,7 +61,6 @@ def extend_system_variables(model_options, system_lifted, system_states, archite
     system_lifted, system_states = extend_velocity_variables(model_options, system_lifted, system_states, architecture)
 
     return system_lifted, system_states
-
 
 def model_is_included_in_comparison(options):
     comparison_labels = general_tools.get_option_from_possible_dicts(options, 'comparison_labels', 'vortex')
@@ -118,8 +117,9 @@ def get_number_of_algebraic_variables_set_outside_dynamics(nlp_options, model):
             for tip in tip_list:
                 for wake_node_or_ring in wake_node_or_ring_list:
 
-                    if abbreviated_var_name[:2] == 'wx':
-                        count += 3
+                    if (abbreviated_var_name[:2] == 'wx'):
+                        if (wake_node_or_ring > 0):
+                            count += 3
 
                     elif abbreviated_var_name[:2] == 'wg':
                         count += 1
@@ -471,12 +471,27 @@ def log_and_raise_unknown_representation_error(vortex_representation):
     return None
 
 
-def get_variable_si(variables, var_type, var_name, scaling=None):
-    var = struct_op.get_variable_from_model_or_reconstruction(variables, var_type, var_name)
-    if scaling is not None:
+def get_variable_si(var_type, var_name, variables_si=None, variables_scaled=None, scaling=None):
+
+    si_or_scaled = 'under-defined'
+    if (variables_si is not None) and (variables_scaled is None):
+        si_or_scaled = 'si'
+    elif (variables_scaled is not None) and (scaling is not None) and (variables_si is None):
+        si_or_scaled = 'scaled'
+    elif (variables_scaled is not None) and (scaling is not None) and (variables_si is not None):
+        si_or_scaled = 'over-defined'
+
+    if si_or_scaled == 'si':
+        var = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+        return var
+    elif si_or_scaled == 'scaled':
+        var = struct_op.get_variable_from_model_or_reconstruction(variables_scaled, var_type, var_name)
         return struct_op.var_scaled_to_si(var_type, var_name, var, scaling)
     else:
-        return var
+        message = 'get_variable_si was not passed the correct amount of information; the operation is ' + si_or_scaled
+        print_op.log_and_raise_error(message)
+    return None
+
 
 def get_define_wake_types():
     return ['bound', 'near', 'far']
@@ -492,43 +507,51 @@ def get_wake_node_position_var_type(model_options):
 
     return var_type
 
-def get_wake_node_position_si(model_options, variables, kite_shed, tip, wake_node, scaling=None):
-    var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
-    var_type = get_wake_node_position_var_type(model_options)
-    return get_variable_si(variables, var_type, var_name, scaling)
+
+def get_wake_node_position_si(model_options, kite_shed, tip, wake_node, variables_si=None, variables_scaled=None, scaling=None):
+
+    vortex_representation = general_tools.get_option_from_possible_dicts(model_options, 'representation', 'vortex')
+    if vortex_representation in ['alg', 'state']:
+        var_name = get_wake_node_position_name(kite_shed, tip, wake_node)
+        var_type = get_wake_node_position_var_type(model_options)
+        return get_variable_si(var_type, var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
+    else:
+        log_and_raise_unknown_representation_error(vortex_representation)
+    return None
 
 
-def get_vortex_ring_strength_si(variables, kite_shed, ring, scaling=None):
+
+def get_vortex_ring_strength_si(kite_shed, ring, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_vortex_ring_strength_name(kite_shed, ring)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_element_induced_velocity_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
+def get_element_induced_velocity_si(wake_type, element_type, element_number, kite_obs, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_element_induced_velocity_name(wake_type, element_type, element_number, kite_obs)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_element_induced_velocity_numerator_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
+def get_element_induced_velocity_numerator_si(wake_type, element_type, element_number, kite_obs, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_element_biot_savart_numerator_name(wake_type, element_type, element_number, kite_obs)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_element_induced_velocity_denominator_si(variables, wake_type, element_type, element_number, kite_obs, scaling=None):
+def get_element_induced_velocity_denominator_si(wake_type, element_type, element_number, kite_obs, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_element_biot_savart_denominator_name(wake_type, element_type, element_number, kite_obs)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_induced_velocity_at_kite_si(variables, kite_obs, scaling=None):
+def get_induced_velocity_at_kite_si(kite_obs, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_induced_velocity_at_kite_name(kite_obs)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_far_wake_finite_filament_pathwise_convection_velocity_si(variables, kite_shed, scaling=None):
+def get_far_wake_finite_filament_pathwise_convection_velocity_si(kite_shed, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_far_wake_finite_filament_pathwise_convection_velocity_name(kite_shed)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_far_wake_cylinder_center_position_si(variables, parent_shed, scaling=None):
+def get_far_wake_cylinder_center_position_si(parent_shed, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_far_wake_cylinder_center_position_name(parent_shed)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
-def get_far_wake_cylinder_pitch_si(variables, parent_shed, scaling=None):
+def get_far_wake_cylinder_pitch_si(parent_shed, variables_si=None, variables_scaled=None, scaling=None):
     var_name = get_far_wake_cylinder_pitch_name(parent_shed)
-    return get_variable_si(variables, 'z', var_name, scaling)
+    return get_variable_si('z', var_name, variables_si=variables_si, variables_scaled=variables_scaled, scaling=scaling)
 
 
 def get_kite_or_parent_and_tip_and_node_or_ring_list_for_abbreviated_vars(abbreviated_var_name, nlp_options, architecture):
@@ -715,8 +738,8 @@ def superpose_induced_velocities_at_kite(model_options, wake, variables_si, kite
 
                 if not_bound_and_shed_is_obs(model_options, substructure_type, element_type, element_number, kite_obs,
                                              architecture):
-                    elem_u_ind_si = get_element_induced_velocity_si(variables_si, substructure_type,
-                                                                                 element_type, element_number, kite_obs)
+                    elem_u_ind_si = get_element_induced_velocity_si(substructure_type, element_type, element_number,
+                                                                    kite_obs, variables_si=variables_si)
                     vec_u_superposition += elem_u_ind_si
 
     return vec_u_superposition
@@ -726,6 +749,11 @@ def get_induction_factor_normalizing_speed(model_options, wind, kite, parent, va
     induction_factor_normalizing_speed = model_options['aero']['vortex']['induction_factor_normalizing_speed']
     if induction_factor_normalizing_speed == 'u_zero':
         u_vec = general_flow.get_vec_u_zero(model_options, wind, parent, variables, architecture)
+
+        if architecture.number_of_kites == 1:
+            message = 'please be advised that the computation of the rotor apparent velocity vec_u_zero does not yet work well for single-kite systems'
+            print_op.base_print(message, level='warning')
+
     elif induction_factor_normalizing_speed == 'u_inf':
         u_vec = general_flow.get_kite_vec_u_infty(variables, wind, kite, parent)
     elif induction_factor_normalizing_speed == 'u_ref':
@@ -778,3 +806,168 @@ def get_wingtip_name_and_strength_direction_dict():
         get_PE_wingtip_name(): +1.
     }
     return dict
+
+
+def check_particular_wake_node_0_on_wingtip(inputs):
+
+    base_inputs = inputs
+    loop_inputs = inputs
+
+    nlp_options = base_inputs['nlp_options']
+    V_scaled = base_inputs['V_scaled']
+    P = base_inputs['P']
+    Outputs = base_inputs['Outputs']
+    model = base_inputs['model']
+    tolerance = base_inputs['tolerance']
+    progress_total = base_inputs['progress_total']
+
+    element_number = loop_inputs['element_number']
+    tip = loop_inputs['tip']
+    ndx = loop_inputs['ndx']
+    ddx = loop_inputs['ddx']
+    progress_index = loop_inputs['progress_index']
+
+    V_si = struct_op.scaled_to_si(V_scaled, model.scaling)
+
+    wake = model.wake
+    wake_node = 0
+    kite_shed = get_shedding_kite_from_element_number(nlp_options, 'bound', 'finite_filament',
+                                                                   element_number, model.architecture)
+
+    # reference
+    b_ref = model.options['params']['geometry']['b_ref']
+    if ddx == None:
+        wingtip_position = Outputs['coll_outputs', ndx - 1, -1, 'aerodynamics', 'wingtip_' + tip + str(kite_shed)]
+    else:
+        wingtip_position = Outputs['coll_outputs', ndx, ddx, 'aerodynamics', 'wingtip_' + tip + str(kite_shed)]
+
+    # comparisons
+    available_positions = {}
+
+    vortex_representation = general_tools.get_option_from_possible_dicts(model.options, 'representation', 'vortex')
+    if vortex_representation in ['alg', 'state']:
+        var_type = get_wake_node_position_var_type(model.options)
+        var_name = get_var_name('wx', kite_shed_or_parent_shed=kite_shed, tip=tip, wake_node_or_ring=wake_node)
+        if ddx == None:
+            position_from_variables = V_si[var_type, ndx, var_name]
+        else:
+            position_from_variables = V_si['coll_var', ndx, ddx, var_type, var_name]
+        available_positions['position_from_variables'] = position_from_variables
+
+    Xdot = None
+    variables_scaled = struct_op.get_variables_at_time(nlp_options, V_scaled, Xdot, model.variables, ndx, ddx=ddx)
+    position_from_tools = get_wake_node_position_si(model.options, kite_shed, tip, wake_node,
+                                                    variables_scaled=variables_scaled, scaling=model.scaling)
+    available_positions['position_from_tools'] = position_from_tools
+
+    parameters = struct_op.get_parameters_at_time(V_scaled, P, model.parameters)
+    element = wake.get_substructure('bound').get_list('finite_filament').list[element_number]
+    element_info = element.evaluate_and_unpack_info(variables_scaled=variables_scaled, parameters=parameters)
+    tip_index = [key for key in get_wingtip_name_and_strength_direction_dict()].index(tip)
+    if tip_index == 0:
+        position_from_wake = element_info['x_start']
+    elif tip_index == 1:
+        position_from_wake = element_info['x_end']
+    else:
+        message = 'something went wrong with identifying the tip_index number'
+        print_op.log_and_raise_error(message)
+    available_positions['positions_from_wake'] = position_from_wake
+
+    # make the actual test
+    for pos_name, position in available_positions.items():
+        error = vect_op.norm(position - wingtip_position) / b_ref
+
+        if error > tolerance:
+            message = 'wake node 0 (kite ' + str(kite_shed) + ' and tip ' + tip + ') '
+            message += 'seems to be misplaced during initialization at ndx = ' + str(ndx) + ', ddx = ' + str(ddx) + ' '
+            message += 'when considering the ' + pos_name + '. the error is ' + str(error)
+            print_op.log_and_raise_error(message)
+
+    print_op.print_progress(progress_index, progress_total)
+
+    return None
+
+
+def check_that_wake_node_0_always_lays_on_wingtips(nlp_options, P, Outputs, model, V_scaled=None, V_si=None):
+
+    message = 'double-checking that wake nodes 0 lay on wingtips...'
+    print_op.base_print(message, level='info')
+
+    if (V_scaled is not None) and (V_si == None):
+        pass
+    elif (V_si is not None) and (V_scaled == None):
+        V_scaled = struct_op.si_to_scaled(V_si, model.scaling)
+    else:
+        message = 'inappropriate amount of V information passed to function'
+        print_op.log_and_raise_error(message)
+
+    n_k = nlp_options['n_k']
+    d = nlp_options['collocation']['d']
+    tolerance = 1.e-3
+
+    progress_total = model.architecture.number_of_kites * 2 * n_k * (d + 1)
+
+    progress_index = 0
+
+    base_inputs = {
+        'nlp_options': nlp_options,
+        'V_scaled': V_scaled,
+        'P': P,
+        'Outputs': Outputs,
+        'model': model,
+        'tolerance': tolerance,
+        'progress_total': progress_total
+    }
+
+    parallel_inputs = []
+    for element_number in range(model.architecture.number_of_kites):
+
+        for tip in get_wingtip_name_and_strength_direction_dict().keys():
+
+            for ndx in range(n_k):
+                print_op.print_progress(progress_index, progress_total)
+                loop_inputs = {
+                    'nlp_options': nlp_options,
+                    'V_scaled': V_scaled,
+                    'P': P,
+                    'Outputs': Outputs,
+                    'model': model,
+                    'tolerance': tolerance,
+                    'progress_total': progress_total,
+                    'element_number': element_number,
+                    'tip': tip,
+                    'ndx': ndx,
+                    'ddx': None,
+                    'progress_index': progress_index
+                }
+                parallel_inputs += [loop_inputs]
+                progress_index += 1
+
+
+            for ndx in range(n_k):
+                for ddx in range(d):
+                    print_op.print_progress(progress_index, progress_total)
+                    loop_inputs = {
+                        'nlp_options': nlp_options,
+                        'V_scaled': V_scaled,
+                        'P': P,
+                        'Outputs': Outputs,
+                        'model': model,
+                        'tolerance': tolerance,
+                        'progress_total': progress_total,
+                        'element_number': element_number,
+                        'tip': tip,
+                        'ndx': ndx,
+                        'ddx': ddx,
+                        'progress_index': progress_index
+                    }
+                    parallel_inputs += [loop_inputs]
+                    progress_index += 1
+    print_op.close_progress()
+
+    from joblib import Parallel, delayed
+    import multiprocessing
+    n_jobs = int(np.floor(multiprocessing.cpu_count() / 2.))
+    Parallel(n_jobs=n_jobs, prefer="threads")(delayed(check_particular_wake_node_0_on_wingtip)(local_args) for local_args in parallel_inputs)
+
+    return None

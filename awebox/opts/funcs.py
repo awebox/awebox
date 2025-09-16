@@ -268,10 +268,6 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             compilation_file_name += '_' + user_options['induction_model']
 
         options_tree.append(('nlp', None, None, 'compilation_file_name', compilation_file_name, ('compilation', None), 'x'))
-        options_tree.append(('nlp', 'parallelization', None, 'map_type', 'for-loop', ('parallellization map type', ['for-loop', 'map']), 't'))
-
-    else:
-        options_tree.append(('nlp', 'parallelization', None, 'map_type', 'map', ('parallellization map type', ['for-loop', 'map']), 't'))
 
     return options_tree, phase_fix
 
@@ -377,10 +373,12 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     if int(user_options['system_model']['kite_dof']) == 3:
         coeff_max = options['model']['system_bounds']['x']['coeff'][1]
         coeff_min = options['model']['system_bounds']['x']['coeff'][0]
+
         battery_model_parameters = load_battery_parameters(options['user_options']['kite_standard'], coeff_max, coeff_min)
-        for name in list(battery_model_parameters.keys()):
-            if options['formulation']['compromised_landing']['battery'][name] is None:
-                options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
+        if hasattr(battery_model_parameters, 'keys'):
+            for name in list(battery_model_parameters.keys()):
+                if options['formulation']['compromised_landing']['battery'][name] is None:
+                    options_tree.append(('formulation', 'compromised_landing', 'battery', name, battery_model_parameters[name], ('???', None),'t'))
 
     return options_tree
 
@@ -415,8 +413,12 @@ def load_battery_parameters(kite_standard, coeff_max, coeff_min):
 
     if kite_standard is None:
         raise ValueError("No kite data provided")
-    else:
+    elif 'battery' in kite_standard.keys():
         battery = kite_standard['battery']
+    else:
+        message = 'no battery parameters provided. skipping battery parameter loading'
+        print_op.base_print(message, level='warning')
+        battery = None
 
     return battery
 

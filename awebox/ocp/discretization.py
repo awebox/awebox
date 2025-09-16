@@ -363,7 +363,7 @@ def discretize(nlp_options, model, formulation):
         Integral_outputs = Integral_outputs_new
 
     # Global outputs
-    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Outputs, Outputs_structured, Integral_outputs, Integral_outputs_fun, model, V, P)
+    global_outputs, _ = ocp_outputs.collect_global_outputs(nlp_options, Integral_outputs, model, V, P)
     global_outputs_fun = cas.Function('global_outputs_fun', [V, P], [global_outputs.cat])
 
     Xdot_struct = Xdot

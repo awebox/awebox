@@ -135,7 +135,8 @@ class WakeSubstructure():
         for element_type in self.get_initialized_element_types():
             elem_list = self.get_list(element_type)
             local = elem_list.evaluate_total_biot_savart_induction(x_obs)
-        vec_u_ind += local
+            vec_u_ind += local
+
         return vec_u_ind
 
 
@@ -146,7 +147,7 @@ class WakeSubstructure():
             number_of_elements = elem_list.number_of_elements
             for edx in range(number_of_elements):
                 elem = elem_list.list[edx]
-                unpacked, cosmetics = elem.prepare_to_draw(variables_scaled, parameters, {})
+                unpacked = elem.evaluate_and_unpack_info(variables_scaled, parameters)
                 value, _, _ = elem.calculate_biot_savart_induction(unpacked, x_obs)
                 vec_u_ind += value
 
@@ -185,13 +186,16 @@ class WakeSubstructure():
             local_den = cas.DM.ones((1, 1)) * 777.
 
             if vortex_tools.not_bound_and_shed_is_obs(model_options, self.substructure_type, element_type, edx, kite_obs, architecture):
-                local_var = vortex_tools.get_element_induced_velocity_si(variables_si, self.substructure_type, element_type, edx, kite_obs)
+                local_var = vortex_tools.get_element_induced_velocity_si(self.substructure_type, element_type, edx,
+                                                                         kite_obs, variables_si=variables_si)
 
                 if degree_of_induced_velocity_lifting == 3:
-                    local_num = vortex_tools.get_element_induced_velocity_numerator_si(variables_si, self.substructure_type,
-                                                                             element_type, edx, kite_obs)
-                    local_den = vortex_tools.get_element_induced_velocity_denominator_si(variables_si, self.substructure_type,
-                                                                             element_type, edx, kite_obs)
+                    local_num = vortex_tools.get_element_induced_velocity_numerator_si(self.substructure_type,
+                                                                                       element_type, edx, kite_obs,
+                                                                                       variables_si=variables_si)
+                    local_den = vortex_tools.get_element_induced_velocity_denominator_si(self.substructure_type,
+                                                                                         element_type, edx, kite_obs,
+                                                                                         variables_si=variables_si)
 
             vec_u_ind_list = cas.horzcat(vec_u_ind_list, local_var)
             vec_u_ind_num_list = cas.horzcat(vec_u_ind_num_list, local_num)

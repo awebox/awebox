@@ -60,6 +60,8 @@ def geometry():
                               [0.0, 44.87757e6, 0.0],
                               [1.315143e6, 0.0, 67.38415e6]])
 
+    # the below delta_max and ddelta_max will be used for scaling. if you want to set these bounds to cas.inf,
+    # please use options['model.geometry.overwrite.delta_max'] and options['model.geometry.overwrite.ddelta_max']
     geometry['delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
     geometry['ddelta_max'] = np.array([2., 2., 2.])
 
@@ -158,7 +160,7 @@ def aero():
     aero_validity['beta_max_deg'] = 15.
     aero_validity['beta_min_deg'] = -15.0
 
-    # we recommend, to adjust the groundspeed initialzation and airspeed limits to reflect
+    # we recommend, to adjust the groundspeed initialization and airspeed limits to reflect
     # V_2 = V_approach ~ 150 knots = 77 m/s
     # https://aerosavvy.com/airspeed-indicator/
     # and

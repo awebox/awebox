@@ -39,6 +39,7 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.semi_infinite
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.struct_operations as struct_op
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -374,9 +375,16 @@ class ElementList():
         concatenated_biot_savart_fun = self.__concatenated_biot_savart_fun
         concatenated_list = self.get_decolumnized_list_concatenated_with_observer_info(x_obs)
 
-        number_of_elements = self.number_of_elements
-        concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, parallelization_type)
-        all = concatenated_biot_savart_map(concatenated_list)
+        if parallelization_type in ['serial', 'openmp', 'thread']:
+            number_of_elements = self.number_of_elements
+            concatenated_biot_savart_map = concatenated_biot_savart_fun.map(number_of_elements, parallelization_type)
+            all = concatenated_biot_savart_map(concatenated_list)
+
+        elif parallelization_type == 'concurrent_futures':
+            all = struct_op.concurrent_future_map(concatenated_biot_savart_fun, concatenated_list)
+        else:
+            message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+            print_op.log_and_raise_error(message)
 
         return all
 
@@ -385,7 +393,7 @@ class ElementList():
         u_ind = cas.sum2(all)
         return u_ind
 
-    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, vec_u_ind_num_list=None, vec_u_ind_den_list=None, degree_of_induced_velocity_lifting=2):
+    def evaluate_biot_savart_induction_residual_for_all_elements(self, x_obs, vec_u_ind_list, vec_u_ind_num_list=None, vec_u_ind_den_list=None, degree_of_induced_velocity_lifting=2, parallelization_type='concurrent_futures'):
 
         if degree_of_induced_velocity_lifting >= 2:
 
@@ -399,9 +407,16 @@ class ElementList():
             if degree_of_induced_velocity_lifting == 3:
                 concatenated_list = self.get_concatenated_list_concatenated_with_numerator_and_denominator_info(concatenated_list, vec_u_ind_num_list, vec_u_ind_den_list)
 
-            number_of_elements = self.number_of_elements
-            concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, 'thread')
-            all = concatenated_biot_savart_residual_map(concatenated_list)
+            if parallelization_type in ['serial', 'openmp', 'thread']:
+                number_of_elements = self.number_of_elements
+                concatenated_biot_savart_residual_map = concatenated_biot_savart_residual_fun.map(number_of_elements, parallelization_type)
+                all = concatenated_biot_savart_residual_map(concatenated_list)
+
+            elif parallelization_type == 'concurrent_futures':
+                all = struct_op.concurrent_future_map(concatenated_biot_savart_residual_fun, concatenated_list)
+            else:
+                message = 'sorry, but the awebox has not yet set up ' + parallelization_type + ' parallelization'
+                print_op.log_and_raise_error(message)
 
         return all
 
@@ -430,8 +445,15 @@ class ElementList():
         if cosmetics is None:
             cosmetics = self.construct_fake_cosmetics()
 
+        progress_total = len(self.__list)
+        print_op.base_print('drawing the ' + str(progress_total) + ' ' + self.__element_type + 's in this element_list...')
+        edx = 0
         for elem in self.__list:
             elem.draw(ax, side, variables_scaled, parameters, cosmetics)
+            print_op.print_progress(edx, progress_total)
+            edx += 1
+        print_op.close_progress()
+
         return None
 
     def abs_strength_max(self, variables_scaled, parameters):
@@ -1096,8 +1118,7 @@ def test_that_a_construct_made_of_filaments_behaves_like_haas_2017():
 
     baseline_scaled_haas_error = 1.
     if scaled_haas_error > baseline_scaled_haas_error:
-        print(scaled_haas_error)
-        message = 'haas construction does not work as intended'
+        message = 'haas construction does not work as intended. scaled haas error is: ' + str(scaled_haas_error)
         print_op.log_and_raise_error(message)
 
     return None

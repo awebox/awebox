@@ -110,7 +110,6 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
     tgrid_ip = plot_dict['time_grids']['ip']
 
     options_are_not_empty = not (interesting_outputs == [])
-
     if options_are_not_empty:
         number_of_opts = len(interesting_outputs)
 
@@ -160,13 +159,10 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
         number_of_outputs_plotted_so_far = 0
         number_of_lines_drawn_so_far = 0
-        for odx in range(len(interesting_outputs)):
+        for odx in range(number_of_opts):
 
-            if all_together or (number_of_opts == 1):
-                relevant_axes = axes[0]
-            else:
-                number_of_lines_drawn_so_far = 0
-                relevant_axes = axes[odx]
+            number_of_lines_drawn_so_far = 0
+            relevant_axes = axes[odx]
 
             opt = interesting_outputs[odx]
             output_type = opt[0]
@@ -180,11 +176,13 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                 number_of_lines_expected_in_this_axes = number_of_output_dims
 
             for output_dim in range(number_of_output_dims):
+
                 cmap = plt.get_cmap('brg')
                 decimal_color = float(number_of_lines_drawn_so_far) / float(number_of_lines_expected_in_this_axes)
                 local_color = cmap(decimal_color)
 
                 if output_is_systemwide:
+
                     data = np.array(outputs[output_type][output_name][output_dim])
                     relevant_axes.plot(tgrid_ip, data, color=local_color, label=output_name)
                     number_of_lines_drawn_so_far += 1
@@ -194,6 +192,11 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
                                                          local_color)
                 else:
                     for kite in kite_nodes:
+
+                        decimal_color = float(number_of_lines_drawn_so_far) / float(
+                            number_of_lines_expected_in_this_axes)
+                        local_color = cmap(decimal_color)
+
                         local_name = output_name + str(kite)
                         if local_name in outputs[output_type].keys():
                             data = np.array(outputs[output_type][local_name][output_dim])
@@ -207,11 +210,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
 
                 if (epigraph is not None) and (isinstance(epigraph, float)):
                     relevant_axes.axhline(y=epigraph, color='gray', linestyle='--')
-
-                if 't_switch' in plot_dict['time_grids'].keys():
-                    t_switch = float(plot_dict['time_grids']['t_switch'])
-
-                    relevant_axes.axvline(x=t_switch, color='gray', linestyle='--')
+                tools.add_block_plot_temporal_orientation_epigraphs(relevant_axes, plot_dict)
 
                 if not all_together:
                     relevant_axes.set_ylabel(output_name)
@@ -230,6 +229,7 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
             axes[adx].grid(True)
             axes[adx].yaxis.set_major_formatter(mtick.FormatStrFormatter('%.1e'))
             axes[adx].yaxis.set_major_locator(MaxNLocator(3))
+            axes[adx].legend()
 
         if all_together:
             plt.legend()
@@ -237,12 +237,24 @@ def plot_output(plot_dict, cosmetics, fig_name, interesting_outputs=[], fig_num=
         plt.suptitle(fig_name)
         fig.canvas.draw()
 
+    return None
+
 def plot_aero_validity(plot_dict, cosmetics, fig_name, fig_num = None):
     interesting_outputs = [('aerodynamics', 'alpha_deg'),
                            ('aerodynamics', 'beta_deg'),
                            ('aerodynamics', 'airspeed'),
                            ('aerodynamics', 'reynolds'),
                            ('aerodynamics', 'mach')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+def plot_power(plot_dict, cosmetics, fig_name, fig_num = None):
+    interesting_outputs = [('performance', 'p_current')]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+def plot_thrust(plot_dict, cosmetics, fig_name, fig_num = None):
+    interesting_outputs = []
+    for parent in plot_dict['architecture'].layer_nodes:
+        interesting_outputs += [('aerodynamics', 'thrust' + str(parent))]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
 def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
@@ -253,13 +265,19 @@ def plot_aero_coefficients(plot_dict, cosmetics, fig_name, fig_num = None):
                            ('aerodynamics', 'LoverD')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+
 def plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num=None):
-    plot_outputs(plot_dict, cosmetics, fig_name, 'model_inequalities', fig_num, epigraph=0.)
+    type_name = 'model_inequalities'
+    plot_outputs(plot_dict, cosmetics, fig_name, type_name, fig_num=fig_num)
+    return None
 
 def plot_model_equalities(plot_dict, cosmetics, fig_name, fig_num=None):
-    plot_outputs(plot_dict, cosmetics, fig_name, 'model_equalities', fig_num, epigraph=0.)
+    type_name = 'model_equalities'
+    plot_outputs(plot_dict, cosmetics, fig_name, type_name, fig_num=fig_num)
+    return None
 
 def plot_constraints(plot_dict, cosmetics, fig_name, fig_num=None):
+
     if len(plot_dict['interpolation_si']['outputs']['model_inequalities'].keys()) > 0:
         plot_model_inequalities(plot_dict, cosmetics, fig_name, fig_num)
 
@@ -280,6 +298,9 @@ def plot_circulation(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for kite in plot_dict['architecture'].kite_nodes:
         interesting_outputs += [('aerodynamics', 'circulation' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_dot' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_cross' + str(kite))]
+        # interesting_outputs += [('aerodynamics', 'circulation_cl' + str(kite))]
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
@@ -314,10 +335,36 @@ def plot_local_induction_factor(plot_dict, cosmetics, fig_name, fig_num=None):
 
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
 
+def plot_local_induction_factor_all_projections(plot_dict, cosmetics, fig_name, fig_num=None):
+    base_name = 'local_a'
+
+    interesting_outputs = []
+    if 'vortex' in plot_dict['outputs_dict'].keys():
+        for out_name in plot_dict['outputs_dict']['vortex'].keys():
+            if base_name in out_name:
+                interesting_outputs += [('vortex', out_name)]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+
+def plot_additionally_observed_induction(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for kite in plot_dict['architecture'].kite_nodes:
+        if 'vortex' in plot_dict['outputs_dict'].keys():
+            for out_name in plot_dict['outputs_dict']['vortex'].keys():
+                if 'vec_u_ind' + str(kite) + '_xi_' in out_name:
+                    interesting_outputs += [('vortex', out_name)]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
+
+def plot_relative_radius_of_curvature(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for parent in plot_dict['architecture'].layer_nodes:
+        interesting_outputs += [('geometry', 'average_relative_radius_of_curvature' + str(parent))]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)
+
 
 def plot_relative_radius(plot_dict, cosmetics, fig_name, fig_num=None):
     interesting_outputs = []
     for parent in plot_dict['architecture'].layer_nodes:
         interesting_outputs += [('geometry', 'average_relative_radius' + str(parent))]
-
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num, all_together=True)

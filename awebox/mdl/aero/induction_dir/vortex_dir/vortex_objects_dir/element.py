@@ -25,8 +25,9 @@
 '''
 object-oriented-vortex-filament-and-cylinder operations
 _python-3.5 / casadi-3.4.5
-- authors: rachel leuthold 2021
+- authors: rachel leuthold 2021-2025
 '''
+
 import matplotlib
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 matplotlib.use(DEFAULT_MPL_BACKEND)
@@ -39,6 +40,7 @@ import numpy as np
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
+import awebox.viz.tools as viz_tools
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -274,14 +276,19 @@ class Element():
 
         return cosmetics
 
-    def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
+    def evaluate_and_unpack_info(self, variables_scaled=None, parameters=None):
         passed_information = (variables_scaled is not None) and (parameters is not None)
+
         if passed_information:
             evaluated = self.evaluate_info(variables_scaled, parameters)
             unpacked = self.unpack_info(external_info=evaluated)
         else:
             unpacked = self.info_dict
+        return unpacked
 
+
+    def prepare_to_draw(self, variables_scaled=None, parameters=None, cosmetics=None):
+        unpacked = self.evaluate_and_unpack_info(variables_scaled=variables_scaled, parameters=parameters)
         if cosmetics is None:
             cosmetics = self.construct_fake_cosmetics(unpacked)
 
@@ -292,22 +299,11 @@ class Element():
             cosmetics = self.construct_fake_cosmetics()
 
         color = self.get_strength_color(strength, cosmetics)
-        x = [float(x_start[0]), float(x_end[0])]
-        y = [float(x_start[1]), float(x_end[1])]
-        z = [float(x_start[2]), float(x_end[2])]
 
         marker = None
         linestyle = '-'
 
-        if side == 'xy':
-            ax.plot(x, y, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'xz':
-            ax.plot(x, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'yz':
-            ax.plot(y, z, marker=marker, c=color, linestyle=linestyle)
-        elif side == 'isometric':
-            ax.plot3D(x, y, z, marker=marker, c=color, linestyle=linestyle)
-
+        viz_tools.basic_draw(ax, side=side, x_start=x_start, x_end=x_end, color=color, marker=marker, linestyle=linestyle)
         return None
 
 

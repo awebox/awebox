@@ -411,13 +411,13 @@ class Collocation(object):
         if options['compile_subfunctions']:
             integral_outputs_fun = cf.CachedFunction(options['compilation_file_name'], integral_outputs_fun, do_compile=options['compile_subfunctions'])
 
-        if options['parallelization']['map_type'] == 'for-loop':
+        if options['parallelization']['type'] in ['for-loop']:
             int_out_list = []
             for k in range(coll_vars.shape[1]):
                 int_out_list.append(integral_outputs_fun(coll_vars[:,k], coll_params[:,k]))
             integral_outputs_deriv = cas.horzcat(*int_out_list)
 
-        elif options['parallelization']['map_type'] == 'map':
+        elif options['parallelization']['type'] in ['openmp', 'thread', 'serial', 'map']:
             integral_outputs_fun_map = integral_outputs_fun.map('integral_outputs_fun_map', options['parallelization']['type'], coll_vars.shape[1], [], [])
             integral_outputs_deriv = integral_outputs_fun_map(coll_vars, coll_params)
 

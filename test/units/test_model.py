@@ -6,7 +6,6 @@ edit: rachel leuthold, alu-fr 2020
 """
 import copy
 
-
 import casadi
 
 import awebox as awe
@@ -1095,10 +1094,6 @@ def run_an_energy_conservation_test(epsilon=1.e-4, frictionless=True, rod_has_ma
                                                                                              pendulum_or_pseudo_atwood=pendulum_or_pseudo_atwood)
 
     _, _, total_energy_fun = create_energy_functions(model)
-
-    # print('total_energy')
-    # print(total_energy_fun(var_init_scaled, param_init_scaled))
-    # print(total_energy_fun(var_final_scaled, param_init_scaled))
 
     total_energy_initial = total_energy_fun(var_init_scaled, param_init_scaled)
     total_energy_final = total_energy_fun(var_final_scaled, param_init_scaled)

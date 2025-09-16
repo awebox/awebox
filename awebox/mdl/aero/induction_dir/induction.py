@@ -40,10 +40,10 @@ import awebox.tools.vector_operations as vect_op
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
 
-def get_wake_if_vortex_model_is_included_in_comparison(model_options, architecture, wind, variables_si, parameters):
+def get_wake_if_vortex_model_is_included_in_comparison(model_options, architecture, wind, system_variables, parameters):
     if not (model_options['induction_model'] == 'not_in_use'):
         if vortex.model_is_included_in_comparison(model_options):
-            return vortex.build(model_options, architecture, wind, variables_si, parameters)
+            return vortex.build(model_options, architecture, wind, system_variables['SI'], system_variables['scaled'], parameters)
 
     return None
 
@@ -67,7 +67,7 @@ def get_model_constraints(model_options, wake, scaling, atmos, wind, system_vari
             cstr_list.append(actuator_cstr)
 
         if vortex.model_is_included_in_comparison(model_options):
-            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, architecture, scaling)
+            vortex_cstr = vortex.get_model_constraints(model_options, wake, system_variables, parameters, outputs, architecture, scaling)
             cstr_list.append(vortex_cstr)
 
     return cstr_list
@@ -108,7 +108,7 @@ def log_and_raise_unknown_induction_model_error(induction_model):
 ## velocities
 
 def get_kite_induced_velocity_var(variables, kite):
-    ind_var = variables['z']['ui' + str(kite)]
+    ind_var = variables['z']['wui' + str(kite)]
     return ind_var
 
 def get_induced_velocity_at_kite_si(model_options, wind, variables_si, kite, architecture, parameters):
@@ -142,13 +142,13 @@ def get_kite_effective_velocity(variables, wind, kite, architecture):
 
 #### outputs
 
-def collect_outputs(options, atmos, wind, wake, variables_si, outputs, parameters, architecture, scaling):
+def collect_outputs(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
 
     if actuator.model_is_included_in_comparison(options):
-        outputs = actuator.collect_actuator_outputs(options, atmos, wind, variables_si, outputs, parameters, architecture, scaling)
+        outputs = actuator.collect_actuator_outputs(options, atmos, wind, system_variables['SI'], outputs, parameters, architecture, scaling)
 
     if vortex.model_is_included_in_comparison(options):
-        outputs = vortex.collect_vortex_outputs(options, wind, wake, variables_si, outputs, architecture, scaling)
+        outputs = vortex.collect_vortex_outputs(options, wind, wake, system_variables, parameters, outputs, architecture)
 
     return outputs
 
