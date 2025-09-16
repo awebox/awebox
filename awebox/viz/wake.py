@@ -23,7 +23,6 @@
 #
 #
 import copy
-import pdb
 
 import matplotlib
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
