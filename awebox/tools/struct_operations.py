@@ -36,9 +36,6 @@ import operator
 
 import copy
 from functools import reduce
-
-from reportlab.platypus.para import lengthSequence
-
 from awebox.logger.logger import Logger as awelogger
 import awebox.tools.print_operations as print_op
 import awebox.tools.vector_operations as vect_op
