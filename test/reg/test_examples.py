@@ -17,13 +17,16 @@ awelogger.logger.setLevel(10)
 
 
 def get_example_directory():
-    current_directory = os.getcwd()
+    """ (Thank you ChatGPT) Get the path to the examples directory. """
 
-    current_file = "awebox/test/reg"
+    # Use the location of *this* file as the reference point
+    current_file = os.path.abspath(__file__)
 
-    test_reg_index = current_directory.find(current_file)
-    base_directory = current_directory[:test_reg_index]
-    example_directory = base_directory + 'awebox/examples/'
+    # Walk up until we reach the project root (where "awebox" sits)
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+
+    # Point to the examples folder
+    example_directory = os.path.join(project_root, "examples/")
     return example_directory
 
 def get_local_module(module_name):
@@ -64,6 +67,10 @@ def test_dual_kites_power_curve_example(threshold=0.2):
 
 def test_ampyx_ap2_trajectory_example(threshold=0.2):
     module_name = 'ampyx_ap2_trajectory'
+    run_example_test(module_name, threshold)
+
+def test_SAM_ampyx_ap2_trajectory_example(threshold=0.2):
+    module_name = 'SAM_example'
     run_example_test(module_name, threshold)
 
 def test_mpc_closed_loop_example(threshold=0.2):
