@@ -320,18 +320,18 @@ def compute_tether_constraint_dissatisfaction(power_and_performance, plot_dict):
     cmax = 0.0
     for constraint in list(plot_dict['interpolation_si']['outputs']['invariants'].keys()):
         if constraint[0] == 'c':
-            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['interpolation_si']['outputs']['invariants'][constraint]))])
+            cmax = np.amax([cmax, np.amax(np.abs(plot_dict['interpolation_si']['outputs']['invariants'][constraint][0]))])
     power_and_performance['cmax'] = cmax
 
     return power_and_performance
 
 def compute_tether_tension_indicators(power_and_performance, plot_dict):
 
-    max_tension = np.max(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'])
+    max_tension = np.max(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'][0])
     power_and_performance['tension_max'] = max_tension
 
     # tension average over time
-    avg_tension = np.average(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'])
+    avg_tension = np.average(plot_dict['interpolation_si']['outputs']['local_performance']['tether_force10'][0])
     power_and_performance['tension_avg'] = avg_tension
 
     return power_and_performance
