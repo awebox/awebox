@@ -298,25 +298,25 @@ class ConstraintList:
         expr_list = []
         for cstr in cstr_list:
             local_expr = cstr.expr
-            expr_list = cas.vertcat(expr_list, local_expr)
+            expr_list.append(local_expr)
 
-        return expr_list
+        return cas.vertcat(*expr_list)
 
     def get_lb(self, cstr_type):
         cstr_list = self.get_list(cstr_type)
         lb_list = []
         for cstr in cstr_list:
             local_lb = cstr.get_lb()
-            lb_list = cas.vertcat(lb_list, local_lb)
-        return lb_list
+            lb_list.append(local_lb)
+        return cas.vertcat(*lb_list)
 
     def get_ub(self, cstr_type):
         cstr_list = self.get_list(cstr_type)
         ub_list = []
         for cstr in cstr_list:
             local_ub = cstr.get_ub()
-            ub_list = cas.vertcat(ub_list, local_ub)
-        return ub_list
+            ub_list.append(local_ub)
+        return cas.vertcat(*ub_list)
 
     def get_name_list(self, cstr_type):
 

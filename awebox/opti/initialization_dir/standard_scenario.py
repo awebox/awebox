@@ -77,7 +77,7 @@ def guess_values_at_time(t, init_options, model):
 
     phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
     if 'arm_angle' in ret:
-        arm_phase = t * phase_rate - np.pi/4
+        arm_phase = t * phase_rate
         if init_options['shape'] == 'circular':
             arm_phase += -np.pi/2
         ret['arm_angle'] = -np.pi/2 * np.cos(arm_phase)
@@ -145,19 +145,23 @@ def guess_values_at_time(t, init_options, model):
                     ret['r' + str(node) + str(parent)] = dcm_column
             elif init_options['shape'] == 'lemniscate':
                 # TODO: implement DCM initialization
-                w_lj = init_options['lemniscate']['az_width_deg']*np.pi/180.0
-                h_lj = init_options['lemniscate']['el_width_deg']*np.pi/180.0
+                w_lem = init_options['lemniscate']['az_width_deg']*np.pi/180.0
+                h_lem = init_options['lemniscate']['el_width_deg']*np.pi/180.0
                 if init_options['lemniscate']['rise_on_sides']:
-                    h_lj = -h_lj
+                    h_lem = -h_lem
                 el0 = init_options['inclination_deg']*np.pi/180.0
-
-                az, el = tools.lissajous_curve(t, w_lj, h_lj, a = phase_rate)
+                
+                # Closures for position and velocity of lemniscate with constant speed
+                get_pos, get_vel = tools.uniform_lemniscate_trajectory(w_lem, h_lem, init_options['precompute']['time_final'])
+                az, el = get_pos(t)
+                # az, el = tools.lissajous_curve(t, w_lem, h_lem, a=phase_rate)
                 el = el + el0
                 x, y, z = tools.calc_cartesian_coords(az, el, l_t)
                 q = cas.vertcat(x,y,z)  # Could potentially add `q_parent`
                 ret['q' + str(node) + str(parent)] = q
 
-                azdot, eldot = tools.lissajous_dcurve(t, w_lj, h_lj, a = phase_rate)
+                azdot, eldot = get_vel(t)
+                # azdot, eldot = tools.lissajous_dcurve(t, w_lem, h_lem, a=phase_rate)
                 dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, l_t)
                 ret['dq' + str(node) + str(parent)] = cas.vertcat(dx,dy,dz)
 
@@ -217,7 +221,7 @@ def precompute_path_parameters(init_options, model):
     # clipping and adjusting
     if init_options['init_clipping']:
         for step in range(adjustment_steps):
-            # TODO: update all these function for the lemniscate, for now, have to disable this
+            # TODO: update all these function for the lemniscate, set 'init_clipping' to false when using lemniscate otherwise
             init_options = clip_groundspeed(init_options)  # clipping depends on arguments of airspeed calculation
             init_options = set_precomputed_winding_period(init_options)  # depends on radius and groundspeed
             init_options = clip_winding_period(init_options)  # clipping depends on groundspeed
@@ -281,11 +285,12 @@ def set_user_winding_period(init_options):
         # TODO: put this in a function (copy paste)
         elevation = np.pi / 180 * init_options['inclination_deg']
         az_width = np.pi / 180 * init_options['lemniscate']['az_width_deg']
+        el_width = np.pi / 180 * init_options['lemniscate']['el_width_deg']
         length = init_options['l_t']
         # TODO: better path length approximation : np.pi * np.sqrt(2 * (a**2 + 4 * b**2)), instead of 2 * az_width
-        lemniscate_width = np.cos(elevation) * 2 * az_width * length
-        time_period = 2 * lemniscate_width / ground_speed  # Accurate only for relatively flat lemniscates
-        time_period = 5
+        scaling = length * np.cos(elevation)
+        unit_lemniscate_path_length = np.pi * np.sqrt(2 * (az_width**2 + 4 * el_width**2))  # Approximation of path length
+        time_period = scaling * unit_lemniscate_path_length / ground_speed
 
     init_options['precompute']['winding_period'] = time_period
 

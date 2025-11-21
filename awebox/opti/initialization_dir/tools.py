@@ -31,6 +31,7 @@ _python _version 2.7 / casadi-3.4.5
 
 import numpy as np
 import casadi.tools as cas
+from scipy.interpolate import interp1d
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
 import awebox.mdl.wind as wind
@@ -299,7 +300,58 @@ def insert_val(V_init, var_type, name, init_val, idx=0):
     return V_init
 
 
+def uniform_lemniscate_trajectory(w, h, tf):
+    """
+    Returns two functions: 
+      1. get_pos(t) -> np.array([az, el])
+      2. get_vel(t) -> np.array([az_dot, el_dot])
+    """
+    
+    tau = np.linspace(0, 2 * np.pi, 100)
+    az = w * np.sin(tau)
+    el = h * np.sin(2 * tau)
+
+    d_az = np.diff(az)
+    d_el = np.diff(el)
+    segment_lengths = np.hypot(d_az, d_el)
+    
+    lenghts = np.concatenate(([0], np.cumsum(segment_lengths)))
+    total_length = lenghts[-1]
+    
+    trajectory_interp = interp1d(
+        lenghts, 
+        np.vstack((az, el)), 
+        kind="cubic", 
+        fill_value="extrapolate"
+    )
+    
+    # --- Closure 1: Position ---
+    def get_pos(t):
+        s = (t / tf) * total_length
+        return trajectory_interp(s)
+
+    # --- Closure 2: Velocity ---
+    def get_vel(t):
+        s = (t / tf) * total_length
+        
+        # Numerical derivative for direction (Central Difference)
+        epsilon = 1e-3 
+        p_plus = trajectory_interp(s + epsilon)
+        p_minus = trajectory_interp(s - epsilon)
+        
+        tangent = p_plus - p_minus
+        norm = np.linalg.norm(tangent)
+        
+        direction = tangent / norm
+        
+        # Velocity vector
+        return direction * total_length / tf
+
+    return get_pos, get_vel
+
+
 def lissajous_curve(t, w, h, a=1, delta=0):
+    '''DEPRECATED'''
     b = 2*a
     az = w*np.sin(a*t+delta)
     el = h*np.sin(b*t)
@@ -307,6 +359,7 @@ def lissajous_curve(t, w, h, a=1, delta=0):
 
 
 def lissajous_dcurve(t, w, h, a=1, delta=0):
+    '''DEPRECATED'''
     b = 2*a
     azdot = a*w*np.cos(a*t+delta)
     eldot = b*h*np.cos(b*t)

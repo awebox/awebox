@@ -13,8 +13,10 @@ import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 import awebox.tools.print_operations as print_op
+from awebox.logger.logger import Logger as awelogger
 
 matplotlib.use(DEFAULT_MPL_BACKEND)
+awelogger.logger.setLevel('INFO')  # 'INFO' is default, 'DEBUG' for more detailed logs
 
 
 def rocking_mode_options():
@@ -25,21 +27,9 @@ def rocking_mode_options():
     options['user_options.system_model.architecture'] = {1: 0}
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.system_model.kite_dof'] = 3  # Only 3DOF converged, possible to warmstart 6DOF with 3DOF ?
-    options['model.system_bounds.theta.t_f'] = [1, 10]
+    options['model.system_bounds.theta.t_f'] = [2, 6]  # This needs to be adjusted quite often
     options['quality.test_param.t_f_min'] =  1
     options['quality.test_param.z_min'] = -np.inf  # The kite shouldn't go below z=0 but at least we don't get an error
-
-    # Flight parameters
-    options['params.model_bounds.rot_angles'] = np.array([80.0*np.pi/180., 80.0*np.pi/180., 40.0*np.pi/180.0])
-    options['user_options.kite_standard.aero_validity.beta_max_deg'] = 20.
-    options['user_options.kite_standard.aero_validity.beta_min_deg'] = -20.
-    options['user_options.kite_standard.aero_validity.alpha_max_deg'] = 9.0
-    options['user_options.kite_standard.aero_validity.alpha_min_deg'] = -6.0
-    omega_bound = 50.0*np.pi/180.0
-    options['model.system_bounds.x.omega'] = [np.array(3*[-omega_bound]), np.array(3*[omega_bound])]
-    options['user_options.kite_standard.geometry.delta_max'] = np.array([20., 30., 30.]) * np.pi / 180.
-    options['user_options.kite_standard.geometry.ddelta_max'] = np.array([2., 2., 2.])
-    options['user_options.induction_model'] = 'not_in_use'  # don't include induction effects
 
     # tether parameters
     options['params.tether.cd'] = 1.2
@@ -72,7 +62,6 @@ def rocking_mode_options():
     options['model.arm.zero_avg_active_power'] = None  # When None: any([torque_slope, arm_inertia] in fixed_params), cf. opts.model_funcs.build_arm_control_options
 
     # Other equality and inequality constraints
-    options['model.model_bounds.aero_validity.include'] = True
     options['model.model_bounds.rotation.include'] = False
     options['model.model_bounds.airspeed.include'] = False
     options['model.model_bounds.acceleration.include'] = False
@@ -83,10 +72,11 @@ def rocking_mode_options():
 
     # Initialize the trajectory (new lemniscate option)
     options['solver.initialization.shape'] = 'lemniscate'
-    options['solver.initialization.lemniscate.az_width_deg'] = 20
-    options['solver.initialization.lemniscate.el_width_deg'] = 5
+    options['solver.initialization.inclination_deg'] = 20
+    options['solver.initialization.lemniscate.az_width_deg'] = 40
+    options['solver.initialization.lemniscate.el_width_deg'] = 10
     options['solver.initialization.lemniscate.rise_on_sides'] = False
-    options['solver.initialization.groundspeed'] = 50  # m/s
+    options['solver.initialization.groundspeed'] = 40  # m/s
     options['solver.initialization.init_clipping'] = False  # Iteratively refine initialization **assuming the trajectory is circular**
 
     # Wind profile
@@ -96,11 +86,12 @@ def rocking_mode_options():
     options['params.wind.power_wind.exp_ref'] = 0.15  # Power in the power model
 
     # NLP options
-    # By default, direct collocation using Gauss scheme with order 4 lagrange polynomials
+    # By default, direct collocation using Radau scheme with order 4 lagrange polynomials
     options['nlp.n_k'] = 20  # Number of control intervals
     options['nlp.collocation.u_param'] = 'zoh'  # zero-order-hold (onstant) control over each control interval
     options['solver.linear_solver'] = 'ma57'  # recommended: 'ma57' if HSL installed, otherwise 'mumps'
     options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
+    options['solver.cost.theta_regularisation.0'] = 1e-8  # Default of 1 barely optimizes the parameters
 
     options['user_options.trajectory.fixed_params'] = fixed_params
 
@@ -151,61 +142,114 @@ def post_process_options_for_parameter_optimization(options):
 
     return options
 
-"""
-Baseline example
-No parametric optimization, no control, lines of 35 m. Optimal control of the kite.
+def test_terminal_constraints():
+    test_optimization_options_to_constraint_options()
+    test_options_to_constraints()
+    return None
 
-5.2 kW
+"""
+Test that control options are well determined depending on what is optimized
+
+Always: avg(active_torque) = 0, because the arm does not perform full rotations. It should avoid suboptimal solutions
+If optimizing for torque_slope, then avg(active_power) = 0, to avoid trading passive for active torque
+"""
+def test_optimization_options_to_constraint_options():
+    ## Test the processing of the options
+    print_op.base_print("## Testing that each optimization setup results in the right control options", level='info')
+    options = rocking_mode_options()
+    options['nlp.n_k'] = 1
+
+    # By default,
+    # zero_avg_active_torque and not zero_avg_active_power
+    print_op.base_print("Testing for active control and no parametric optimization...", level='info')
+    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
+    options = post_process_options_for_parameter_optimization(options)
+    trial = awe.Trial(options, 'Test_Rocking_Arm_Ampyx_AP2')
+    trial.build()
+    zero_avg_active_torque = trial.options['model']['arm']['zero_avg_active_torque']
+    zero_avg_active_power = trial.options['model']['arm']['zero_avg_active_power']
+    assert zero_avg_active_torque and not zero_avg_active_power
+
+    # However, if one of (torque_slope, arm_inertia) is optimized, then
+    # zero_avg_active_torque and zero_avg_active_power
+    print_op.base_print("Testing for active control and parametric optimization on torque_slope...", level='info')
+    options['solver.initialization.theta.torque_slope'] = 2000
+    options = post_process_options_for_parameter_optimization(options)
+    trial = awe.Trial(options, 'Test_Rocking_Arm_Ampyx_AP2')
+    trial.build()
+    zero_avg_active_torque = trial.options['model']['arm']['zero_avg_active_torque']
+    zero_avg_active_power = trial.options['model']['arm']['zero_avg_active_power']
+    assert zero_avg_active_torque and zero_avg_active_power
+    return None
+
+"""Test that control options result in the correct constraints"""
+def test_options_to_constraints():
+    ## Test from options to constraints
+    print_op.base_print("## Testing that control options result in the correct constraints", level='info')
+    options = rocking_mode_options()
+    options['nlp.n_k'] = 1
+    for zero_avg_active_torque in (True, False):
+        options['model.arm.zero_avg_active_torque'] = zero_avg_active_torque
+        for zero_avg_active_power in (True, False):
+            print_op.base_print(f"Testing {zero_avg_active_torque = } and {zero_avg_active_power = }...", level='info')
+            options['model.arm.zero_avg_active_power'] = zero_avg_active_power
+            trial = awe.Trial(options, 'Test_Rocking_Arm_Ampyx_AP2')
+            trial.build()
+            cstr_name_list = [c.name for c in trial.nlp.ocp_cstr_list.get_list('eq')]
+            assert zero_avg_active_torque == ('average_active_torque' in cstr_name_list)
+            assert zero_avg_active_power == ('average_active_power' in cstr_name_list)
+            # Test integrals are in the ocp
+    return None
+
+"""
+example 0: Finding the optimal kite trajectory for fixed arm parameters and no arm control
+No parametric optimization, no control, lines of 35 m. Optimal control of the kite.
 """
 def example_0(options):
     return options
 
 """
-Baseline example + free arm control
-
-12.7 kW --> High output but weird behavior, sometimes 'hacking' energy ?
+example 1: example 0 + parametric optimization
 """
 def example_1(options):
-    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
-    return options
-
-"""
-Baseline example + constrained arm control
-
-6.2 kW --> Higher output and nicely behaved
-"""
-def example_2(options):
-    options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
-    options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
-    return options
-
-"""
-Baseline example + constrained arm control & optimizing all parameters (except arm length)
-
---> Even higher output
-"""
-def example_3(options):
+    options = example_0(options)
     options['solver.initialization.l_t'] = None
     options['solver.initialization.theta.arm_inertia'] = None
-    options['solver.initialization.theta.torque_slope'] = None  # Verify that it uses this value instead of the default
+    options['solver.initialization.theta.torque_slope'] = None
+    return options
+
+"""
+example 2: example 1 + optimal control of the arm with constraints
+"""
+def example_2(options):
+    example_1(options)
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['model.system_bounds.u.dactive_torque'] = [-1000, 1000]
     return options
 
 """
-Baseline example but arm is only driven by control, small inertia and 0 torque_slope
-+ Constraint on torque
+example 3: example 2 + no constraints on arm control
+Note: there are still constraints on the tether tension which indirectly act on the control of the arm
+
+Solution is not sound, energy balance is off
+"""
+def example_3(options):
+    example_2(options)
+    options.pop('model.system_bounds.u.dactive_torque')
+    return options
+
+"""
+example 1 but the arm inertia and passive torque are entirely replaced by controlled torque
 """
 def example_4(options):
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = True
     options['user_options.trajectory.fixed_params']['arm_inertia'] = 100
-    options['user_options.trajectory.fixed_params']['torque_slope'] = 0
-    options['model.system_bounds.x.active_torque'] = [-5000, 5000]
-    options['model.system_bounds.u.dactive_torque'] = [-10000, 10000]
+    options['user_options.trajectory.fixed_params']['torque_slope'] = 1
+    options['model.system_bounds.x.active_torque'] = [-1000, 1000]
     return options
 
 """
-Visual test: set torque_slope = 1 and dactive_torque bounds to [-1, 1] and verify that both passive and active power are positive
+*Visual test: set torque_slope = 1 and dactive_torque bounds to [-1, 1] and verify that both passive and active power are positive
 If every power is integrated into work (I don't think so) verify that the arm received as much energy as it extracted
 """
 def test_1(options):
@@ -294,7 +338,6 @@ def plot_arm_states(plot_dict):
     plt.title("d(active torque)/dt [Nm/s]")
     plt.grid()
 
-
 def print_stats(plot_dict):
     def _print_stats(u, label):
         avg = np.mean(u)
@@ -323,10 +366,9 @@ def main():
     # Add power balance check & fix todos in dynamics.py
 
     options = rocking_mode_options()
-    options = example_0(options)
+    options = example_1(options)
     options = post_process_options_for_parameter_optimization(options)
-    options['nlp.n_k'] = 20
-    trial = awe.Trial(options, 'Rocking_arm_Ampyx_AP2')
+    trial = awe.Trial(options, 'Rocking_Arm_Ampyx_AP2')
     trial.build()
     trial.optimize(final_homotopy_step='initial_guess')
     trial.plot(['states', 'quad'])
@@ -345,6 +387,7 @@ def main():
     return trial, plot_dict_init, plot_dict
 
 if __name__ == "__main__":
+    # test_terminal_constraints()  # Run once to check that options are correctly used
     trial, plot_dict_init, plot_dict = main()
     xi = plot_dict_init['x']
     x = plot_dict['x']

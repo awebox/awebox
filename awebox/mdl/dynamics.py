@@ -1091,7 +1091,7 @@ def get_yaw_expr(options, x, theta, n0, n1, parent_map, gamma_max):
     q0 = x['q{}{}'.format(n0, parent_map[n0])]
 
     if n1 == 0:
-        if 'arm_angle' in x:
+        if 'arm_angle' in x.keys():
             q1 = arm.get_q_arm_tip(x['arm_angle'], theta['arm_length'])
         else:
             q1 = np.zeros((3, 1))
