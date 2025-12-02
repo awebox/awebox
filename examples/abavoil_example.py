@@ -27,7 +27,7 @@ def rocking_mode_options():
     options['user_options.system_model.architecture'] = {1: 0}
     options['user_options.kite_standard'] = awe.ampyx_data.data_dict()
     options['user_options.system_model.kite_dof'] = 3  # Only 3DOF converged, possible to warmstart 6DOF with 3DOF ?
-    options['model.system_bounds.theta.t_f'] = [2, 6]  # This needs to be adjusted quite often
+    options['model.system_bounds.theta.t_f'] = [2, 8]  # This needs to be adjusted quite often
     options['quality.test_param.t_f_min'] =  1
     options['quality.test_param.z_min'] = -np.inf  # The kite shouldn't go below z=0 but at least we don't get an error
 
@@ -72,11 +72,11 @@ def rocking_mode_options():
 
     # Initialize the trajectory (new lemniscate option)
     options['solver.initialization.shape'] = 'lemniscate'
-    options['solver.initialization.inclination_deg'] = 20
-    options['solver.initialization.lemniscate.az_width_deg'] = 40
-    options['solver.initialization.lemniscate.el_width_deg'] = 10
+    options['solver.initialization.inclination_deg'] = 30
+    options['solver.initialization.lemniscate.az_width_deg'] = 60
+    options['solver.initialization.lemniscate.el_width_deg'] = 20
     options['solver.initialization.lemniscate.rise_on_sides'] = False
-    options['solver.initialization.groundspeed'] = 40  # m/s
+    options['solver.initialization.groundspeed'] = 55  # m/s
     options['solver.initialization.init_clipping'] = False  # Iteratively refine initialization **assuming the trajectory is circular**
 
     # Wind profile
@@ -87,7 +87,7 @@ def rocking_mode_options():
 
     # NLP options
     # By default, direct collocation using Radau scheme with order 4 lagrange polynomials
-    options['nlp.n_k'] = 20  # Number of control intervals
+    options['nlp.n_k'] = 40  # Number of control intervals
     options['nlp.collocation.u_param'] = 'zoh'  # zero-order-hold (onstant) control over each control interval
     options['solver.linear_solver'] = 'ma57'  # recommended: 'ma57' if HSL installed, otherwise 'mumps'
     options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
@@ -338,20 +338,28 @@ def plot_arm_states(plot_dict):
     plt.title("d(active torque)/dt [Nm/s]")
     plt.grid()
 
-def print_stats(plot_dict):
-    def _print_stats(u, label):
-        avg = np.mean(u)
-        min_, med, max_ = np.quantile(u, [0, 0.5, 1])
-        msg = label + f': average={avg:.2f} (min={min_:.2f} , median={med:.2f}, max={max_:.2f}).'
-        print_op.base_print(msg, level='info')
-        return avg, min_, med, max_
+def _print_stats(u, label):
+    avg = np.mean(u)
+    min_, med, max_ = np.quantile(u, [0, 0.5, 1])
+    msg = label + f': average={avg:.2f} (min={min_:.2f} , median={med:.2f}, max={max_:.2f}).'
+    print_op.base_print(msg, level='info')
+    return avg, min_, med, max_
 
+def print_stats(plot_dict):
     z = plot_dict['x']['q10'][2]
     u_wind = awe.opts.model_funcs.get_u_at_altitude(plot_dict['options'], z)
     _print_stats(u_wind, 'Wind speed (m/s)')
 
     u_kite = np.linalg.norm(np.array(plot_dict['x']['dq10']), axis=0)
     _print_stats(u_kite, 'Kite speed (m/s)')
+    _print_stats(np.array(plot_dict['x']['arm_angle']) * 180 / np.pi, "Arm angle (°)")
+
+    q = plot_dict['x']['q10']
+    xy_norm = np.linalg.norm(q[:2], axis=0)
+    theta = np.pi/2 - np.arctan2(q[2], xy_norm)
+    _print_stats(theta * 180 / np.pi, "Theta (°)")
+
+    # Delta alpha, theta0, Delta theta, Delta phi
 
 def main():
     # Opti 1: no arm control, find best torque_slope
@@ -376,9 +384,9 @@ def main():
     trial.optimize(final_homotopy_step='final')  # final_homotopy_step=['initial_guess', 'final'] to control when to stop the homotopy process
     plot_dict = trial.visualization.plot_dict
 
-    print_op.base_print("## Stats of solution", level='info')
-    print_stats(plot_dict_init)
     print_op.base_print("## Stats of initialization", level='info')
+    print_stats(plot_dict_init)
+    print_op.base_print("## Stats of solution", level='info')
     print_stats(plot_dict)
     trial.plot(['states', 'quad'])
     trial.plot(['controls', 'invariants'])
@@ -396,3 +404,11 @@ if __name__ == "__main__":
 # Test: set torque_slope to a small value (eg. 1 Nm/(rad/s)) and verify that
 # active_torque and passive_torque are of the same sign most of the time
 # Which means that the optimisation process gives a solution that extracts energy when possible instead of burning it
+
+q = plot_dict['x']['q10']
+xy_norm = np.linalg.norm(q[:2], axis=0)
+theta = np.pi/2 - np.arctan2(q[2], xy_norm)
+t = plot_dict['time_grids']['ip']
+
+plt.plot(t, 180 * theta / np.pi)
+plt.show()

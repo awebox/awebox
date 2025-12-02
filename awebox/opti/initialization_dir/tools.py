@@ -300,14 +300,15 @@ def insert_val(V_init, var_type, name, init_val, idx=0):
     return V_init
 
 
-def uniform_lemniscate_trajectory(w, h, tf):
-    """
+def uniform_lemniscate_trajectory(w, h, tf, N=100):
+    '''
     Returns two functions: 
       1. get_pos(t) -> np.array([az, el])
       2. get_vel(t) -> np.array([az_dot, el_dot])
-    """
+    as well as the total length of the path
+    '''
     
-    tau = np.linspace(0, 2 * np.pi, 100)
+    tau = np.linspace(0, 2 * np.pi, N)
     az = w * np.sin(tau)
     el = h * np.sin(2 * tau)
 
@@ -321,8 +322,8 @@ def uniform_lemniscate_trajectory(w, h, tf):
     trajectory_interp = interp1d(
         lenghts, 
         np.vstack((az, el)), 
-        kind="cubic", 
-        fill_value="extrapolate"
+        kind='cubic', 
+        fill_value='extrapolate'
     )
     
     # --- Closure 1: Position ---
@@ -340,14 +341,12 @@ def uniform_lemniscate_trajectory(w, h, tf):
         p_minus = trajectory_interp(s - epsilon)
         
         tangent = p_plus - p_minus
-        norm = np.linalg.norm(tangent)
-        
-        direction = tangent / norm
+        direction = tangent / np.linalg.norm(tangent)
         
         # Velocity vector
         return direction * total_length / tf
 
-    return get_pos, get_vel
+    return get_pos, get_vel, total_length
 
 
 def lissajous_curve(t, w, h, a=1, delta=0):

@@ -392,8 +392,9 @@ def set_default_options(default_user_options, help_options):
 
         ('solver',  'initialization', None, 'initialization_type',  'default',  ('set initialization type', ['default', 'modular']), 't'),
         ('solver',  'initialization', None, 'shape',                'circular', ('set initialization shape ', ['circular', 'lemniscate']), 's'),
-        ('solver',  'initialization', 'lemniscate', 'az_width_deg',  20.,       ('lemniscate azimuth range [deg]', None), 's'),
-        ('solver',  'initialization', 'lemniscate', 'el_width_deg',  5.,        ('lemniscate elevation range [deg]', None), 's'),
+        ('solver',  'initialization', None, 'delta_arm_angle',       135.,      ('arm angle semi-range [deg]', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'az_width_deg',  20.,       ('lemniscate azimuth semi-range [deg]', None), 's'),
+        ('solver',  'initialization', 'lemniscate', 'el_width_deg',  5.,        ('lemniscate elevation semi-range [deg]', None), 's'),
         ('solver',  'initialization', 'lemniscate', 'rise_on_sides', False,     ('True: if the kite rises on the sides, False: if the kite drops on the sides', [True, False]), 's'),
         ('solver',  'initialization', None, 'interpolation_scheme', 's_curve',  ('interpolation scheme used for initial guess generation', ['s_curve', 'poly']), 'x'),
         ('solver',  'initialization', None, 'fix_tether_length',    False,      ('fix tether length for trajectory', [True, False]), 'x'),

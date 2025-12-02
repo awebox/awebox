@@ -77,11 +77,12 @@ def guess_values_at_time(t, init_options, model):
 
     phase_rate = 2*np.pi * init_options['windings'] / init_options['precompute']['time_final']
     if 'arm_angle' in ret:
+        delta_arm_angle = init_options['delta_arm_angle'] * np.pi / 180
         arm_phase = t * phase_rate
         if init_options['shape'] == 'circular':
-            arm_phase += -np.pi/2
-        ret['arm_angle'] = -np.pi/2 * np.cos(arm_phase)
-        ret['darm_angle'] = np.pi/2 * np.sin(arm_phase) * phase_rate
+            arm_phase += -np.pi/2  # shift the arm phase by 90 degrees
+        ret['arm_angle'] = -delta_arm_angle * np.cos(arm_phase)
+        ret['darm_angle'] = delta_arm_angle * np.sin(arm_phase) * phase_rate
         ret['active_torque'] = 0.0
 
     for node in range(1, number_of_nodes):
@@ -144,24 +145,24 @@ def guess_values_at_time(t, init_options, model):
                     ret['omega' + str(node) + str(parent)] = omega_vector
                     ret['r' + str(node) + str(parent)] = dcm_column
             elif init_options['shape'] == 'lemniscate':
-                # TODO: implement DCM initialization
                 w_lem = init_options['lemniscate']['az_width_deg']*np.pi/180.0
                 h_lem = init_options['lemniscate']['el_width_deg']*np.pi/180.0
                 if init_options['lemniscate']['rise_on_sides']:
                     h_lem = -h_lem
                 el0 = init_options['inclination_deg']*np.pi/180.0
-                
+
                 # Closures for position and velocity of lemniscate with constant speed
-                get_pos, get_vel = tools.uniform_lemniscate_trajectory(w_lem, h_lem, init_options['precompute']['time_final'])
-                az, el = get_pos(t)
-                # az, el = tools.lissajous_curve(t, w_lem, h_lem, a=phase_rate)
+                # TODO: compute the interpolation once instead of at each time step
+                # get_pos, get_vel, _ = tools.uniform_lemniscate_trajectory(w_lem, h_lem, init_options['precompute']['time_final'])
+                # az, el = get_pos(t)
+                az, el = tools.lissajous_curve(t, w_lem, h_lem, a=phase_rate)
                 el = el + el0
                 x, y, z = tools.calc_cartesian_coords(az, el, l_t)
                 q = cas.vertcat(x,y,z)  # Could potentially add `q_parent`
                 ret['q' + str(node) + str(parent)] = q
 
-                azdot, eldot = get_vel(t)
-                # azdot, eldot = tools.lissajous_dcurve(t, w_lem, h_lem, a=phase_rate)
+                # azdot, eldot = get_vel(t)
+                azdot, eldot = tools.lissajous_dcurve(t, w_lem, h_lem, a=phase_rate)
                 dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, l_t)
                 ret['dq' + str(node) + str(parent)] = cas.vertcat(dx,dy,dz)
 
@@ -464,4 +465,3 @@ def set_dependent_time_final(init_options):
     init_options['precompute']['time_final'] = tf_guess
 
     return init_options
-
