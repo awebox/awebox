@@ -107,6 +107,13 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     return [vars_lb, vars_ub]
 
 
+# enum for phase options
+class PhaseOptions:
+    REELOUT = 'reelout'
+    REELIN = 'reelin'
+    TRANSITION = 'transition'
+
+
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
     if nlp_options['system_type'] == 'drag_mode' or nlp_options['type'] == 'aaa':
@@ -139,7 +146,35 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
             at_initial_control_node = (kdx == 0) and (not coll_flag)
 
-            if nlp_options['phase_fix'] == 'single_reelout':
+            if nlp_options['SAM']['use']:
+                assert not nlp_options['collocation'][
+                               'u_param'] == 'poly', 'poly control param not suppoert yet for average model'
+
+                # get the region indices
+                SAM_regions = struct_op.calculate_SAM_regions(nlp_options)
+                # in reelin phase?
+                offset = n_k//50 # at the start and end of the RI phase, it is okay to reel-out already, 'TRANSITION'
+                phase = PhaseOptions.REELOUT  # default
+                if kdx in SAM_regions[-1][slice(0,None) if offset==0 else slice(offset,-offset)]:  # in Reelin
+                    phase = PhaseOptions.REELIN
+                elif kdx in SAM_regions[-1]:  # in transition
+                    phase = PhaseOptions.TRANSITION
+
+                # print(f'Index {kdx} is in phase {phase}', flush=True)
+
+                if phase == PhaseOptions.TRANSITION:
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                elif phase == PhaseOptions.REELOUT:
+                    vars_lb[var_type, kdx, name] = 0.0
+                    vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+                elif phase == PhaseOptions.REELIN:
+                    vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                    vars_ub[var_type, kdx, name] = 0.0
+                else:
+                    awelogger.logger.error('phase not defined')
+
+            elif nlp_options['phase_fix'] == 'single_reelout':
 
                 switch_kdx = round(nlp_options['n_k'] * nlp_options['phase_fix_reelout'])
                 in_reelout_phase = (kdx < switch_kdx)
@@ -180,7 +215,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_collocation_node_with_control_freedom:
                     max = given_max_value
-                    min = 0.
+                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
 
                 elif at_reelin_collocation_node_with_control_freedom:
                     max = 0.
@@ -188,7 +223,7 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_control_node:
                     max = given_max_value
-                    min = 0.
+                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
 
                 elif at_reelin_control_node:
                     max = 0.

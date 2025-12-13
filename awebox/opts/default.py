@@ -185,6 +185,7 @@ def set_default_options(default_user_options, help_options):
         ('params',  'tether', None,         'max_stress',           3.6e9,      ('maximum material tether stress [Pa]', None),'s'),
         ('params',  'tether', None,         'stress_safety_factor', 1.5,        ('tether stress safety factor [-]', None),'x'),
         ('params',  'tether', None,         'youngs_modulus',       1.e11,      ('the ratio of stress over strain in elastic deformation [Pa/fractional-elongation]', None), 'x'),
+        ('params',  'tether', None,         'lb_dl_t_reelout',      0.0,          ('tether speed lower bound during reel-out (for single_reelout phase_fix)', None), 's'),
         ('model',   'tether', None,         'control_var',          'dddl_t',   ('tether control variable', ['ddl_t', 'dddl_t']), 'x'),
         ('model',   'tether', None,         'aero_elements',        5,         ('number of discretizations made in approximating the tether drag. int greater than 1. [-]', None),'x'),
         ('model',   'tether', None,         'reynolds_smoothing',   1e-1,       ('smoothing width of the heaviside approximation in the cd vs. reynolds polynomial [-]', None),'x'),
@@ -302,6 +303,30 @@ def set_default_options(default_user_options, help_options):
         ('nlp',  'collocation',      None, 'u_param',              'zoh',                  ('control parameterization in collocation interval', ['poly','zoh']),'x'),
         ('nlp',  'collocation',      None, 'ineq_constraints',     'shooting_nodes',       ('impose path constraints at collocation nodes in zoh case', ['shooting_nodes', 'collocation_nodes']),'x'),
         ('nlp',  'collocation',      None, 'name_constraints',     False,                  ('names nlp collocation constraints according to the extended model constraint. slow, but useful when debugging licq problems with the health check', [True, False]), 't'),
+
+        # average model options
+        ('nlp', 'SAM', None, 'use', False, ('option to use average model [false]', None), 't'),
+        ('nlp', 'SAM', None, 'N', 10, ('number of "skipped" cycles [int]', None), 't'),
+        ('nlp', 'SAM', None, 'd', 3, ('number of microInts (cycles)', None), 't'),
+        ('nlp', 'SAM', None, 'ADAtype', 'CD', ('type of the average dynamics approximation', ['FD','BD','CD']), 't'),
+        ('nlp', 'SAM', None, 'MaInt_type', 'legendre', ('type of macro integration coll', ['legendre','radau']), 't'),
+        ('nlp', 'SAM', None, 'flag_SAM_reconstruction', False, ('if true, the variables are reconstructed from an SAM solution', None), 't'),
+
+        #averager moel regularization
+        ('nlp', 'SAM', 'Regularization', 'AverageStateFirstDeriv', 1, ('regularization factor the first derivative of the average state trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'AverageStateThirdDeriv', 1E-1, ('regularization factor for the third derivative of the average state trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'AverageAlgebraicsThirdDeriv', 0, ('regularization factor the third derivative of the average algebraics trajectory', None), 't'),
+        ('nlp', 'SAM', 'Regularization', 'SimilarMicroIntegrationDuration', 1E-3, ('regularization factor the similarity of the durations of the micro-integrations', None), 't'),
+
+        ('nlp', 'SAM', 'Regularization', 'StateWeights', {'q': [1E-10, 0.005, 1E-10],  # we dont penalize the x and the z position
+                                                          'dq': 1,  # we want the velocities to be similar
+                                                          'r': 1,  # we want the orientations to be similar
+                                                          'omega': 1,  # we want the velocities to be similar
+                                                          'delta': 1,  # we want the controls to be similar
+                                                          'dl_t':1,
+                                                          'e':0,
+                                                          }, ('weights for some states, the rest is initialized with 1E-8 [dict]', None), 't'),
+
         ('nlp',  None,               None, 'phase_fix_reelout',    0.7,                    ('time fraction of reel-out phase', None),'x'),
         ('nlp',  None,               None, 'pumping_range',        [None, None],           ('set predefined pumping range (only in comb. w. phase-fix)', None),'x'),
         ('nlp',  'cost',             None, 'power_der_start',      0.1,                    ('start of power derivative regularization for lift-mode reel-out phase', (True, False)),'t'),
@@ -504,6 +529,7 @@ def set_default_options(default_user_options, help_options):
         ('mpc', None,  None,    'ref_interpolator',      'spline',  ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'homotopy_warmstart',    True,      ('periodic reference interpolation method', None), 'x'),
         ('mpc', None,  None,    'terminal_point_constr', False,     ('use terminal point constraint', None), 'x'),
+        ('mpc', None,  None,    'ip_type',      'linear',           ('reference interpolation type ', ['linear', 'collocation']), 'x'),
 
         ### visualization options
         ('visualization', 'cosmetics', 'trajectory', 'colors',      kite_colors,    ('list of colors for trajectory', None), 'x'),

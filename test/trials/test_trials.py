@@ -260,6 +260,8 @@ def generate_options_dict():
     single_kite_options['model.tether.aero_elements'] = 1
     single_kite_options['user_options.induction_model'] = 'not_in_use'
     single_kite_options['solver.linear_solver'] = 'ma57'
+    single_kite_options['solver.cost.beta.0'] = 1e3
+    single_kite_options['model.scaling.other.tension_estimate'] = 'average_force'
     single_kite_options['nlp.collocation.u_param'] = 'zoh'
     single_kite_options['nlp.n_k'] = 20
     single_kite_options['quality.raise_exception'] = True

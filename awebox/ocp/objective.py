@@ -29,19 +29,20 @@ python-3.5 / casadi-3.4.5
 - refactored from awebox code (elena malz, chalmers; jochem de schutter, alu-fr; rachel leuthold, alu-fr), 2018
 - edited: rachel leuthold, jochem de schutter alu-fr 2018-2021
 '''
+from typing import Union, Dict
 
+import casadi as ca
 import casadi.tools as cas
 import numpy as np
 from . import collocation
 from . import ocp_outputs
 
-import time
 import collections
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
-import awebox.tools.vector_operations as vect_op
 import awebox.tools.cached_functions as cf
+from awebox.mdl.model import Model
 
 def get_general_regularization_function(variables):
 
@@ -411,7 +412,7 @@ def find_beta_cost(nlp_options, model, Integral_outputs, P):
 
 ###### assemble the objective!
 
-def find_objective(component_costs, V, V_ref, nlp_options):
+def find_objective(component_costs, V, nlp_options):
 
     # tracking disappears slowly in the cost function and energy maximising appears. at the final step, cost function
     # contains maximising energy, lift, sosc, and regularisation.
@@ -423,13 +424,20 @@ def find_objective(component_costs, V, V_ref, nlp_options):
     general_problem_cost = component_costs['general_problem_cost']
     homotopy_cost = component_costs['homotopy_cost']
 
+    # unpack the sam regularization costs, every key starts with 'SAM_Regularization_...'
+    SAM_regularization = 0
+    for key in component_costs.keys():
+        if key.startswith('SAM_Regularization'):
+            SAM_regularization += component_costs[key]
+
     trajectory_type = nlp_options['trajectory']['type']
 
     if trajectory_type == 'power_cycle' or trajectory_type == 'aaa':
         objective = V['phi', 'psi'] * tracking_problem_cost + \
                     (1. - V['phi', 'psi']) * power_problem_cost + \
                     general_problem_cost + \
-                    homotopy_cost
+                    homotopy_cost + \
+                    SAM_regularization
 
     elif trajectory_type in ['transition', 'mpc', 'tracking']:
         objective = V['phi', 'upsilon'] * V['phi', 'nu'] * V['phi', 'eta'] * V['phi', 'psi'] * tracking_problem_cost + \
@@ -463,9 +471,117 @@ def get_component_cost_dictionary(nlp_options, V, P, variables, parameters, xdot
     component_costs['general_problem_cost'] = find_general_problem_cost(component_costs)
     component_costs['homotopy_cost'] = find_homotopy_cost(component_costs)
 
-    component_costs['objective'] = find_objective(component_costs, V, V(P['p', 'ref']), nlp_options)
+    sam_reg_dict = find_SAM_regularization(nlp_options, V, xdot, model)
+    # unpack the SAM regularization
+    for key, value in sam_reg_dict.items():
+        component_costs[f'SAM_Regularization_{key}'] = value
+
+    component_costs['objective'] = find_objective(component_costs, V, nlp_options)
 
     return component_costs
+
+
+def find_SAM_regularization(nlp_options: dict, V: cas.struct, Xdot: cas.struct, model: Model) -> Dict[str,Union[ca.SX,float]]:
+    """
+    Compute the regularization cost to enforce the geometric assumptions of the Stroboscopy Average Method (SAM).
+    This consists of penalizing:
+        1. the first derivative of the average state
+        2. the third derivative of the average state
+        3. the third derivative of the algebraic variables (disabled by default)
+        4. the similarity timescaling (period) of the micro-integrations
+    here, d is the degree of the collocation scheme used for the SAM discretization (number of micro-integrations).
+
+    :param nlp_options: dictionary containing the options of the NLP, i.e. trial.options['nlp']
+    :param V: casidi symbolic struct containing the variables of the NLP
+    :param model: awebox model objects
+    :return: a dictionary of ca.SX for each type of regularization
+    """
+    if not nlp_options['SAM']['use']:
+        return {'NotInUse':0}
+
+    regularization_dict: dict = nlp_options['SAM']['Regularization']
+
+    d_SAM = nlp_options['SAM']['d']
+    N_SAM = nlp_options['SAM']['N']
+
+    # add SAM cost: average dynamics should be minimized
+    weights_state = model.variables_dict['x'](1E-14)
+
+    # penalize changes is the variables that should not change much
+    weights_dicts = regularization_dict['StateWeights']
+    # (don't penalize the variables that can change (l_t, d_lt, e))
+
+    # use weights for the correct nodes
+    for key in weights_state.keys():
+        if key[:-2] in weights_dicts.keys():
+            weights_state[key] = weights_dicts[key[:-2]]
+    W_x = cas.diag(weights_state.cat)
+
+    from awebox.tools.sam_functionalities import CollocationIRK
+    macro_int = CollocationIRK(np.array(cas.collocation_points(d_SAM, nlp_options['SAM']['MaInt_type'])))
+
+    # third derivative of the average state
+    DERIVATIVE_T0_REGULARIZE = 3
+    V_matrix = cas.horzcat(*V['v_macro_coll'])
+    sam_regularizaion_third_deriv_x_average = 0
+    for i, c_i in enumerate(macro_int.c):
+        # compute the 3rd derivative of the state (2nd derivative of the collocation poly)
+        l_i_dot = ca.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE - 1)(c_i) for l in macro_int.polynomials])
+        v_i_dot = V_matrix @ l_i_dot  # the value of the 3rd derivative of the state at the collocation point
+
+        # compute the quadrature of the 3rd derivative of the state
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE*2)
+        # factor_time = 1
+        # sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ W_x @ v_i_dot
+        sam_regularizaion_third_deriv_x_average += factor_time * macro_int.b[i] * v_i_dot.T @ v_i_dot
+
+    # third derivative of the of the algebraic variables (micro-integrations)
+    sam_regularizaion_third_deriv_z = 0
+    SAM_regions = struct_op.calculate_SAM_regions(nlp_options)  # get the indices of the SAM regions
+    Z_matrix = cas.horzcat(*[cas.vertcat(*V['x', SAM_regions[i]]) for i in range(d_SAM)])
+    W_z = cas.diag(cas.vertcat(*[weights_state.cat for n in range(len(SAM_regions[0]))]))
+    for i, c_i in enumerate(macro_int.c):
+        # compute the 3rd derivative of the polynomial for the algebraic variables
+        l_i_dot = ca.vertcat([l.deriv(DERIVATIVE_T0_REGULARIZE)(c_i) for l in macro_int.polynomials])
+        z_i_dot = Z_matrix @ l_i_dot  # value of the 3rd derivative of the algebraic variables at the collocation point
+
+        # compute the quadrature of the squared 3rd derivative of the algebraic variables
+        factor_time = N_SAM/N_SAM**(DERIVATIVE_T0_REGULARIZE*2)
+        # factor_time = 1
+        sam_regularizaion_third_deriv_z +=  factor_time * macro_int.b[i] * z_i_dot.T @ W_z @ z_i_dot
+
+    # first derivative of the state
+    sam_regularization_first_deriv_x_average = 0
+    for i, c_i in enumerate(macro_int.c):
+        factor_time = N_SAM/N_SAM**2
+        # factor_time = 1
+        sam_regularization_first_deriv_x_average += factor_time * macro_int.b[i] * V['v_macro_coll', i].T @ W_x @ V['v_macro_coll', i]
+
+    # similar durations
+    sam_regularization_similar_durations = 0
+    tfs_cycles = V['theta', 't_f', 0:-1]
+    for i, c_i in enumerate(macro_int.c):
+        # compute the 3rd derivative of the polynomial for the algebraic variables
+        l_i_dot = ca.vertcat([l.deriv(1)(c_i) for l in macro_int.polynomials])
+        T_i_dot = tfs_cycles.T @ l_i_dot  # value of the first derivative of the cycle duration variables at the collocation point
+
+        factor_time = N_SAM/N_SAM**2
+        # factor_time = 1
+        sam_regularization_similar_durations += factor_time * macro_int.b[i] * T_i_dot**2
+
+    # invariants
+    sam_regularization_invariants = 0
+    for i in range(d_SAM +1):
+        sam_regularization_invariants += V['lam_SAM', i].T @ V['lam_SAM', i] * 1E-8
+
+    return {
+        'X_dot': regularization_dict['AverageStateFirstDeriv'] * sam_regularization_first_deriv_x_average,
+        'X_dddot': regularization_dict['AverageStateThirdDeriv'] * sam_regularizaion_third_deriv_x_average,
+        'Z_dddot': regularization_dict['AverageAlgebraicsThirdDeriv'] * sam_regularizaion_third_deriv_z,
+        'T_dot': regularization_dict['SimilarMicroIntegrationDuration'] * sam_regularization_similar_durations,
+        'inv': sam_regularization_invariants
+    }
+
 
 def get_component_cost_function(component_costs, V, P):
 

@@ -28,7 +28,8 @@ _python-3.5 / casadi-3.4.5
 - authors: rachel leuthold 2021-2022
 '''
 import matplotlib
-matplotlib.use('TkAgg')
+from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
+matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
 
 import casadi.tools as cas
@@ -47,7 +48,7 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 import scipy.special as special
 
-matplotlib.use('TkAgg')
+matplotlib.use(DEFAULT_MPL_BACKEND)
 
 
 class SemiInfiniteTangentialRightCylinder(obj_semi_infinite_right_cylinder.SemiInfiniteRightCylinder):
