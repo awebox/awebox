@@ -244,25 +244,31 @@ class Trial(object):
 
     def print_solution(self):
 
-        # the actual power indicators
-        if 'e' in self.__model.integral_outputs.keys():
-            e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
-        else:
-            e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
-
-        time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
-        avg_power = e_final / time_period
-
         parameter_label = 'Parameter or Output'
         optimal_label = 'Value at Optimal Solution'
         dimension_label = 'Dimension'
 
-        dict_parameters = {
-            'Average power output': {optimal_label: str(avg_power/1.e3),
-                                     dimension_label: 'kW'},
-            'Time period': {optimal_label: str(round(time_period, 2)),
-                            dimension_label: 's'}
-            }
+        # the actual power indicators
+        time_period = self.__optimization.global_outputs_opt['time_period'].full()[0][0]
+        if self.__options['model']['trajectory']['type'] == 'power_cycle':
+            if 'e' in self.__model.integral_outputs.keys():
+                e_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'e']
+            else:
+                e_final = self.__optimization.V_final_si['x', -1, 'e'][-1]
+
+            avg_power = e_final / time_period
+
+            dict_parameters = {'Average power output': {optimal_label: str(avg_power/1.e3),
+                                        dimension_label: 'kW'}}
+        elif  self.__options['model']['trajectory']['type'] == 'aaa':
+            f_final = self.__optimization.integral_outputs_final_si['int_out', -1, 'f10']
+            avg_force = f_final / time_period
+            dict_parameters = {'Average tether force': {optimal_label: str(avg_force/1.e3),
+                                        dimension_label: 'kN'}}
+
+ 
+
+        dict_parameters['Time period'] = {optimal_label: str(round(time_period, 2)), dimension_label: 's'}
         theta_info = {
             'diam_t': ('Main tether diameter', 1e3, 'mm'),
             'diam_s': ('Secondary tether diameter', 1e3, 'mm'),

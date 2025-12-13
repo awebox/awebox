@@ -38,7 +38,7 @@ def set_default_user_options():
     default_user_options_tree = [
 
         ## user options
-        ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc']), 't'),
+        ('user_options',    'trajectory',  None,        'type',                  'power_cycle',      ('possible options', ['power_cycle', 'transition','mpc', 'aaa']), 't'),
         ('user_options',    'trajectory',  None,        'system_type',           'lift_mode',        ('possible options', ['lift_mode', 'drag_mode']), 't'),
         ('user_options',    'trajectory',  'lift_mode', 'windings',              3,                  ('number of windings [int]', None),'s'),
         ('user_options',    'trajectory',  'lift_mode', 'phase_fix',             'single_reelout',   ('pumping_mode phase fix option', ['single_reelout', 'simple']),'x'),
@@ -140,6 +140,15 @@ def set_default_options(default_user_options, help_options):
         ('model', 'aero', 'vortex',     'verification_uniform_distribution',    False,          ('distribute the observation points uniformly or sinusoidally', [True, False]), 'x'),
         ('model', 'aero', 'vortex',     'test_includes_visualization',          False,          ('when auto-testing whether the vortex objects work correctly, should the plotting-tests be included?', [True, False]), 'x'),
 
+        ('model', 'aero', 'vortex_rings', 'N_rings',          0,          ('Number of vortex rings', None), 'x'),
+        ('model', 'aero', 'vortex_rings', 'N_duplicates',  0,            ('Vortex ring duplicates', None), 'x'),
+        ('model', 'aero', 'vortex_rings', 'N_far',   0,                   ('Number of far-wake rings to be taken into account before and after', None), 'x'),
+        ('params', 'aero', 'vortex_rings', 'R_ring',  5,                   ('Vortex ring radius', None), 's'),
+        ('model', 'aero', 'vortex_rings', 'N_elliptic_int',  5,           ('Number of summands in elliptic integral summation', None), 'x'),
+        ('model', 'aero', 'vortex_rings', 'elliptic_method',  'power',     ('Computation of elliptic integrands', ['power', 'AGM']), 'x'),
+        ('model', 'aero', 'vortex_rings', 'type',  'rectangle',     ('Vortex element type', ['dipole', 'rectangle']), 'x'),
+        ('model', 'aero', 'vortex_rings', 'convection_type',  'far',     ('Vortex induced convection speed type', ['free', 'near', 'far']), 'x'),
+
         ('model', 'aero', 'overwrite',  'f_lift_earth',         None,       ('3-component lift force in the earth-fixed-frame, to over-write stability-derivative force in case of verification/validation tests', None), 'x'),
 
         # geometry (to be loaded!)
@@ -160,6 +169,7 @@ def set_default_options(default_user_options, help_options):
         ('model',  'geometry', 'overwrite', 'tail',        None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'wing_profile',None,     ('geometrical parameter', None),'x'),
         ('model',  'geometry', 'overwrite', 'r_tether',    None,     ('geometrical parameter', None),'s'),
+        ('model',  'geometry', 'overwrite', 'e',           None,     ('geometrical parameter', None),'s'),
 
         ('model',  'aero', 'overwrite', 'alpha_max_deg', None,    ('aerodynamic parameter', None),'t'),
         ('model',  'aero', 'overwrite', 'alpha_min_deg', None,    ('aerodynamic parameter', None),'t'),
@@ -231,6 +241,8 @@ def set_default_options(default_user_options, help_options):
         ('model',   'model_bounds', 'ellipsoidal_flight_region', 'include',  False,   ('include ellipsoidal flight hull', None), 't'),
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'radius',  500.0,   ('ellipsoidal flight hull ground radius', None), 's'),
         ('params',  'model_bounds', 'ellipsoidal_flight_region', 'alpha',  np.pi/6,   ('ellipsoidal flight hull inclination angle', None), 's'),
+        ('model',   'model_bounds', 'azimuth_elevation', 'include',  False,   ('include minimum and maximum elevation and azimuth angles', None), 't'),
+        ('params',  'model_bounds', 'azimuth_elevation', 'bounds',  np.array([0, np.pi/2, 0]),   ('min/max elevation and min azimuth angle', None), 's'),
 
         #### scaling
         ('model',  'scaling', 'other', 'position_scaling_method',  'radius',                 ('the method of estimating the node position states q for problem scaling', ['radius', 'altitude', 'b_ref', 'altitude_and_radius']),'x'),
@@ -366,6 +378,7 @@ def set_default_options(default_user_options, help_options):
         ('solver',  'homotopy_method',None, 'gamma',      'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'psi',        'penalty',  ('homotopy method used', ['penalty', 'classic']), 's'),
         ('solver',  'homotopy_method',None, 'advance_despite_max_iter', True, ('should homotopy proceed to next step if the last step exceeds the maximum number of Newton steps?', [True, False]), 's'),
+        ('solver',  'homotopy_method',None, 'advance_despite_max_cpu_time', True, ('should homotopy proceed to next step if the last step exceeds the maximum CPU time?', [True, False]), 's'),
         ('solver',  'homotopy_method', None, 'advance_despite_ill_health', True, ('should homotopy proceed to next step if the debug health-checker says that the problem is unhealthy/ill-posed', [True, False]), 's'),
         ('solver',  'homotopy_step',  None, 'gamma',        0.1,        ('classical continuation homotopy parameter step',None), 's'),
         ('solver',  'homotopy_step',  None, 'psi',          1.0,        ('classical continuation homotopy parameter step',None), 's'),

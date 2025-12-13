@@ -36,6 +36,7 @@ import awebox.tools.vector_operations as vect_op
 import numpy as np
 import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
+import awebox.mdl.aero.kite_dir.vortex_rings as vortex_rings
 
 def construct_wingtip_position(q_kite, dcm_kite, parameters, tip):
 
@@ -148,28 +149,27 @@ def get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_d
         vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
 
     elif aero_coeff_ref_velocity == 'eff':
-        vec_u_eff = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+        vec_u_eff = get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture)
         vec_u_earth = vec_u_eff
 
     return vec_u_earth
 
 
-def get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture):
-    u_eff_in_earth_frame = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+def get_u_eff_in_body_frame(options, variables, parameters, wind, kite, kite_dcm, architecture):
+    u_eff_in_earth_frame = get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture)
     u_eff_in_body_frame = frames.from_earth_to_body(kite_dcm, u_eff_in_earth_frame)
     return u_eff_in_body_frame
 
-def get_u_eff_in_earth_frame(options, variables, wind, kite, architecture):
+def get_u_eff_in_earth_frame(options, variables, parameters, wind, kite, architecture):
     if (options['induction_model'] == 'not_in_use'):
-        u_eff = get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architecture)
-
+        u_eff = get_u_eff_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options)
     else:
         u_eff = get_u_eff_in_earth_frame_with_induction(options, variables, wind, kite, architecture)
 
     return u_eff
 
-def get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+def get_u_eff_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options):
+    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, parameters,  wind, kite, architecture, options)
 
     # approximation!
     vec_u_eff_in_earth_frame = vec_u_app_alone_in_earth_frame
@@ -203,7 +203,7 @@ def get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, arch
 
     return u_app
 
-def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture):
+def get_u_app_alone_in_earth_frame_without_induction(variables, parameters, wind, kite, architecture, options):
 
     parent = architecture.parent_map[kite]
 
@@ -212,12 +212,80 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, arch
 
     uw_infty = wind.get_velocity(q[2])
 
-    vec_u_app_alone_in_earth_frame = uw_infty - dq
+    if 'dp_ring_2_0_0' in variables['x'].keys() and kite in [2,3]:
+        u_induced = variables['z'][f'u_induced_far_wake{kite}']#u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+        #u_induced = u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+
+    else:
+        u_induced = np.array([0,0,0])
+
+    vec_u_app_alone_in_earth_frame = uw_infty - dq + u_induced
 
     return vec_u_app_alone_in_earth_frame
 
-def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+def u_induced_vortex_rings(variables, parameters, kite, architecture, options):
+
+    parent = architecture.parent_map[kite]
+    q = variables['x']['q' + str(kite) + str(parent)]
+    t_f = variables['theta']['t_f']
+    u_induced = np.zeros((3,1))
+    initial_guess =  np.array([[-2],[0],[0]])
+    params = 'p_near_{}'.format(kite)
+    h = t_f / options['aero']['vortex_rings']['N'] / options['aero']['vortex_rings']['N_rings']
+    N_dup = options['aero']['vortex_rings']['N_duplicates']
+    vortex_type = options['aero']['vortex_rings']['type']
+
+    for k in range(options['aero']['vortex_rings']['N']):
+        for i in range(options['aero']['vortex_rings']['N_rings']):
+            for j in [2, 3]:
+
+                # inclusion parameters
+                p_far = parameters['p_far_{}'.format(kite), 'p_far_{}_{}'.format(j, k)]
+                p_near = parameters[params, 'p_near_{}_{}'.format(j, k)]
+
+                # vortex element variables
+                p_r = variables['x']['p_ring_{}_{}_{}'.format(j, k, i)]
+                dp_r = variables['x']['dp_ring_{}_{}_{}'.format(j, k, i)]
+                gamma_r = variables['x']['gamma_ring_{}_{}_{}'.format(j, k, i)]
+                n_r = variables['x']['n_ring_{}_{}_{}'.format(j, k, i)]
+                if vortex_type == 'dipole':
+                    e_c = None
+                elif vortex_type == 'rectangle':
+                    e_c = variables['x']['ec_ring_{}_{}_{}'.format(j, k, i)]
+                R_ring = parameters['theta0', 'aero', 'vortex_rings', 'R_ring']
+
+                # move elements in the "near wake" one period backwards
+                p_r_dup = p_r + (1 - p_near) * cas.vertcat(dp_r*t_f, 0, 0)
+
+                # start counting induced velocity
+                w_ind_f = 0
+
+                # add first window
+                w_ind_f += - h * p_far * vortex_rings.far_wake_induction(q, p_r_dup, n_r, e_c, gamma_r, R_ring, options['aero']['vortex_rings'])
+                
+                # add duplicates
+                dipole_opts = {'type': 'dipole'}
+                for d in range(N_dup):
+
+                    # add convection (+1 period for near wake elements)
+                    convection_idx = (d+1) + (1 - p_near)
+                    p_r_dup = p_r + cas.vertcat(dp_r*convection_idx*t_f, 0, 0)
+
+                    # add duplicate windows downstream
+                    if vortex_type == 'dipole':
+                        gamma_dup = gamma_r
+                    elif vortex_type == 'rectangle':
+                        gamma_dup = 0.8 * R_ring * gamma_r # dipole approximation
+                    w_ind_f += - h * p_far * vortex_rings.far_wake_induction(q, p_r_dup, n_r, e_c, gamma_dup, R_ring, dipole_opts)
+
+                u_induced = u_induced  + w_ind_f
+
+    u_induced_homotopy = parameters['phi', 'iota'] * initial_guess + (1 - parameters['phi', 'iota']) * u_induced
+
+    return u_induced_homotopy
+
+def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture, options):
+    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture, options)
     vec_u_app_alone_in_body_frame = frames.from_earth_to_body(kite_dcm, vec_u_app_alone_in_earth_frame)
 
     return vec_u_app_alone_in_body_frame

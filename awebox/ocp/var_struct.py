@@ -89,10 +89,10 @@ def setup_nlp_v(nlp_options: dict, model: Model, coll_instance: collocation.Coll
     # when the global variables are before the discretized variables, it leads to prettier kkt matrix spy plots
     entry_list = [
         cas.entry('theta', struct = theta),
-        cas.entry('phi',   struct = model.parameters_dict['phi']),
-        entry_tuple
+        cas.entry('phi',   struct = model.parameters_dict['phi'])
     ]
 
+    entry_list += [entry_tuple]
     # add SAM variables if necessary
     if nlp_options['SAM']['use']:
         invariant_names_to_constrain = [key for key in model.outputs_dict['invariants'].keys() if key.startswith(tuple(['c', 'dc', 'orthonormality']))]

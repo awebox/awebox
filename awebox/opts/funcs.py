@@ -246,6 +246,13 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
         options_tree.append(('solver', 'initialization', 'theta', 'ell_radius', 150, ('????', None), 'x'))
         options_tree.append(('model', 'scaling', 'theta', 'ell_theta', 1.0, ('????', None), 'x'))
 
+    if user_options['trajectory']['type'] == 'aaa':
+        options_tree.append(('nlp', None, None, 'N_far', options['model']['aero']['vortex_rings']['N_far'],  ('number of far-wake vortex rings to be taken into account before and after', None),'x'))
+        options_tree.append(('model', 'aero', 'vortex_rings', 'N', options['nlp']['n_k'],  ('...', None),'x'))
+        options_tree.append(('nlp', None, None, 'N_rings', options['model']['aero']['vortex_rings']['N_rings'],  ('...', None),'x'))
+        options_tree.append(('nlp', None, None, 'vortex_type', options['model']['aero']['vortex_rings']['type'],  ('...', None),'x'))
+        options_tree.append(('nlp', None, None, 'vortex_convection_type', options['model']['aero']['vortex_rings']['convection_type'],  ('...', None),'x'))
+
     if options['nlp']['compile_subfunctions']:
 
         # general name for compilation files that takes into account (most) identifying options for model and constraints
@@ -260,6 +267,12 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
             options['model']['tether']['aero_elements'],
             options['model']['tether']['control_var']
         )
+        if user_options['trajectory']['type'] == 'aaa':
+            compilation_file_name += '_Nrings{}_Ndup{}_type_{}'.format(
+                options['model']['aero']['vortex_rings']['N_rings'],
+                options['model']['aero']['vortex_rings']['N_duplicates'],
+                options['model']['aero']['vortex_rings']['type'],
+            )
 
         if options['nlp']['cost']['P_max']:
             compilation_file_name += '_P_max'
@@ -320,7 +333,7 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
             # integrators / rootfinder do not support eval_sx
             expand = False
 
-    if user_options['trajectory']['system_type'] == 'lift_mode':
+    if user_options['trajectory']['system_type'] == 'lift_mode' and user_options['trajectory']['type'] != 'aaa':
         options_tree.append(('solver',  'initialization', 'x', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))
     else:
         options_tree.append(('solver',  'initialization', 'theta', 'l_t', options['solver']['initialization']['l_t'],      ('initial guess main tether length', [True, False]), 'x'))

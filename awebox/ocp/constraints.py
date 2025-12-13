@@ -47,7 +47,7 @@ import awebox.tools.cached_functions as cf
 from awebox.logger.logger import Logger as awelogger
 
 
-def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids):
+def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf, ms_vars, ms_params, Outputs_structured, Integral_outputs, integral_outputs_deriv, time_grids):
 
     ocp_cstr_list = cstr_op.OcpConstraintList()
     ocp_cstr_entry_list = []
@@ -60,11 +60,11 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
 
         # add initial constraints
         var_initial = struct_op.get_variables_at_time(nlp_options, V, Xdot, model.variables, 0)
-        var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
-        init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model)
-        ocp_cstr_list.append(init_cstr)
-        if len(init_cstr.eq_list) != 0:
-            ocp_cstr_entry_list.append(cas.entry('initial', shape=init_cstr.get_expression_list('all').shape))
+        # var_ref_initial = struct_op.get_var_ref_at_time(nlp_options, P, V, Xdot, model, 0)
+        # init_cstr = operation.get_initial_constraints(nlp_options, var_initial, var_ref_initial, model)
+        # ocp_cstr_list.append(init_cstr)
+        # if len(init_cstr.eq_list) != 0:
+        #     ocp_cstr_entry_list.append(cas.entry('initial', shape=init_cstr.get_expression_list('all').shape))
 
         # add the path constraints.
         if multiple_shooting:
@@ -72,7 +72,7 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
             ocp_cstr_list.append(ms_cstr)
 
         elif direct_collocation:
-            coll_cstr, entry_tuple = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation)
+            coll_cstr, entry_tuple = expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation, Integral_outputs, integral_outputs_deriv)
             ocp_cstr_list.append(coll_cstr)
 
         else:
@@ -131,6 +131,12 @@ def get_constraints(nlp_options, V, P, Xdot, model, dae, formulation, Integral_c
         shape = t_f_cstr_list.get_expression_list('ineq').shape
         ocp_cstr_list.append(t_f_cstr_list)
         ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
+    # elif nlp_options['type'] == 'aaa':
+    #     t_f_cstr_list = get_t_f_bounds_contraints(nlp_options, V, model)
+    #     shape = t_f_cstr_list.get_expression_list('ineq').shape
+    #     ocp_cstr_list.append(t_f_cstr_list)
+    #     ocp_cstr_entry_list.append(cas.entry('t_f_bounds', shape=shape))
+
     else:
         # period-length t_f constraint is set in ocp.var_bounds
         pass
@@ -197,7 +203,7 @@ def get_subset_of_shooting_node_equalities_that_wont_cause_licq_errors(model):
     return None
 
 
-def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
+def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation, Integral_outputs, integral_outputs_deriv):
 
     cstr_list = cstr_op.OcpConstraintList()
     entry_tuple = ()     # entry tuple for nested constraints
@@ -349,7 +355,7 @@ def expand_with_collocation(nlp_options, P, V, Xdot, model, Collocation):
                 )
 
         # continuity constraints
-        cstr_list.append(Collocation.get_continuity_constraint(V, kdx))
+        cstr_list.append(Collocation.get_continuity_constraint(nlp_options, V, P, kdx, model, integral_outputs_deriv[:,kdx*d:(kdx+1)*d]))
 
     mdl_path_constraints = model.constraints_dict['inequality']
     mdl_dyn_constraints = model.constraints_dict['equality']

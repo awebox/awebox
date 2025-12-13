@@ -75,13 +75,60 @@ def get_shooting_vars(nlp_options, V, P, Xdot, model):
 
     return shooting_vars
 
+def get_p_near(kite, kdx, N_intervals, p_near_struct):
+
+    p_near = p_near_struct(0.)
+    for k in range(N_intervals):
+        for j in [2, 3]:
+            if j == kite and k >= kdx:
+                p_near['p_near_{}_{}'.format(j, k)] = 1.
+            elif j != kite and k < kdx:
+                p_near['p_near_{}_{}'.format(j, k)] = 1.
+
+    return p_near.cat
+
+def get_p_far(kite, kdx, N_intervals, p_far_struct, N_far):
+
+    k_range = list(range(kdx - N_far, kdx + N_far+1))
+    k_kite = list(filter(lambda x: x >= 0 and x < N_intervals, k_range))
+    k_other = list(filter(lambda x: x < 0 or x >= N_intervals, k_range))
+    k_other = [k%N_intervals for k in k_other]
+    p_far = p_far_struct(0.)
+    for k in range(N_intervals):
+        for j in [2, 3]:
+            if j == kite and k in k_kite:
+                p_far['p_far_{}_{}'.format(j, k)] = 1.
+            elif j != kite and k in k_other:
+                p_far['p_far_{}_{}'.format(j, k)] = 1.
+
+    return p_far.cat
+
 def get_shooting_params(nlp_options, V, P, model):
 
     shooting_nodes = count_shooting_nodes(nlp_options)
 
     parameters = model.parameters
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, (shooting_nodes))
-    return coll_params
+    shooting_params = cas.repmat(cas.vertcat(P['theta0'], V['phi']), 1, (shooting_nodes))
+
+    if model.options['trajectory']['type'] == 'aaa':
+        p_list = []
+        N_far = nlp_options['N_far']
+        N_intervals = nlp_options['n_k']
+        p_near_struct = model.parameters_dict['p_near_2']
+        p_far_struct = model.parameters_dict['p_far_2']
+
+        for kdx in range(shooting_nodes):
+            p_list.append(cas.vertcat(
+                get_p_near(2, kdx, N_intervals, p_near_struct),
+                get_p_near(3, kdx, N_intervals, p_near_struct),
+                get_p_far(2, kdx, N_intervals, p_far_struct, N_far),
+                get_p_far(3, kdx, N_intervals, p_far_struct, N_far)
+            ))
+
+        p_repeated = cas.horzcat(*p_list)
+        shooting_params = cas.vertcat(shooting_params, p_repeated)
+
+    return shooting_params
 
 
 
@@ -107,7 +154,28 @@ def get_coll_params(nlp_options, V, P, model):
     N_coll = n_k * d # collocation points
 
     parameters = model.parameters
-    coll_params = cas.repmat(parameters(cas.vertcat(P['theta0'], V['phi'])), 1, N_coll)
+    coll_params = cas.repmat(cas.vertcat(P['theta0'], V['phi']), 1, N_coll)
+
+    if model.options['trajectory']['type'] == 'aaa':
+            N_far = nlp_options['N_far']
+            p_list = []
+            shooting_nodes = count_shooting_nodes(nlp_options)
+            N_intervals = nlp_options['n_k']
+            p_near_struct = model.parameters_dict['p_near_2']
+            p_far_struct = model.parameters_dict['p_far_2']
+            for kdx in range(shooting_nodes):
+                p_list.append(cas.repmat(
+                    cas.vertcat(
+                        get_p_near(2, kdx, N_intervals, p_near_struct),
+                        get_p_near(3, kdx, N_intervals, p_near_struct),
+                        get_p_far(2, kdx, N_intervals, p_far_struct, N_far),
+                        get_p_far(3, kdx, N_intervals, p_far_struct, N_far)
+                    ), 1, d)
+                )
+
+            p_repeated = cas.horzcat(*p_list)
+            coll_params = cas.vertcat(coll_params, p_repeated)
+
     return coll_params
 
 
@@ -265,7 +333,12 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                 deriv_name_in_states = deriv_name in subkeys(model_variables, 'x')
                 deriv_name_in_controls = deriv_name in subkeys(model_variables, 'u')
 
-                if at_control_node and deriv_name_in_states:
+                if at_control_node and deriv_name[:7] == 'dp_ring':
+                    if dim == 0:
+                        local_val = V['x', kdx, deriv_name]
+                    else:
+                        local_val = 0
+                elif at_control_node and deriv_name_in_states:
                     local_val = V['x', kdx, deriv_name, dim]
                 elif at_control_node and deriv_name_in_controls and u_is_zoh and kdx < n_k:
                     local_val = V['u', kdx, deriv_name, dim]
@@ -274,6 +347,11 @@ def get_derivs_at_time(nlp_options, V, Xdot, model_variables, kdx, ddx=None):
                     ddx_local = -1
                     local_val = V[coll_var_name, kdx_local, ddx_local, 'u', deriv_name, dim]
                 elif deriv_name_in_states and V_has_collocation_vars and kdx < n_k:
+                    if deriv_name == 'dp_ring':
+                        if dim == 0:
+                            local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
+                        else:
+                            local_val = 0
                     local_val = V[coll_var_name, kdx, ddx, 'x', deriv_name, dim]
                 elif deriv_name_in_controls and V_has_collocation_vars and not u_is_zoh and kdx < n_k:
                     local_val = V[coll_var_name, kdx, ddx, 'u', deriv_name, dim]
@@ -379,12 +457,13 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
     direct_collocation = (nlp_options['discretization'] == 'direct_collocation')
     radau_collocation = (direct_collocation and scheme == 'radau')
     other_collocation = (direct_collocation and (not scheme == 'radau'))
-
+    
     terminal_constraint = nlp_options['mpc']['terminal_point_constr']
 
-    if radau_collocation and not terminal_constraint:
-        var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
-    elif direct_collocation or multiple_shooting:
+    # if radau_collocation and not terminal_constraint:
+    #     import pdb; pdb.set_trace()
+    #     var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1, -1)
+    if direct_collocation or multiple_shooting:
         var_at_time = get_variables_at_time(nlp_options, V, Xdot, model.variables, -1)
     else:
         message = 'unfamiliar discretization option chosen: ' + nlp_options['discretization']
@@ -392,7 +471,7 @@ def get_variables_at_final_time(nlp_options, V, Xdot, model):
 
     return var_at_time
 
-def get_parameters_at_time(V, P, model_parameters):
+def get_parameters_at_time(V, P, model_parameters, model_parameters_dict, kdx, N_far):
     param_list = []
 
     for var_type in list(model_parameters.keys()):
@@ -401,6 +480,14 @@ def get_parameters_at_time(V, P, model_parameters):
         if var_type == 'theta0':
             param_list.append(P[var_type])
 
+    if 'p_near_2' in model_parameters.keys():
+        N_intervals = int(model_parameters['p_near_2'].shape[0]/2)
+        p_near_struct = model_parameters_dict['p_near_2']
+        p_far_struct = model_parameters_dict['p_far_2']
+        param_list.append(get_p_near(2, kdx, N_intervals, p_near_struct))
+        param_list.append(get_p_near(3, kdx, N_intervals, p_near_struct))
+        param_list.append(get_p_far(2, kdx, N_intervals, p_far_struct, N_far))
+        param_list.append(get_p_far(3, kdx, N_intervals, p_far_struct, N_far))
     param_at_time = model_parameters(cas.vertcat(*param_list))
 
     return param_at_time
@@ -1040,8 +1127,10 @@ def get_V_index(canonical):
         elif length == 1:
             name = canonical[0]
         else:
-            message = 'unexpected (distinct) canonical_index handing'
-            print_op.log_and_raise_error(message)
+            name = None
+        # else:
+        #     message = 'unexpected (distinct) canonical_index handing'
+        #     print_op.log_and_raise_error(message)
 
     return [var_is_coll_var, var_type, kdx, ddx, name, dim]
 
@@ -1396,7 +1485,7 @@ def get_variable_from_model_or_reconstruction(variables, var_type, name):
     print_op.log_and_raise_error(message)
     return None
 
-def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True):
+def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num, model_parameters, model_parameters_dict,  model_scaling, outputs_fun, outputs_dict, integral_output_names, integral_outputs_opt, Collocation=None, timegrid_label='ip', n_points=None, interpolate_time_grid = True, N_far = 0):
     '''
     Postprocess tracking reference data from V-structure to (interpolated) data vectors
         with associated time grid
@@ -1449,7 +1538,7 @@ def interpolate_solution(local_options, time_grids, variables_dict, V_opt, P_num
         interpolation['theta'][name] = V_opt['theta', name].full()[0][0]
 
     # output values
-    interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict)
+    interpolation['outputs'] = interpolate_outputs(V_vector_series_interpolated, V_opt, P_num, variables_dict, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, time_grids, N_far)
 
     # integral-output values
     if integral_outputs_opt.shape[0] != 0:
@@ -1466,7 +1555,7 @@ def build_time_grid_for_interpolation(time_grids, n_points):
     time_grid_interpolated = np.linspace(float(time_grids['x'][0]), float(time_grids['x'][-1]), n_points)
     return time_grid_interpolated
 
-def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_dict, model_parameters, model_scaling, outputs_fun, outputs_dict):
+def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_dict, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, time_grids, N_far = 0):
 
     # extra variables time series (SI units)
     x = V_vector_series_interpolated['x']
@@ -1480,8 +1569,7 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
     # model parameters
     theta = variables_dict['theta'](1.0)
     for theta_var in variables_dict['theta'].keys():
-        if theta_var != 't_f':
-            theta[theta_var] = V_sol['theta', theta_var]
+        theta[theta_var] = V_sol['theta', theta_var]
     theta = cas.repmat(theta.cat, 1, N_ip)
 
     # construct variables input time series
@@ -1489,7 +1577,16 @@ def interpolate_outputs(V_vector_series_interpolated, V_sol, P_num, variables_di
 
     # scale variables time series to evaluate output function
     variables = cas.mtimes(cas.diag(1./model_scaling), variables)
-    parameters = cas.repmat(get_parameters_at_time(V_sol, P_num, model_parameters).cat, 1, N_ip)
+    parameter_list = []
+    for idx in range(N_ip):
+        t = time_grids['ip'][idx]%time_grids['ip'][-1]
+        for j in range(time_grids['x'].shape[0]-1):
+            if t >= time_grids['x'][j] and t < time_grids['x'][j+1]:
+                kdx = j
+        parameter_list.append(
+            get_parameters_at_time(V_sol, P_num, model_parameters, model_parameters_dict, kdx, N_far)
+        )
+    parameters = cas.horzcat(*parameter_list)
 
     # compute outputs on interpolation grid
     outputs_fun_map = outputs_fun.map(N_ip)
@@ -1629,6 +1726,24 @@ def test():
     awelogger.logger.warning('no tests currently defined for struct_operations')
     return None
 
+def is_state_for_kdx(state, target_kdx, p1, p2, p3):
+    """Check if the state string matches the target kdx."""
+    parts = state.split('_')
+    if len(parts) == 5 and parts[0] == p1 and parts[1] == p2 and parts[2] == p3:
+        try:
+            kdx = int(parts[3])
+            return kdx == target_kdx
+        except ValueError:
+            return False
+    return False
+
+def get_idx_from_state(state):
+    """Extract idx from a valid state string."""
+    parts = state.split('_')
+    try:
+        return int(parts[4])
+    except (IndexError, ValueError):
+        return None
 
 def eval_time_grids_SAM(nlp_options: dict, tf_opt: ca.DM) -> Dict[str, np.ndarray]:
     """

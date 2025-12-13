@@ -116,13 +116,13 @@ class PhaseOptions:
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
 
-    if nlp_options['system_type'] == 'drag_mode':
+    if nlp_options['system_type'] == 'drag_mode' or nlp_options['type'] == 'aaa':
         # drag-mode phase fixing: fix y-speed of first system node
         if (kdx == 0) and (not coll_flag) and (name == 'dq10') and (var_type == 'x'):
             vars_lb[var_type, 0, name, 1] = 0.0
             vars_ub[var_type, 0, name, 1] = 0.0
 
-    elif nlp_options['system_type'] == 'lift_mode':
+    elif nlp_options['system_type'] == 'lift_mode' and nlp_options['type'] == 'power_cycle':
         # lift-mode phase fixing
 
         if (name == 'dl_t') and not (var_type == 'x'):

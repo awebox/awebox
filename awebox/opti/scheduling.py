@@ -75,12 +75,15 @@ def define_homotopy_schedule(formulation):
     if traj_type == 'tracking' and fix_tether_length == False:
         homotopy_schedule = homotopy_schedule + tether_release_schedule
 
-    make_induction_step = not (induction_model in ['not_in_use', 'averaged'])
+    make_induction_step = (not (induction_model in ['not_in_use', 'averaged']))
     if make_induction_step:
         homotopy_schedule = homotopy_schedule + induction_schedule
 
-    if traj_type == 'power_cycle':
+    if traj_type in ['power_cycle', 'aaa']:
         homotopy_schedule = homotopy_schedule + power_schedule
+
+    if traj_type == 'aaa':
+        homotopy_schedule = homotopy_schedule + induction_schedule
 
     if traj_type == 'nominal_landing':
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule

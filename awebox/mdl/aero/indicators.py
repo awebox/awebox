@@ -35,6 +35,7 @@ import numpy as np
 
 import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.general_dir.flow as general_flow
+import awebox.mdl.aero.kite_dir.tools as tools
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.performance_operations as perf_op
@@ -222,8 +223,16 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
     outputs['aerodynamics']['mach' + str(kite)] = get_mach(options, atmos, air_velocity, q)
     outputs['aerodynamics']['reynolds' + str(kite)] = get_reynolds(options, atmos, air_velocity, q, parameters)
 
-    return outputs
+    if 'dp_ring_2_0_0' in variables['x'].keys():
+        outputs['aerodynamics']['u_induced_far_wake' + str(kite)] = tools.u_induced_vortex_rings(variables, parameters, kite, architecture, options)
+        gamma_dipole = 2 * 0.8 * parameters['theta0', 'geometry', 'b_ref']**2 * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar'] * parameters['theta0', 'geometry', 'e']) * outputs['aerodynamics']['airspeed' + str(kite)]**2 / 100**3
+        outputs['aerodynamics']['gamma_dipole' + str(kite)] = gamma_dipole
+        outputs['aerodynamics']['n_dipole' + str(kite)] = - outputs['aerodynamics']['ehat_up{}'.format(kite)]
+        outputs['aerodynamics']['gamma_rectangle' + str(kite)] = 2 * parameters['theta0', 'geometry', 'b_ref'] * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar'] * parameters['theta0', 'geometry', 'e']) * outputs['aerodynamics']['airspeed' + str(kite)]**2 / 100**3
+        outputs['aerodynamics']['ec_rectangle' + str(kite)] = - air_velocity / outputs['aerodynamics']['airspeed' + str(kite)]
+        outputs['aerodynamics']['u_induced_near' + str(kite)] = outputs['aerodynamics']['airspeed' + str(kite)] * variables['x']['coeff{}1'.format(kite)][0] / (np.pi * parameters['theta0', 'geometry', 'ar'] * parameters['theta0', 'geometry', 'e'])
 
+    return outputs
 
 def collect_power_balance_outputs(options, architecture, variables, base_aerodynamic_quantities, outputs):
 
@@ -358,7 +367,7 @@ def collect_environmental_outputs(atmos, wind, base_aerodynamic_quantities, outp
     if 'environment' not in list(outputs.keys()):
         outputs['environment'] = {}
 
-    outputs['environment']['windspeed' + str(kite)] = vect_op.norm(wind.get_velocity(q[2]))
+    outputs['environment']['windspeed' + str(kite)] = wind.get_velocity(q[2])[0]
     outputs['environment']['pressure' + str(kite)] = atmos.get_pressure(q[2])
     outputs['environment']['temperature' + str(kite)] = atmos.get_temperature(q[2])
     outputs['environment']['density' + str(kite)] = atmos.get_density(q[2])

@@ -696,6 +696,7 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['variables_dict'] = struct_op.strip_of_contents(model.variables_dict)
     plot_dict['model_scaling'] = model.scaling.cat
     plot_dict['model_parameters'] = struct_op.strip_of_contents(model.parameters)
+    plot_dict['model_parameters_dict'] = struct_op.strip_of_contents(model.parameters_dict)
     plot_dict['model_variables'] = struct_op.strip_of_contents(model.variables)
     plot_dict['outputs_fun'] = model.outputs_fun
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
@@ -846,6 +847,7 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     Collocation = plot_dict['Collocation']
     P_fix_num = plot_dict['P']
     model_parameters = plot_dict['model_parameters']
+    model_parameters_dict = plot_dict['model_parameters_dict']
 
     if opt_or_ref == 'opt':
         store_name = 'interpolation'
@@ -868,8 +870,8 @@ def interpolate_data(plot_dict, cosmetics, si_or_scaled='si', opt_or_ref='opt'):
     # make the interpolation
     # todo: allow the interpolation to be imported directly from the quality-check, if the interpolation options are the same
     interpolation = struct_op.interpolate_solution(cosmetics, time_grids_plot, variables_dict, V_plot,
-        P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict, integral_output_names,
-        integral_outputs_plot, Collocation=Collocation)
+        P_fix_num, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict, integral_output_names,
+        integral_outputs_plot, Collocation=Collocation, N_far = plot_dict['options']['model']['aero']['vortex_rings']['N_far'])
 
     # store the interpolation
     dict_transfer = {store_name + '_' + si_or_scaled: interpolation}
@@ -895,6 +897,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
     V_ref_si = plot_dict['V_plot_si']
     P_fix_num = plot_dict['P']
     model_parameters = plot_dict['model_parameters']
+    model_parameters_dict = plot_dict['model_parameters_dict']
     model_scaling = plot_dict['model_scaling']
     outputs_dict = plot_dict['outputs_dict']
     outputs_fun = plot_dict['outputs_fun']
@@ -904,7 +907,7 @@ def interpolate_ref_data(plot_dict, cosmetics):
 
     # make the interpolation
     plot_dict['ref_si'] = struct_op.interpolate_solution(cosmetics, time_grids, variables_dict, V_ref_si,
-                                                   P_fix_num, model_parameters, model_scaling, outputs_fun, outputs_dict,
+                                                   P_fix_num, model_parameters, model_parameters_dict, model_scaling, outputs_fun, outputs_dict,
                                                    integral_output_names, integral_outputs_ref,
                                                    Collocation=Collocation, interpolate_time_grid = False, timegrid_label='ip')
 

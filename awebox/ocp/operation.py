@@ -232,21 +232,45 @@ def make_periodicity_equality(model, initial_model_variables, terminal_model_var
 
     periodicity_cstr = []
 
-    for name in struct_op.subkeys(initial_model_variables, 'x'):
+    if options['trajectory']['type'] == 'aaa' and model.architecture.number_of_kites == 2:
 
-        variable_is_an_integration_variable = name in model.integral_scaling.keys()
-        variable_is_a_wake_variable = (name[0] == 'w') or (name[:2] == 'dw')
-        variable_is_from_comparison_model = is_induction_variable_from_comparison_model(name, options)
+        periodicity = []
+        for name in struct_op.subkeys(initial_model_variables, 'x'):
 
-        variable_is_not_periodic = variable_is_an_integration_variable or variable_is_a_wake_variable or variable_is_from_comparison_model
-        if not variable_is_not_periodic:
+            if name in ['q21', 'dq21', 'coeff21', 'q31', 'dq31', 'coeff31']:
+                if name[-2:] == '21':
+                    counter_name = name[:-2] + '31'
+                else:
+                    counter_name = name[:-2] + '21'
+            else:
+                counter_name = name
 
             initial_value = vect_op.columnize(initial_model_variables['x', name])
-            final_value = vect_op.columnize(terminal_model_variables['x', name])
+            final_value = vect_op.columnize(terminal_model_variables['x', counter_name])
 
             difference = initial_value - final_value
 
-            periodicity_cstr = cas.vertcat(periodicity_cstr, difference)
+            periodicity.append(difference)
+
+        periodicity_cstr = cas.vertcat(*periodicity)
+
+    else:
+
+        for name in struct_op.subkeys(initial_model_variables, 'x'):
+
+            variable_is_an_integration_variable = name in model.integral_scaling.keys()
+            variable_is_a_wake_variable = (name[0] == 'w') or (name[:2] == 'dw')
+            variable_is_from_comparison_model = is_induction_variable_from_comparison_model(name, options)
+
+            variable_is_not_periodic = variable_is_an_integration_variable or variable_is_a_wake_variable or variable_is_from_comparison_model
+            if not variable_is_not_periodic:
+
+                initial_value = vect_op.columnize(initial_model_variables['x', name])
+                final_value = vect_op.columnize(terminal_model_variables['x', name])
+
+                difference = initial_value - final_value
+
+                periodicity_cstr = cas.vertcat(periodicity_cstr, difference)
 
     periodicity_eq = periodicity_cstr
 

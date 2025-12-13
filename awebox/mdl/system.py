@@ -161,7 +161,7 @@ def generate_structure(options, architecture):
                     )
 
     # _add global states and controls
-    if options['trajectory']['system_type'] == 'lift_mode':
+    if options['trajectory']['system_type'] == 'lift_mode' and options['trajectory']['type'] != 'aaa':
         system_states.extend([('l_t', (1, 1))])
         system_states.extend([('dl_t', (1, 1))])
 
@@ -186,6 +186,20 @@ def generate_structure(options, architecture):
     # introduce aerodynamics variables
     system_lifted, system_states = extend_aerodynamics(options, system_lifted, system_states, architecture)
 
+    if options['trajectory']['type'] == 'aaa':
+        for k in range(options['aero']['vortex_rings']['N']):
+            for i in range(options['aero']['vortex_rings']['N_rings']):
+                for j in [2,3]:
+                    system_states.extend([('p_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
+                    system_states.extend([('dp_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
+                    system_states.extend([('gamma_ring_{}_{}_{}'.format(j, k, i), (1, 1))])
+                    system_states.extend([('n_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
+                    if options['aero']['vortex_rings']['type'] == 'rectangle':
+                        system_states.extend([('ec_ring_{}_{}_{}'.format(j, k, i), (3, 1))])
+
+        for j in [2,3]:
+            system_lifted.extend([('u_induced_far_wake{}'.format(j), (3, 1))])
+
     # system state derivatives
     system_derivatives = []
     for i in range(len(system_states)):
@@ -193,7 +207,7 @@ def generate_structure(options, architecture):
 
     # system parameters
     system_parameters = [('diam_t', (1, 1)), ('t_f', (1, 1))]
-    if options['trajectory']['system_type'] == 'drag_mode':
+    if options['trajectory']['system_type'] == 'drag_mode' or options['trajectory']['type'] == 'aaa':
         system_parameters.extend([('l_t', (1, 1))])
 
     if (architecture.number_of_nodes - architecture.number_of_kites) > 1:
@@ -423,13 +437,37 @@ def generate_system_parameters(options, architecture):
 
     # optimization parameters
     parameters_dict['phi'] = generate_optimization_parameters()
-    parameters = cas.struct_symSX([
+    entry_list = [
         cas.entry('theta0', struct=parameters_dict['theta0']),
         cas.entry('phi', struct=parameters_dict['phi'])
-    ])
+    ]
+
+    if options['trajectory']['type'] == 'aaa':
+        p_near_entries = []
+        p_far_entries = []
+        for j in [2, 3]:
+            for k in range(options['aero']['vortex_rings']['N']):
+                p_near_entries.append(
+                    cas.entry('p_near_{}_{}'.format(j, k))
+                )
+                p_far_entries.append(
+                    cas.entry('p_far_{}_{}'.format(j, k))
+                )
+        parameters_dict['p_near_2'] = cas.struct_symSX(p_near_entries)
+        parameters_dict['p_near_3'] = cas.struct_symSX(p_near_entries)
+        parameters_dict['p_far_2'] = cas.struct_symSX(p_far_entries)
+        parameters_dict['p_far_3'] = cas.struct_symSX(p_far_entries)
+
+        entry_list += [
+            cas.entry('p_near_2', struct = parameters_dict['p_near_2']),
+            cas.entry('p_near_3', struct = parameters_dict['p_near_3']),
+            cas.entry('p_far_2', struct = parameters_dict['p_far_2']),
+            cas.entry('p_far_3', struct = parameters_dict['p_far_3'])
+        ]
+
+    parameters = cas.struct_symSX(entry_list)
 
     return parameters, parameters_dict
-
 
 def generate_optimization_parameters():
 

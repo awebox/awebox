@@ -57,6 +57,7 @@ class Optimization(object):
         self.__cumulative_max_memory = {}
         self.__iterations = {}
         self.__t_wall = {}
+        self.__t_f_eval = {}
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
@@ -173,6 +174,7 @@ class Optimization(object):
         for step in (set(self.__iterations.keys()) - set(['setup']) | set(['optimization'])):
             self.__iterations[step] = 0.
             self.__t_wall[step] = 0.
+            self.__t_f_eval[step] = 0.
 
         for step in (set(self.__return_status_numeric.keys()) - set(['setup']) | set(['optimization'])):
             self.__return_status_numeric[step] = 17
@@ -215,6 +217,7 @@ class Optimization(object):
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
         self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
+        self.__t_f_eval['optimization'] = self.__t_f_eval['optimization'] + self.__t_f_eval[step_name]
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
         if platform == 'linux':
@@ -414,9 +417,13 @@ class Optimization(object):
 
         if step_name not in list(self.__t_wall.keys()):
             self.__t_wall[step_name] = 0.
+            self.__t_f_eval[step_name] = 0.
 
         self.__iterations[step_name] += self.__stats['iter_count']
         self.__t_wall[step_name] += self.__stats['t_wall_total']
+        for stat in ['t_wall_nlp_f', 't_wall_nlp_g', 't_wall_nlp_grad', 't_wall_nlp_grad_f', 't_wall_nlp_hess_l', 't_wall_nlp_jac_g']:
+            self.__t_f_eval[step_name] += self.__stats[stat] 
+
         if 't_wall_callback_fun' in self.__stats.keys():
             self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
 
@@ -568,8 +575,11 @@ class Optimization(object):
 
         previous_step_failed = (return_status_number > 3)
         failure_due_to_max_iter = (return_status_number == 8)
+        failure_due_to_max_cpu_time = (return_status_number == 9)
         advance_despite_max_iter = self.__options['homotopy_method']['advance_despite_max_iter']
-        excuse_failure_due_to_max_iter = failure_due_to_max_iter and advance_despite_max_iter
+        advance_despite_max_cpu_time = self.__options['homotopy_method']['advance_despite_max_cpu_time']
+
+        excuse_failure_due_to_max_iter = (failure_due_to_max_iter and advance_despite_max_iter) or (failure_due_to_max_cpu_time and advance_despite_max_cpu_time)
 
         should_not_advance = previous_step_failed and not excuse_failure_due_to_max_iter
         if should_not_advance:
@@ -911,6 +921,16 @@ class Optimization(object):
     @t_wall.setter
     def t_wall(self, value):
         awelogger.logger.warning('Cannot set t_wall object.')
+
+
+    @property
+    def t_f_eval(self):
+        return self.__t_f_eval
+
+    @t_f_eval.setter
+    def t_f_eval(self, value):
+        awelogger.logger.warning('Cannot set t_f_eval object.')
+
 
     @property
     def return_status_numeric(self):

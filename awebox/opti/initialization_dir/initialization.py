@@ -86,6 +86,13 @@ def build_si_initial_guess(nlp, model, formulation, init_options, p_fix_num):
 
     V_init_si = extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict)
 
+    if init_options['type'] == 'aaa':
+        V_init_si['theta', 't_f'] = V_init_si['theta', 't_f'] / 2
+        V_init_si['x', :, 'coeff21', 0] = 1
+        V_init_si['x', :, 'coeff31', 0] = 1
+        V_init_si['coll_var', :, :, 'x', 'coeff21', 0] = 1
+        V_init_si['coll_var', :, :, 'x', 'coeff31', 0] = 1
+
     V_init_si = induction.initial_guess_induction(init_options, nlp, model, V_init_si, p_fix_num)
 
     V_init_si = set_xdot(V_init_si, nlp)
@@ -217,6 +224,37 @@ def extract_time_grid(model, nlp, formulation, init_options, V_init_si, ntp_dict
                         if name in ret.keys():
                             V_init_si['coll_var', ndx, ddx, var_type, name] = ret[name]
 
+
+    if 'p_ring_2_0_0' in model.variables_dict['x'].keys():
+        tf_guess = tf_guess.full()[0][0]
+        N = nlp.n_k
+        N_rings = model.options['aero']['vortex_rings']['N_rings']
+        for k in range(N):
+            for i in range(N_rings):
+                for j in [2, 3]:
+                    v_init = 10
+                    V_init_si['x', :, 'gamma_ring_{}_{}_{}'.format(j, k, i)] = 20
+                    V_init_si['coll_var', :, :, 'x', 'gamma_ring_{}_{}_{}'.format(j, k, i)] = 20
+                    V_init_si['x', :, 'n_ring_{}_{}_{}'.format(j, k, i)] = np.array([-1,0,0])
+                    V_init_si['coll_var', :, :, 'x', 'n_ring_{}_{}_{}'.format(j, k, i)] = np.array([-1,0,0])
+                    V_init_si['x', :, 'dp_ring_{}_{}_{}'.format(j, k, i)] = v_init
+                    V_init_si['coll_var', :, :, 'x', 'dp_ring_{}_{}_{}'.format(j, k, i)] = v_init
+                    q0 = V_init_si['x', k, 'q{}1'.format(j)]
+                    q1 = V_init_si['x', (k+1)%N_rings, 'q{}1'.format(j)]
+                    V_init_si['x', :, 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
+                    V_init_si['coll_var', :, :, 'x', 'p_ring_{}_{}_{}'.format(j, k, i)] = 0.5*(q0+q1) + np.array([0.5*tf_guess/2/n_k*v_init, 0,0])
+
+                    if model.options['aero']['vortex_rings']['type'] == 'rectangle':
+                        dq0 = V_init_si['x', k, 'dq{}1'.format(j)] / np.linalg.norm(V_init_si['x', k, 'dq{}1'.format(j)])
+                        V_init_si['x', :, 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
+                        V_init_si['coll_var', :, :, 'x', 'ec_ring_{}_{}_{}'.format(j, k, i)] = dq0
+
+                    for kk in range(N):
+                        q_0_convected = tf_guess * kk / n_k * v_init
+                        V_init_si['x', (k+kk)%(n_k), 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+                        for ddx in range(d):
+                            V_init_si['coll_var', (k+kk)%(n_k), ddx, 'x', 'p_ring_{}_{}_{}'.format(j, k, i), 0] += q_0_convected
+
     return V_init_si
 
 
@@ -229,6 +267,9 @@ def guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict
 
     elif init_options['type'] in ['transition']:
         ret = transition.guess_values_at_time(t, init_options, model, formulation, tf_guess, ntp_dict)
+
+    elif init_options['type'] in ['aaa']:
+        ret = standard.guess_values_at_time(t/2, init_options, model)
 
     else:
         ret = standard.guess_values_at_time(t, init_options, model)

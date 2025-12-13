@@ -148,6 +148,9 @@ def make_dynamics(options, atmos, wind, parameters, architecture):
     outputs, ellips_cstr = ellipsoidal_flight_constraint(options, system_variables['SI'], parameters, architecture, outputs)
     cstr_list.append(ellips_cstr)
 
+    outputs, elev_azim_cstr = elevation_azimuth_constraint(options, system_variables['SI'], parameters, architecture, outputs)
+    cstr_list.append(elev_azim_cstr)
+
     # ----------------------------------------
     #  sanity checking
     # ----------------------------------------
@@ -209,9 +212,28 @@ def check_that_all_xdot_vars_are_represented_in_dynamics(cstr_list, variables_di
 def get_dictionary_of_derivatives(model_options, system_variables, parameters, atmos, wind, outputs, architecture, scaling):
 
     # ensure that energy matches power integration
-    power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
-    energy_scaling = model_options['scaling']['x']['e']
-    derivative_dict = {'e': (power_si, energy_scaling)}
+    if model_options['trajectory']['type'] == 'power_cycle':
+        power_si, _ = get_power(model_options, system_variables, parameters, outputs, architecture, scaling)
+        energy_scaling = model_options['scaling']['x']['e']
+        derivative_dict = {'e': (power_si, energy_scaling)}
+
+    elif model_options['trajectory']['type'] == 'aaa':
+        tether_force_si = system_variables['SI']['z']['lambda10'] * system_variables['SI']['theta']['l_t']
+        force_scaling = model_options['scaling']['z']['lambda10']
+        derivative_dict = {'f10': (tether_force_si, force_scaling)}
+
+        # if model_options['aero']['vortex_rings']['N_rings'] != 0:
+        #     bref = parameters['theta0', 'geometry', 'b_ref']
+        #     ar = parameters['theta0', 'geometry', 'ar']
+        #     for j in [2,3]:
+        #         va = outputs['aerodynamics']['airspeed{}'.format(j)]
+        #         CL = system_variables['SI']['x']['coeff{}1'.format(j)][0]
+        #         gamma = 2 * bref / (np.pi * ar) * va * CL
+        #         derivative_dict['gamma_ring_{}'.format(j)] = (gamma, 1)
+
+        #         lift_vec = outputs['aerodynamics']['ehat_up{}'.format(j)]
+        #         for i in range(3):
+        #             derivative_dict['n_ring_{}_{}'.format(j, i)] = (- lift_vec[i], 1)
 
     if model_options['kite_dof'] == 6 and model_options['beta_cost']:
         beta_scaling = 1.
@@ -332,7 +354,10 @@ def get_power(options, system_variables, parameters, outputs, architecture, scal
         outputs['performance']['p_current'] = power
         outputs['performance']['power_derivative'] = lagr_tools.time_derivative(power, system_variables['scaled'], architecture, scaling)
     else:
-        power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        if 'l_t' in variables_si['x'].keys():
+            power = variables_si['z']['lambda10'] * variables_si['x']['l_t'] * variables_si['x']['dl_t']
+        else:
+            power = cas.SX(0.0)
         outputs['performance']['p_current'] = power
 
     return power, outputs
@@ -631,6 +656,35 @@ def ellipsoidal_flight_constraint(options, variables, parameters, architecture, 
 
     return outputs, cstr_list
 
+def elevation_azimuth_constraint(options, variables, parameters, architecture, outputs):
+
+
+    cstr_list = cstr_op.MdlConstraintList()
+
+    bounds = parameters['theta0', 'model_bounds', 'azimuth_elevation', 'bounds']
+    el_min = bounds[0]
+    el_max = bounds[1]
+    az_min = bounds[2]
+    if options['model_bounds']['azimuth_elevation']['include']:
+        l_t = variables['theta']['l_t']
+        q10 = variables['x']['q10']
+
+        xx = q10[0]
+        yy = q10[1]
+        zz = q10[2]
+
+        el_az_eq = cas.vertcat(
+            l_t * np.sin(el_min) - zz,
+            zz - l_t * np.sin(el_max),
+            xx * np.tan(az_min) - yy
+        )
+
+        elev_azim_cstr = cstr_op.Constraint(expr=el_az_eq,
+                                    name='elevation_azimuth_bounds',
+                                    cstr_type='ineq')
+        cstr_list.append(elev_azim_cstr)
+
+    return outputs, cstr_list
 
 def acceleration_inequality(options, variables):
 

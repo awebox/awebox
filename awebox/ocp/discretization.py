@@ -265,7 +265,8 @@ def discretize(nlp_options, model, formulation):
         Xdot = Collocation.get_xdot(nlp_options, V, model)
         [coll_outputs,
         Integral_outputs_list,
-        Integral_constraint_list] = Collocation.collocate_outputs_and_integrals(nlp_options, model, formulation, V, P, Xdot)
+        Integral_constraint_list,
+        integral_outputs_deriv] = Collocation.collocate_outputs_and_integrals(nlp_options, model, formulation, V, P, Xdot)
 
         ms_xf = None
         ms_z0 = None
@@ -374,7 +375,7 @@ def discretize(nlp_options, model, formulation):
     # -------------------------------------------
     ocp_cstr_list, ocp_cstr_struct = constraints.get_constraints(nlp_options, V, P, Xdot, model, dae, formulation,
         Integral_constraint_list, Collocation, Multiple_shooting, ms_z0, ms_xf,
-            ms_vars, ms_params, Outputs_structured, Integral_outputs, time_grids)
+            ms_vars, ms_params, Outputs_structured, Integral_outputs, integral_outputs_deriv, time_grids)
 
 
     if nlp_options['SAM']['use']:
