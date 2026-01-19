@@ -31,13 +31,6 @@ def rocking_mode_options():
     options['quality.test_param.t_f_min'] =  1
     options['quality.test_param.z_min'] = -np.inf  # The kite shouldn't go below z=0 but at least we don't get an error
 
-    # tether parameters
-    options['params.tether.cd'] = 1.2
-    options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
-    fixed_params['diam_t'] = 2e-3
-    options['user_options.tether_drag_model'] = 'multi'
-    options['model.tether.aero_elements'] = 5
-
     # Operation mode
     options['user_options.trajectory.type'] = 'power_cycle'
     options['user_options.trajectory.system_type'] = 'rocking_mode'
@@ -52,23 +45,12 @@ def rocking_mode_options():
     fixed_params['arm_inertia'] = 2000
     fixed_params['torque_slope'] = 1500
 
-    # Fixed parameter values (not optimized), overwrite initialization values
-
     # Control of the torque of the arm
     options['user_options.trajectory.rocking_mode.enable_arm_control'] = False
     options['model.system_bounds.u.dactive_torque'] = [-np.inf, np.inf]  # By default, dactive_torque is not directly constrained
     options['model.system_bounds.x.active_torque'] = [-np.inf, np.inf]  # This can be used to constrain active_torque
     options['model.arm.zero_avg_active_torque'] = True  # True by default, necessary for symmetry
     options['model.arm.zero_avg_active_power'] = None  # When None: any([torque_slope, arm_inertia] in fixed_params), cf. opts.model_funcs.build_arm_control_options
-
-    # Other equality and inequality constraints
-    options['model.model_bounds.rotation.include'] = False
-    options['model.model_bounds.airspeed.include'] = False
-    options['model.model_bounds.acceleration.include'] = False
-    options['model.model_bounds.tether_force.include'] = False
-    options['params.model_bounds.tether_force_limits'] = np.array([1e0, 7.5e3])
-    options['model.model_bounds.tether_stress.include'] = True
-    options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10]), np.array([np.inf, np.inf, np.inf])
 
     # Initialize the trajectory (new lemniscate option)
     options['solver.initialization.shape'] = 'lemniscate'
@@ -79,11 +61,27 @@ def rocking_mode_options():
     options['solver.initialization.groundspeed'] = 55  # m/s
     options['solver.initialization.init_clipping'] = False  # Iteratively refine initialization **assuming the trajectory is circular**
 
+    # tether parameters
+    options['params.tether.cd'] = 1.2
+    options['params.tether.rho'] = 0.0046*4/(np.pi*0.002**2)
+    fixed_params['diam_t'] = 2e-3
+    options['user_options.tether_drag_model'] = 'multi'
+    options['model.tether.aero_elements'] = 5
+
     # Wind profile
     options['params.wind.z_ref'] = 10  # m
     options['user_options.wind.u_ref'] = 9  # m/s
     options['user_options.wind.model'] = 'power'
     options['params.wind.power_wind.exp_ref'] = 0.15  # Power in the power model
+
+    # Other equality and inequality constraints
+    options['model.model_bounds.rotation.include'] = False
+    options['model.model_bounds.airspeed.include'] = False
+    options['model.model_bounds.acceleration.include'] = False
+    options['model.model_bounds.tether_force.include'] = False
+    options['params.model_bounds.tether_force_limits'] = np.array([1e0, 7.5e3])
+    options['model.model_bounds.tether_stress.include'] = True
+    options['model.system_bounds.x.q'] = np.array([-np.inf, -np.inf, 10]), np.array([np.inf, np.inf, np.inf])
 
     # NLP options
     # By default, direct collocation using Radau scheme with order 4 lagrange polynomials
@@ -92,6 +90,10 @@ def rocking_mode_options():
     options['solver.linear_solver'] = 'ma57'  # recommended: 'ma57' if HSL installed, otherwise 'mumps'
     options['nlp.cost.beta'] = False # penalize side-slip (can improve convergence)
     options['solver.cost.theta_regularisation.0'] = 1e-8  # Default of 1 barely optimizes the parameters
+
+    # (experimental) set to "True" to significantly (factor 5 to 10) decrease construction time
+    # note: this may result in slightly slower solution timings
+    options['nlp.compile_subfunctions'] = True
 
     options['user_options.trajectory.fixed_params'] = fixed_params
 
@@ -102,7 +104,7 @@ If initialization is set for any parameter (solver.initialization.l_t or solver.
 remove it from user_options.trajectory.fixed_params
 Initializing with None, as in `options['solver.initialization.theta.arm_inertia'] = None`, will use the value found in `fixed_params`
 
-**This needs testing**, for for 'l_t' and 'arm_inertia':
+**This needs testing**, for 'l_t' and 'arm_inertia':
  - don't set `solver.initialization.***` -> same value in fixed_params and `solver.initialization.***`.
  - set `solver.initialization.***` to None -> popped value from fixed_params and assign it to `solver.initialization.***` instead of None
  - set  `solver.initialization.***` to a value -> popped value in fixed_params, and `solver.initialization.***` stays untouched
@@ -378,26 +380,27 @@ def main():
     options = post_process_options_for_parameter_optimization(options)
     trial = awe.Trial(options, 'Rocking_Arm_Ampyx_AP2')
     trial.build()
-    trial.optimize(final_homotopy_step='initial_guess')
-    trial.plot(['states', 'quad'])
-    plot_dict_init = deepcopy(trial.visualization.plot_dict)
-    trial.optimize(final_homotopy_step='final')  # final_homotopy_step=['initial_guess', 'final'] to control when to stop the homotopy process
-    plot_dict = trial.visualization.plot_dict
+    plot_dicts = {}
+    for final_homotopy_step in ['initial_guess', 'initial', 'fictitious', 'power', 'final']:
+        trial.optimize(final_homotopy_step=final_homotopy_step)
+        plot_dicts[final_homotopy_step] = deepcopy(trial.visualization.plot_dict)
+        trial.plot('states')
+        trial.plot('quad')
+        print_op.base_print(f'## Stats of solution at homotopy step [{final_homotopy_step}]', level='info')
+        print_stats(trial.visualization.plot_dict)
 
-    print_op.base_print("## Stats of initialization", level='info')
-    print_stats(plot_dict_init)
-    print_op.base_print("## Stats of solution", level='info')
-    print_stats(plot_dict)
-    trial.plot(['states', 'quad'])
     trial.plot(['controls', 'invariants'])
-    plot_arm_torques_and_energies(plot_dict)
-    plot_arm_states(plot_dict)
-    return trial, plot_dict_init, plot_dict
+    final_plot_dict = trial.visualization.plot_dict
+    plot_arm_torques_and_energies(final_plot_dict)
+    plot_arm_states(final_plot_dict)
+    plt.show()
+    # plot_states(plot_dict)
+    return trial, final_plot_dict, plot_dicts
 
 if __name__ == "__main__":
     # test_terminal_constraints()  # Run once to check that options are correctly used
-    trial, plot_dict_init, plot_dict = main()
-    xi = plot_dict_init['x']
+    trial, plot_dict, plot_dicts = main()
+    xi = plot_dicts['initial_guess']['x']
     x = plot_dict['x']
     plt.show()
 
