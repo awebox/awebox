@@ -18,7 +18,6 @@ import numpy as np
 from copy import deepcopy
 import awebox.tools.print_operations as print_op
 
-# TODO: define common_options, then rocking_mode_options, lift_mode_options, drag_mode_options
 def common_options():
     options = {}
     fixed_params = {}
@@ -258,7 +257,13 @@ def print_stats(plot_dict):
 
 def main():
     options = common_options()
-    options = lift_mode_options(options)
+    lift_options = lift_mode_options(options)
+    drag_options = drag_mode_options(options)
+    rocking_options = rocking_mode_options(options)
+    rocking_options = rocking_mode_example_2(rocking_mode_options)
+
+    options = rocking_options
+    options = post_process_options_for_parameter_optimization(options)
 
     trial = awe.Trial(options, 'Drag_Ampyx_AP2')
     trial.build()
