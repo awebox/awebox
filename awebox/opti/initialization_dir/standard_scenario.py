@@ -153,16 +153,20 @@ def guess_values_at_time(t, init_options, model):
 
                 # Closures for position and velocity of lemniscate with constant speed
                 # TODO: compute the interpolation once instead of at each time step
+                
+                # Old way, non-constant speed
+                az, el = tools.lissajous_curve(t, w_lem, h_lem, a=phase_rate)
+                azdot, eldot = tools.lissajous_dcurve(t, w_lem, h_lem, a=phase_rate)
+
+                # New way, constant speed
                 # get_pos, get_vel, _ = tools.uniform_lemniscate_trajectory(w_lem, h_lem, init_options['precompute']['time_final'])
                 # az, el = get_pos(t)
-                az, el = tools.lissajous_curve(t, w_lem, h_lem, a=phase_rate)
+                # azdot, eldot = get_vel(t)
+
                 el = el + el0
                 x, y, z = tools.calc_cartesian_coords(az, el, l_t)
                 q = cas.vertcat(x,y,z)  # Could potentially add `q_parent`
                 ret['q' + str(node) + str(parent)] = q
-
-                # azdot, eldot = get_vel(t)
-                azdot, eldot = tools.lissajous_dcurve(t, w_lem, h_lem, a=phase_rate)
                 dx, dy, dz = tools.calc_cartesian_speed(az, el, azdot, eldot, l_t)
                 ret['dq' + str(node) + str(parent)] = cas.vertcat(dx,dy,dz)
 
