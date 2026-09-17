@@ -36,11 +36,12 @@ import awebox.tools.print_operations as print_op
 
 
 class Constraint:
-    def __init__(self, expr=None, cstr_type=None, name=None):
+    def __init__(self, expr=None, cstr_type=None, name=None, parameter_dict={}):
 
         self.__expr = None
         self.__cstr_type = None
         self.__name = None
+        self.__parameter_dict = {}
 
         expr_is_expected = self.is_expr_as_expected(expr)
         if expr_is_expected:
@@ -62,6 +63,8 @@ class Constraint:
         else:
             message = 'unexpected constraint name: ' + repr(name)
             awelogger.logger.warning(message)
+
+        self.__parameter_dict = parameter_dict
 
     def is_constraint_complete(self):
         return (self.__expr is not None) and (self.__name is not None) and (self.__cstr_type is not None)
@@ -144,7 +147,18 @@ class Constraint:
     def name(self, value):
         awelogger.logger.warning('Cannot set name object.')
 
+    @property
+    def parameter_dict(self):
+        return self.__parameter_dict
 
+    @parameter_dict.setter
+    def parameter_dict(self, value):
+        awelogger.logger.warning('Cannot set parameter_dict object.')
+        return None
+
+    def set_parameter_dict(self, value):
+        self.__parameter_dict = value
+        return None
 
 
 class ConstraintList:

@@ -359,12 +359,7 @@ class Collocation(object):
     def get_continuity_constraint(self, V, kdx):
 
         # get an expression for the state at the end of the finite element
-        xf_k = 0
-        for ddx in range(self.__d + 1):
-            if ddx == 0:
-                xf_k += self.__coeff_continuity[ddx] * V['x', kdx]
-            else:
-                xf_k += self.__coeff_continuity[ddx] * V['coll_var', kdx, ddx-1, 'x']
+        xf_k = self.get_continuity_expression(V, kdx)
 
         # pin the end of the control interval to the start of the new control interval
         g_continuity = V['x', kdx + 1] - xf_k

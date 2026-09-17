@@ -165,7 +165,7 @@ class NLP(object):
     def print_nlp_options(self):
 
         awelogger.logger.info('')
-        awelogger.logger.info('NLP options:')
+        table_name = 'NLP options:'
         options_dict = {
             'Number of intervals':self.__options['n_k'],
             'Discretization method':self.__options['discretization']
@@ -179,14 +179,14 @@ class NLP(object):
         if self.__options['system_type'] == 'lift_mode':
             options_dict['Phase-fix strategy'] = self.__options['phase_fix']
 
-        print_op.print_dict_as_table(options_dict)
+        print_op.print_dict_as_table(options_dict, caption=table_name)
 
         return None
 
     def print_nlp_dimensions(self):
 
         awelogger.logger.info('')
-        awelogger.logger.info('NLP dimensions:')
+        table_name = 'NLP dimensions:'
         dimension_dict = {
             'n_var': self.__V.shape[0],
             'n_param': self.__P.shape[0]}
@@ -198,7 +198,7 @@ class NLP(object):
                 dimension_dict['n_' + cstr_type] = 0
 
         self.__dimensions_dict = dimension_dict
-        print_op.print_dict_as_table(dimension_dict)
+        print_op.print_dict_as_table(dimension_dict, caption=table_name)
 
         return None
 

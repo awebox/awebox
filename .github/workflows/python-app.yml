@@ -3,39 +3,103 @@
 
 name: build
 
-on: [push]
+on:
+  push:
+  pull_request:
 
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+
+    env:
+      MPLBACKEND: Agg
+
     strategy:
+      fail-fast: false
       matrix:
         os: ['ubuntu-latest', 'windows-latest', 'macos-latest']
-        python-version: [3.8, 3.9]
+        python-version: ['3.8', '3.9', '3.10']
+
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install flake8 pytest
-        python3 -m pip install -r requirements.txt
+        python -m pip install --upgrade pip
+        python -m pip install "setuptools<71" wheel
+        python -m pip install flake8 pytest
+        python -m pip install -r requirements.txt 
+
     - name: Install package
       run: |
-        python3 setup.py install
+        python -m pip install .
+
+
+    - name: Patch old CasADi wheel for current macOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        CASADI_DIR="$(python -c 'import os, casadi; print(os.path.dirname(casadi.__file__))')"
+
+        echo "CasADi version:"
+        python -c "import casadi; print(casadi.__version__)"
+        echo "CasADi directory: $CASADI_DIR"
+
+        find "$CASADI_DIR" -type f \( -name '*.dylib' -o -name '*.so' \) -print0 |
+        while IFS= read -r -d '' lib; do
+
+          rpath_file="$(mktemp)"
+          seen_file="$(mktemp)"
+
+          otool -l "$lib" 2>/dev/null |
+            awk '$1=="cmd" && $2=="LC_RPATH" {getline; getline; print $2}' \
+            > "$rpath_file" || true
+
+          changed=0
+
+          while IFS= read -r rpath; do
+            [ -z "$rpath" ] && continue
+
+            if grep -Fxq "$rpath" "$seen_file"; then
+              echo "Removing duplicate RPATH '$rpath' from:"
+              echo "  $lib"
+              install_name_tool -delete_rpath "$rpath" "$lib"
+              changed=1
+            else
+              printf '%s\n' "$rpath" >> "$seen_file"
+            fi
+          done < "$rpath_file"
+
+          rm -f "$rpath_file" "$seen_file"
+
+          if [ "$changed" -eq 1 ]; then
+            echo "Re-signing $lib"
+            codesign --force --sign - "$lib"
+          fi
+        done
+
+
+    - name: Check CasADi and IPOPT
+      run: |
+        python -c "import platform; print('machine:', platform.machine())"
+        python -c "import casadi; print('casadi:', casadi.__version__); print('path:', casadi.__file__)"
+        python -c "import casadi; print(casadi.CasadiMeta_plugins())"
+        python -c "import casadi as ca; x=ca.MX.sym('x'); ca.nlpsol('s','ipopt',{'x':x,'f':x*x}); print('IPOPT OK')"
+
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        python -m flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Env
-      shell: bash
-      run: |
-        echo "MPLBACKEND=Agg" >> $GITHUB_ENV
+        python -m flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
     - name: Test with pytest
       run: |
-        pytest test/units
+        python -m pytest test/units

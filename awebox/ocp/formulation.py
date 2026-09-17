@@ -85,6 +85,7 @@ class Formulation(object):
         self.__tether_drag_model = options['tether_drag_model']
         self.__fix_tether_length = options['trajectory']['tracking']['fix_tether_length']
         self.__phase_fix = options['phase_fix']
+        self.__lb_dl_t_reelout = options['params']['tether']['ld_dl_t_reelout']
 
         self.__enforce_periodicity = periodic
         self.__enforce_initial_conditions = initial_conditions
@@ -239,6 +240,14 @@ class Formulation(object):
     @phase_fix.setter
     def phase_fix(self):
         awelogger.logger.warning('Cannot set phase_fix object.')
+
+    @property
+    def lb_dl_t_reelout(self):
+        return self.__lb_dl_t_reelout
+
+    @lb_dl_t_reelout.setter
+    def lb_dl_t_reelout(self):
+        awelogger.logger.warning('Cannot set lb_dl_t_reelout object.')
 
     @property
     def system_type(self):

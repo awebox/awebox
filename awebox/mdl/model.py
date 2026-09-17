@@ -26,18 +26,22 @@
 # Class Model contains physics description necessary to model the tree-structure multi-kite system
 ###################################
 
-
 from . import atmosphere
 from . import wind
 from . import system
 from . import dynamics as dyn
+import awebox.mdl.aero.tether_dir.tether as tether_tether
 
-import awebox.tools.print_operations as print_op
 import time
 from . import dae
 from awebox.logger.logger import Logger as awelogger
+import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.save_operations as save_op
 import casadi.tools as cas
+
+from .architecture import Architecture
+
 
 class Model(object):
     def __init__(self):
@@ -45,7 +49,7 @@ class Model(object):
         self.__outputs = None
         self.__type = 'Model'
 
-    def build(self, options, architecture):
+    def build(self, model_options, architecture, trial_name=None, options_object=None):
 
         awelogger.logger.info('Building model...')
 
@@ -56,20 +60,25 @@ class Model(object):
             self.__timings = {}
             timer = time.time()
             self.__architecture = architecture
-            self.__generate_system_parameters(options)
-            self.__generate_atmosphere(options['atmosphere'])
-            self.__generate_wind(options['wind'])
-            self.__generate_system_dynamics(options)
-            self.generate_scaled_variable_bounds(options)
-            self.__generate_parameter_bounds(options)
-            self.__options = options
+            self.__generate_system_parameters(model_options)
+            self.__options_object = options_object
+            self.__generate_atmosphere(model_options['atmosphere'])
+            self.__generate_wind(model_options['wind'])
+            self.__tether_obj = tether_tether.Tether(model_options, self.__parameters, self.__wind, self.__atmos, options_object=options_object)
+            self.__kite_obj_for_printing_only = print_op.PrintableObject(options_object=self.__options_object, name='kite')
+            self.__kite_obj_for_printing_only.add_to_applied_params_dict('user_options.kite_standard.name', model_options['system_summary_string'])
+
+            self.__generate_system_dynamics(model_options)
+            self.generate_scaled_variable_bounds(model_options)
+            self.__generate_parameter_bounds(model_options)
+            self.__options = model_options
             self.__model_dae = None
 
             self.__timings['overall'] = time.time()-timer
 
             self.__status = 'I am a model.'
             
-            self.print_model_info()
+            self.print_model_info(trial_name=trial_name)
 
     def __generate_system_parameters(self, options):
 
@@ -78,20 +87,23 @@ class Model(object):
         return None
 
     def __generate_atmosphere(self, atmosphere_options):
-
-        self.__atmos = atmosphere.Atmosphere(atmosphere_options, self.__parameters)
-
+        self.__atmos = atmosphere.Atmosphere(atmosphere_options, self.__parameters, options_object=self.__options_object)
         return None
 
     def __generate_wind(self, wind_model_options):
 
-        self.__wind = wind.Wind(wind_model_options, self.__parameters)
+        self.__wind = wind.Wind(wind_model_options, self.__parameters, options_object=self.__options_object)
         self.__wind_options = wind_model_options
 
         return None
 
 
     def __generate_system_dynamics(self,options):
+
+        if (self.__options_object is not None) and (hasattr(self.__options_object, 'help_dict')):
+            options_help = self.__options_object.help_dict
+        else:
+            options_help = None
 
         [variables,
         variables_dict,
@@ -103,7 +115,12 @@ class Model(object):
         integral_outputs,
         integral_outputs_fun,
         integral_scaling,
-        wake] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters, self.__architecture)
+        wake,
+        self.__kite_obj_for_printing_only,
+        self.__tether_obj] = dyn.make_dynamics(options, self.__atmos, self.__wind, self.__parameters,
+                                                self.__architecture, options_help=options_help,
+                                                kite_obj_for_printing_only=self.__kite_obj_for_printing_only,
+                                                tether_obj=self.__tether_obj)
 
         self.__kite_dof = options['kite_dof']
         self.__kite_geometry = {} #options['geometry']
@@ -165,10 +182,8 @@ class Model(object):
         self.__parameter_bounds = param_bounds
         return None
 
-    def print_model_info(self):
+    def get_printable_model_info_dicts(self):
 
-        awelogger.logger.info('')
-        awelogger.logger.info('Model options:')
         options_dict = {
             'Atmosphere model': self.__options['atmosphere']['model'],
             'Wind model': self.__options['wind']['model'],
@@ -180,19 +195,14 @@ class Model(object):
             'Tether control var': self.__options['tether']['control_var'],
             'Tether drag model': self.__options['tether']['tether_drag']['model_type']
         }
-
         if self.__options['tether']['tether_drag']['model_type'] == 'multi':
             options_dict['Tether drag elements'] = self.__options['tether']['aero_elements']
         if self.__architecture.number_of_kites > 1:
             options_dict['Cross-tether'] = self.__options['cross_tether']
         if self.__options['cross_tether']:
             options_dict['Cross-tether attachment'] = self.__options['tether']['cross_tether']['attachment']
-
         options_dict['Induction model'] = self.__options['induction_model']
 
-        print_op.print_dict_as_table(options_dict)
-
-        awelogger.logger.info('Model dimensions:')
         dimensions_dict = {
             'nx': self.variables_dict['x'].shape[0],
             'nu': self.variables_dict['u'].shape[0],
@@ -200,18 +210,75 @@ class Model(object):
             'np_var': self.variables_dict['theta'].shape[0],
             'np_fix': self.parameters_dict['theta0'].shape[0]
         }
-        self.__dimensions_dict = dimensions_dict
-        print_op.print_dict_as_table(dimensions_dict)
-
-        awelogger.logger.info('Model constraints:')
 
         cstr_list = []
         for cstr in self.constraints_dict['inequality'].keys():
             cstr_name = struct_op.split_name_and_node_identifier(cstr)[0]
             if cstr_name not in cstr_list:
                 cstr_list.append(cstr_name)
-                awelogger.logger.info('* {}'.format(cstr_name))
-        awelogger.logger.info('')
+
+        return options_dict, dimensions_dict, cstr_list
+
+
+    def print_model_info(self, to_echo_or_latex='echo', latex_dict={}, nan_replacement='--', trial_name='', V_opt=None, p_fix_num=None, save=False):
+
+        caption_addendum = ''
+        if (trial_name != '') and (trial_name is not None):
+            caption_addendum = ' for ' + trial_name
+
+        def local_display(string):
+            if to_echo_or_latex == 'latex':
+                print(string)
+            else:
+                print_op.base_print(string, level='info')
+
+        def local_latex_dict(name_string):
+            if (V_opt is not None) and (p_fix_num is not None):
+                if name_string in latex_dict.keys():
+                    return latex_dict[name_string]
+                else:
+                    return latex_dict
+
+        def save_string_out(string_to_save):
+            if save:
+                save_op.write_string_to_txt_or_tex(string_to_save, trial_name.replace(' ', '_'),
+                                                   to_echo_or_latex=to_echo_or_latex)
+            return None
+
+        options_dict, dimensions_dict, cstr_list = self.get_printable_model_info_dicts()
+
+        local_display('')
+        string_out = print_op.print_dict_as_table(options_dict, to_echo_or_latex=to_echo_or_latex, caption='Model options' + caption_addendum)
+        save_string_out(string_out)
+
+        self.__dimensions_dict = dimensions_dict
+        string_out = print_op.print_dict_as_table(dimensions_dict, to_echo_or_latex=to_echo_or_latex, caption='Model dimensions' + caption_addendum, latex_dict=local_latex_dict('model_dimensions'))
+        save_string_out(string_out)
+
+        if (V_opt is not None) and (p_fix_num is not None):
+
+            def make_object_report(printable_object=None, latex_dict_keyname=''):
+                copy_dict = struct_op.make_copy_of_parameter_dict_with_value_column_evaluated(
+                    printable_object.applied_parameters_dict, V_opt=V_opt, p_fix_num=p_fix_num, model_parameters=self.__parameters)
+                caption = printable_object.name + ' parameters'
+                if (trial_name != '') and (trial_name is not None):
+                    caption += ' for ' + trial_name
+                string_out = print_op.print_dict_as_table(copy_dict, level='info', to_echo_or_latex=to_echo_or_latex,
+                                             caption=caption, nan_replacement=nan_replacement,
+                                             latex_dict=local_latex_dict(latex_dict_keyname),
+                                             transpose=True, latex_symbolic_in_first_column=True)
+                if save:
+                    save_string_out(string_out)
+                return None
+
+            make_object_report(printable_object=self.atmos, latex_dict_keyname='environment')
+            make_object_report(printable_object=self.wind, latex_dict_keyname='environment')
+            make_object_report(printable_object=self.tether_obj, latex_dict_keyname='tether')
+            make_object_report(printable_object=self.kite_obj_for_printing_only, latex_dict_keyname='kite')
+
+        dyn.report_applied_inequalities(self.constraints_list, to_echo_or_latex=to_echo_or_latex, V_opt=V_opt, p_fix_num=p_fix_num, model_parameters=self.parameters, latex_dict=local_latex_dict('model_ineq_bounds'), trial_name=trial_name, save=save)
+
+        system.report_model_bounds(self.__options_object, self.variables, to_echo_or_latex=to_echo_or_latex, latex_dict=local_latex_dict('model_var_bounds'), nan_replacement=nan_replacement, trial_name=trial_name, save=save)
 
     @property
     def kite_geometry(self):
@@ -220,6 +287,24 @@ class Model(object):
     @kite_geometry.setter
     def kite_geometry(self, geometry_options):
         self.__kite_geometry = geometry_options
+        return None
+
+    @property
+    def kite_obj_for_printing_only(self):
+        return self.__kite_obj_for_printing_only
+
+    @kite_obj_for_printing_only.setter
+    def kite_obj_for_printing_only(self, value):
+        awelogger.logger.warning('Cannot set kite_obj_for_printing_only object.')
+        return None
+
+    @property
+    def tether_obj(self):
+        return self.__tether_obj
+
+    @tether_obj.setter
+    def tether_obj(self, value):
+        awelogger.logger.warning('Cannot set tether_obj object.')
         return None
 
     @property

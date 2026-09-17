@@ -76,7 +76,7 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
         CL = outputs['aerodynamics']['CL' + str(kite)]
 
         f_aero_wind = outputs['aerodynamics']['f_aero_wind' + str(kite)]
-        f_lift_norm = f_aero_wind[2]
+        f_lift_signed_mag = f_aero_wind[2]
 
         lift_hat_wind = vect_op.zhat_dm()
         lift_hat_earth = frames.from_wind_to_earth(air_velocity, kite_dcm, lift_hat_wind)
@@ -85,8 +85,8 @@ def get_circulation_outputs(model_options, atmos, wind, variables_si, outputs, p
         # vec_lift / span = rho circulation (vec_u_eff \cross \ehat2)
         # lift / span = rho circulation
         # circulation = lift / (rho span) / ((vec_u_eff \cross \ehat2) \dot \lhat)
-        circulation_dot = f_lift_norm / (rho * b_ref) / (cas.mtimes(lift_hat_earth.T, vect_op.cross(air_velocity, ehat_span)))
-        circulation_cross = f_lift_norm / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
+        circulation_dot = f_lift_signed_mag / (rho * b_ref) / (cas.mtimes(lift_hat_earth.T, vect_op.cross(air_velocity, ehat_span)))
+        circulation_cross = f_lift_signed_mag / b_ref / rho / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
         circulation_cl = 0.5 * airspeed**2. * CL * c_ref / vect_op.smooth_norm(vect_op.cross(air_velocity, ehat_span))
         outputs['aerodynamics']['circulation_dot' + str(kite)] = circulation_dot
         outputs['aerodynamics']['circulation_cross' + str(kite)] = circulation_cross
@@ -226,7 +226,15 @@ def collect_kite_aerodynamics_outputs(options, architecture, atmos, wind, variab
         outputs['aerodynamics']['wingtip_' + tip + str(kite)] = x_wingtip
         outputs['aerodynamics']['u_app_' + tip + str(kite)] = u_app_wingtip
 
+    n_k = options['aero']['reduced_frequency']['n_k']
     outputs['aerodynamics']['fstar_aero' + str(kite)] = cas.mtimes(air_velocity.T, ehat_chord) / c_ref
+    fstar_control_dict = {'n_k': n_k / variables['theta']['t_f']}
+    if int(options['kite_dof']) == 6:
+        for idx in range(3):
+            fstar_control_dict['delta' + str(idx)] = variables['u']['ddelta' + str(kite) + str(architecture.parent_map[kite])][idx] / variables['x']['delta' + str(kite) + str(architecture.parent_map[kite])][idx]
+    for name, val in fstar_control_dict.items():
+        outputs['aerodynamics']['fstar_control_' + name + '_' + str(kite)] = val
+        outputs['aerodynamics']['reduced_frequency_' + name + '_' + str(kite)] = np.pi * val / outputs['aerodynamics']['fstar_aero' + str(kite)]
 
     outputs['aerodynamics']['r' + str(kite)] = kite_dcm.reshape((9, 1))
 
@@ -462,10 +470,10 @@ def get_beta(ua, r):
     return beta
 
 def get_dynamic_pressure(atmos, wind, zz):
+    # todo: does this get used anywhere?
     u = wind.get_velocity(zz)
     rho = atmos.get_density(zz)
     q = 0.5 * rho * cas.mtimes(u.T, u)
-
     return q
 
 def get_power_density(atmos, wind, zz):

@@ -43,16 +43,16 @@ import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 # MASS OUTPUTS CREATION
 # ======================
 
-def generate_mass_outputs(options, variables_si, outputs, parameters, architecture, scaling):
+def generate_mass_outputs(options, variables_si, outputs, parameters, architecture, scaling, tether_obj=None):
 
     if 'masses' not in list(outputs.keys()):
         outputs['masses'] = {}
 
     for node in range(1, architecture.number_of_nodes):
-        seg_props = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=node)
+        seg_props, tether_obj = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, upper_node=node, tether_obj=tether_obj)
         outputs['masses']['m_tether{}'.format(node)] = seg_props['seg_mass']
 
-    return outputs
+    return outputs, tether_obj
 
 
 # =====================
@@ -72,14 +72,14 @@ def estimate_node_mass_scaling(options, variables_si, parameters, architecture, 
 
         node_mass = cas.DM(0.)
 
-        segment_under_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling,
-                                                                                  variables_si, parameters, node)
+        segment_under_node_properties, _ = tether_aero.get_tether_segment_properties(options, architecture, scaling,
+                                                                                  variables_si, parameters, node, tether_obj=None)
         mass_under_node = segment_under_node_properties['scaling_mass']
         node_mass += mass_under_node / 2.
 
         if node in architecture.children_map.keys():
             for child in architecture.children_map[node]:
-                segment_above_node_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, child)
+                segment_above_node_properties, _ = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, child, tether_obj=None)
                 mass_above_node = segment_above_node_properties['scaling_mass']
                 node_mass += mass_above_node / 2.
 

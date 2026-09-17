@@ -2,7 +2,7 @@
 from platform import architecture
 
 import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 
 import awebox as awe
 
@@ -51,10 +51,14 @@ def get_basic_options_for_convergence_expense_and_comparison(options):
     options['model.aero.vortex.representation'] = 'alg'
     options['model.aero.vortex.convection_type'] = 'rigid'
     options['model.aero.vortex.core_to_chord_ratio'] = 0.05
+    options['model.aero.actuator.a_ref'] = 0.1
+    options['model.aero.vortex.wu_ind_scaling_method'] = 'infty_ref'
 
     options['model.model_bounds.tether_stress.include'] = True
     options['model.model_bounds.tether_force.include'] = False
     options['user_options.trajectory.fixed_params'] = {}
+    
+    options['model.model_bounds.anticollision.safety_factor'] = 2
 
     options['solver.linear_solver'] = 'ma86'
     options['solver.hippo_strategy'] = True
@@ -64,19 +68,46 @@ def get_basic_options_for_convergence_expense_and_comparison(options):
     options['solver.max_iter_hippo'] = options['solver.max_iter']
     options['solver.max_cpu_time'] = 1e10 * 60. * 60.  # set the max cpu time ridiculously high so that it won't kill the large problems
 
+    options['solver.tol'] = 1e-8
+    options['solver.mu_hippo'] = 1e-1
+    
     options['visualization.cosmetics.induction.n_points_contour'] = 300
-    #options['visualization.cosmetics.interpolation.n_points'] = 500
+    options['visualization.cosmetics.interpolation.n_points'] = 300
     options['model.aero.actuator.geometry_overwrite'] = 'averaged' 
 
-    # these turn out not to be the best-performing scaling options (see awebox opts/default for the latest recommended scaling options), but they were the ones used when producing the convergence and expense plots, and therefore also problem A1 of the results comparison. changing the scaling to the performance-improving settings changes the results a small amount, but (so far) not the the conclusions.
-    options['model.scaling.other.position_scaling_method'] = 'altitude_and_radius'
-    options['model.scaling.other.force_scaling_method'] = 'synthesized'
-    options['model.scaling.other.flight_radius_estimate'] = 'synthesized'
-    options['model.scaling.other.tension_estimate'] = 'synthesized'
-    options['model.aero.vortex.position_scaling_method'] = 'average'
-    options['model.aero.vortex.wu_ind_scaling_method'] = 'ref_betz'
+    # these options gave the best output over a tuning sweep
+    options['model.scaling.other.flight_radius_estimate'] = 'anticollision'
+    options['model.scaling.other.period_estimate'] = 't_f_bounds'
+    options['model.scaling.other.position_scaling_method'] = 'radius_and_tether'
+    options['model.scaling.other.force_scaling_method'] = 'aero'
+    options['model.scaling.other.tension_estimate'] = 'power'
+    options['model.scaling.other.power_estimate'] = 'loyd'
+    options["model.scaling.other.power_estimate"] = 'synthesized'
+    options["model.aero.vortex.position_scaling_method"] = 'b_ref'
+    options["model.aero.vortex.rate_of_change_scaling_factor"] = 0.001
+    options["model.aero.actuator.a_ref"] = 0.3
+    options['solver.cost_factor.power'] = 10.
+    options['solver.cost.psi.1'] = 100.
+    options["solver.cost.u_regularisation.0"] = 1e-6
+
+    options['nlp.phase_fix_reelout'] = 0.55
+
+    #options['solver.linear_solver'] = 'ma86' # 'ma86'
+    #options['solver.max_iter'] = 2e3
+    #options['solver.max_iter_hippo'] = options['solver.max_iter']
+
 
     return options
+
+
+def from_wake_nodes_to_periods_tracked(n_k, wake_nodes): 
+    periods_tracked = float(wake_nodes - 1.) / float(n_k)
+    return periods_tracked
+
+
+def from_periods_tracked_to_wake_nodes(n_k, periods_tracked):
+    wake_nodes = int(np.ceil(n_k * periods_tracked + 1))
+    return wake_nodes
 
 
 def build_unique_trial_name(base_name, inputs):
@@ -84,10 +115,20 @@ def build_unique_trial_name(base_name, inputs):
     trial_name_baseline = base_name    
     for name, val in inputs.items():
         trial_name_baseline += '_' + name + '_' + str(val)
-    	
+
     today = date.today()
-    rand = random.randint(1000000, 9000000)
-    trial_name_baseline += '_' + str(today) + '_' + str(rand)
+    rand = random.randint(1000000, 9000000)    
+    unique_addition = '_' + str(today) + '_' + str(rand)
+    
+    file_extension_length = 5
+    contd_addition = '_contd_'    
+    max_characters_total = 240 # 255 max characters in linux
+
+    max_name_length = max_characters_total - len(unique_addition) - file_extension_length
+    if len(trial_name_baseline) > max_name_length:
+        trial_name_baseline = trial_name_baseline[:max_name_length-len(contd_addition)] + contd_addition
+    	
+    trial_name_baseline += unique_addition
     return trial_name_baseline
     
 def toggle_baseline_options(options):
@@ -96,17 +137,52 @@ def toggle_baseline_options(options):
     options['visualization.cosmetics.plot_ref'] = False # the 'refernence' is just a circle.
     options['solver.hippo_strategy'] = True # the default interior-point homotopy embedding
     options['solver.linear_solver'] = 'ma57' # the repeatable option
-    options['solver.homotopy_method.put_fictitious_before_induction'] = True
+    options['solver.homotopy_method.put_induction_step_after'] = 'fictitious'
     return options
     
-def toggle_vortex_options(options):
+def toggle_simulation_options(options):
     options['user_options.induction_model'] = 'vortex'
     #options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # notice that the -inf <= dl_t <= inf bounds, will achieve this, without upsetting the warmstart.
     options['visualization.cosmetics.plot_ref'] = True # the 'reference' here is the baseline problem
     options['solver.hippo_strategy'] = False # save memory by only requring one casadi solver
     options['solver.linear_solver'] = 'ma86' # the parallelized but non-repeatable option
-    options['solver.homotopy_method.put_fictitious_before_induction'] = False # we need the fictitious forces to still be enabled, so that we can fly the simulation/reference trajectory with different aerodynamics
+    options['solver.homotopy_method.put_induction_step_after'] = 'initial'  # we need the fictitious forces to still be enabled, so that we can perfectly fly the simulation/reference trajectory with different aerodynamics. The fictitious forces and moments are not passed to the constraints that determine the circulation.
     return options
+    
+def toggle_tracking_options(options):
+    options['user_options.induction_model'] = 'vortex'
+    #options['user_options.trajectory.lift_mode.phase_fix'] = 'simple' # notice that the -inf <= dl_t <= inf bounds, will achieve this, without upsetting the warmstart.
+    options['visualization.cosmetics.plot_ref'] = True # the 'reference' here is the baseline problem
+    options['solver.hippo_strategy'] = False # save memory by only requring one casadi solver
+    options['solver.linear_solver'] = 'ma86' # the parallelized but non-repeatable option
+    options['solver.homotopy_method.put_induction_step_after'] = 'fictitious' # in the tracking problem, we want a 'physical' trajectory, meaning: no fictitious forces.
+    return options
+
+def toggle_basic_health_options(options):
+    options['nlp.collocation.u_param'] = 'zoh'
+    options['solver.hippo_strategy'] = False
+
+    options['solver.health_check.when'] = 'success'
+    options['nlp.collocation.name_constraints'] = True
+    options['solver.health_check.help_with_debugging'] = False
+    options['model.scaling.other.print_help_with_scaling'] = True
+
+    options['solver.homotopy_method.advance_despite_max_iter'] = False
+    options['solver.homotopy_method.advance_despite_ill_health'] = False
+    options['solver.homotopy_method.consider_restoration_as_failure'] = False #True
+    options['solver.health_check.raise_exception'] = False #True
+    options['solver.initialization.check_reference'] = True
+    options['solver.initialization.check_feasibility.raise_exception'] = False #True
+    options['solver.max_iter'] = 2000
+    options['solver.max_iter_hippo'] = 2000
+    options['solver.ipopt.autoscale'] = False
+    options['solver.health_check.spy_matrices'] = False
+    options['quality.when'] = 'never'
+    options['visualization.cosmetics.variables.si_or_scaled'] = 'si'
+    options['solver.health_check.save_health_indicators'] = True
+    options['solver.health_check.thresh.condition_number'] = 1e10
+    return options
+    
 
 def get_list_of_plots():
     list_of_plots = ['power', 'states', 'algebraic_variables', 'controls', 'constraints', 'animation_snapshot',  'isometric', 'projected_xy', 'projected_yz', 'projected_xz', 'wake_isometric', 'wake_xy', 'wake_xz', 'wake_yz', 'wake_legend', 'velocity_deficits', 'velocity_distribution', 'aero_dimensionless', 'relative_radius', 'relative_radius_of_curvature', 'aero_coefficients', 'circulation', 'local_induction_factor_all_projections', 'induction_wind_tunnel',  'induction_contour_normal_wind']
@@ -160,8 +236,30 @@ def turn_off_inequalities_except_time(options):
     options['model.model_bounds.rotation.include'] = False
     
     return options
+
+
     
-def adjust_weights_for_tracking(trial_baseline, options):
+def adjust_weights_for_tracking(trial_baseline, options, ratio_power_to_tracking=1e-6):
+
+    # everything the same, as in the default tracking part of the awebox homotopy, except with adjusted weights on variously power or pathfollowing vars.
+    power_vars = ['lambda', 'l_t', 'dl_t']
+    tracking_vars = ['q', 'dq', 'r', 'omega']
+
+    factor_power = ratio_power_to_tracking**0.5
+    factor_tracking = 1./factor_power
+
+    for power_var_name in power_vars:
+        local_opt_name = 'solver.weights.' + power_var_name
+        options[local_opt_name] = factor_power * trial_baseline.options['solver']['weights'][power_var_name]
+    for tracking_var_name in tracking_vars:
+        local_opt_name = 'solver.weights.' + tracking_var_name
+        options[local_opt_name] = factor_tracking * trial_baseline.options['solver']['weights'][tracking_var_name]
+
+    return options
+
+
+    
+def adjust_weights_for_simulation(trial_baseline, options):
 
     options['solver.cost.beta.0'] = 0.
     options['nlp.cost.beta'] = False
@@ -170,6 +268,7 @@ def adjust_weights_for_tracking(trial_baseline, options):
     options['solver.cost.fictitious.0'] = 1.e-10
     options['solver.cost.fictitious.1'] = 1.e-10
 
+    really_really_extra_more_important = 1e4
     extra_much_more_important = 1e3
     much_more_important = 1e2
     more_important = 1e1
@@ -178,11 +277,9 @@ def adjust_weights_for_tracking(trial_baseline, options):
     would_be_zero_except_sosc = 1e-4
     baseline_options = trial_baseline.options
         
-    #options['solver.cost.tracking.0'] = 1e-2 * baseline_options['solver']['cost']['tracking'][0]
-    
     options['solver.weights.q'] = extra_much_more_important * baseline_options['solver']['weights']['q']
     options['solver.weights.dq'] = more_important * baseline_options['solver']['weights']['dq']
-    options['solver.weights.r'] = more_important * baseline_options['solver']['weights']['r']
+    options['solver.weights.r'] = much_more_important * baseline_options['solver']['weights']['r']
     options['solver.weights.omega'] = more_important * baseline_options['solver']['weights']['omega']
     
     options['solver.weights.coeff'] = extra_much_more_important * baseline_options['solver']['weights']['coeff']
@@ -191,77 +288,12 @@ def adjust_weights_for_tracking(trial_baseline, options):
 
     options['solver.weights.l_t'] = more_important * baseline_options['solver']['weights']['l_t']
     options['solver.weights.dl_t'] = more_important * baseline_options['solver']['weights']['dl_t']
-    options['solver.weights.lambda'] = much_more_important * baseline_options['solver']['weights']['lambda']
+    options['solver.weights.lambda'] = 1e-10
 
-    options['solver.cost.t_f.0'] = less_important * baseline_options['solver']['cost']['theta_regularisation'][0] # penalizes switching time
-    options['solver.cost.u_regularisation.0'] = more_important * baseline_options['solver']['cost']['u_regularisation'][
+    options['solver.cost.t_f.0'] = more_important * baseline_options['solver']['cost']['theta_regularisation'][0] # penalizes switching time, which is important so that time matches from pathfollowing -> trajectory tracking
+    options['solver.cost.u_regularisation.0'] = less_important * baseline_options['solver']['cost']['u_regularisation'][
         0]
-    options['solver.cost.tracking.0'] = more_important * baseline_options['solver']['cost']['tracking'][0]
-
-
-    #options['solver.cost.theta_regularisation.0'] = much_more_important * baseline_options['solver']['cost']['theta_regularisation'][0]
-    
-    # from august 6th
-    #options['solver.weights.q'] = 1e2
-    #options['solver.weights.dq'] = 1e2
-    #options['solver.weights.r'] = 1e2
-    #options['solver.weights.omega'] = 1e2
-    #options['solver.cost.tracking.0'] = 1e2 #1
-    #options['solver.cost.fictitious.0'] = 1.e-6
-    #options['solver.cost.beta.0'] = 1.e-6
-    #options['solver.cost.u_regularisation.0'] = 1.e-6
-    #options['solver.cost.xdot_regularisation.0'] = 1.e-6
-    #options['solver.weights.vortex'] = 1.e-10
-
-    
-    
-    # # from haas 2019
-    # options['solver.cost.tracking.0'] = 1e1
-    # options['solver.cost.fictitious.0'] = 1.e-10
-    # options['solver.cost.u_regularisation.0'] = 1.e1
-    # options['solver.cost.xdot_regularisation.0'] = 1.e-2
-    # options['solver.weights.vortex'] = 0.
-    # options['solver.weights.q'] = 1e4
-    # options['solver.weights.dq'] = 1e3
-    # options['solver.weights.r'] = 1e2
-    # options['solver.weights.omega'] = 1e3
-    # options['solver.weights.coeff'] = 1e1
-    # options['solver.weights.delta'] = 1e2
-    #
-    
-    
-    # from reattempt
-    #options['solver.weights.q'] = 1e3
-    #options['solver.weights.dq'] = 1e2
-    #options['solver.weights.r'] = 1e1
-    #options['solver.weights.omega'] = 1e2
-    #options['solver.weights.l_t'] = 1e4
-    #options['solver.weights.dl_t'] = 1e3
-    #options['solver.weights.delta'] = 1e2
-    #options['solver.weights.coeff'] = 1e2
-    
-    #options['solver.weights.ddelta'] = 1e-3
-    #options['solver.weights.ddl_t'] = 1e2
-    
-    #options['solver.cost.tracking.0'] = 1e-1 #1e-1
-    #options['solver.cost.u_regularisation.0'] = 1e2 #1e-6
-    ###options['solver.cost.xdot_regularisation.0'] = 1e-8
-    ###options['solver.cost.theta_regularisation.0'] = 1e0
-    ##options['solver.cost.t_f.0'] = 1e4
-    #options['solver.cost.fictitious.0'] = 1e-8
-    
-    #options['solver.cost.t_f.0'] = options['solver.cost.theta_regularisation.0'] # because this is included by combined q and dq regularization
-    
-    # options['solver.cost.u_regularisation.0'] = more_important * baseline_options['solver']['cost']['u_regularisation'][0]
-    ## options['solver.cost.xdot_regularisation.0'] = less_important * baseline_options['solver']['cost']['xdot_regularisation'][0]
-    
-    #options['solver.cost.fictitious.0'] = would_be_zero_except_sosc * baseline_options['solver']['cost']['fictitious'][0]
-    #options['solver.weights.vortex'] = would_be_zero_except_sosc * baseline_options['solver']['weights']['vortex']
-
-    #options['model.scaling.other.position_scaling_method'] = 'radius'
-    #options['model.scaling.other.force_scaling_method'] = 'synthesized'
-    #options['model.scaling.other.flight_radius_estimate'] = 'centripetal'
-    #options['model.scaling.other.tension_estimate'] = 'average_force'
+    options['solver.cost.tracking.0'] = 1. #more_important * baseline_options['solver']['cost']['tracking'][0]
 
     return options
     
@@ -369,7 +401,10 @@ def save_results_including_figures(trial, options):
         report['trial_name'] = trial.name
         report['solve'] = trial.optimization.solve_succeeded
         if report['solve']:
-            report['tests'] = trial.quality.all_tests_passed()
+            try:
+                report['tests'] = trial.quality.all_tests_passed()
+            except:
+                report['tests'] = 'na'
         save_op.write_or_append_two_column_dict_to_csv(report, filename)
 
     return None
@@ -402,6 +437,17 @@ def include_val(local_val):
     return isinstance(local_val, str) or isinstance(local_val, int) or vect_op.is_numeric_scalar(local_val)
 
 
+def add_from_trial_object_to_report(report, trial, trial_object_name, attr_name):
+    if hasattr(trial, trial_object_name):
+        trial_object = getattr(trial, trial_object_name)
+        if hasattr(trial_object, attr_name):
+            local_dict = getattr(trial_object, attr_name)
+            if isinstance(local_dict, dict):
+                for local_name, local_val in local_dict.items():
+                    if include_val(local_val):
+                        report[trial_object_name + '_' + attr_name + '_' + local_name] = local_val
+    return report
+
 def save_and_print_info(trial, options):
 
     # this one saves all of the interpolated variable and output information as time-series
@@ -409,13 +455,6 @@ def save_and_print_info(trial, options):
         trial.write_to_csv()
     except:
         message = 'something went wrong with write_to_csv'
-        print(message)
-
-    # this one saves the actual pickled trial object
-    try:
-        trial.save()
-    except:
-        message = 'something went wrong with trial.save'
         print(message)
 
     # everything below saves a summary file, so that you don't have to load and re-average the full time-series datafile
@@ -427,58 +466,46 @@ def save_and_print_info(trial, options):
 
     report['count'] = 0
     report['n_k'] = options['nlp.n_k']
+    report['d'] = trial.options['nlp']['collocation']['d']
     try:
-        report['p_t'] = float(options['model.aero.vortex.wake_nodes'] - 1.) / options['nlp.n_k']
+        n_k = report['n_k']
+        wake_nodes = trial.options['model']['aero']['vortex']['wake_nodes']
+        p_t = float(wake_nodes - 1.) / n_k
+        report['p_t'] = p_t
+        report['tol'] = trial.options['solver']['tol']
+        number_of_kites = trial.model.architecture.number_of_kites
+        at_slice = 3 * number_of_kites * wake_nodes
+        report['vortex_elements_at_slice'] = at_slice
+        report['vortex_elements_all_time'] = at_slice * (n_k + 1 + n_k * report['d'])
     except:
         pass
 
+    phase_fix_reelout = trial.options['nlp']['phase_fix_reelout']
+    n_k_reelout = round(n_k * phase_fix_reelout)
+    t_f = trial.optimization.V_final_si['theta', 't_f']
+    t_switch = float(t_f[0] * n_k_reelout / n_k)
+    report['t_switch'] = t_switch
+    
+    time_period = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
+    report['phi_switch'] = t_switch/time_period
+
     report['solve'] = trial.optimization.solve_succeeded
     if report['solve']:
-        report['tests'] = trial.quality.all_tests_passed()
+        try:
+            report['tests'] = trial.quality.all_tests_passed()
+        except:
+            report['tests'] = 'na'
 
     report['model_variables'] = np.prod(trial.model.variables.shape)
-    if hasattr(trial, 'model') and hasattr(trial.model, 'dimensions_dict'):
-        for local_name in trial.model.dimensions_dict.keys():
-            local_val = trial.model.dimensions_dict[local_name]
-            if include_val(local_val):
-                report['model' + '_' + local_name] = local_val
+    report = add_from_trial_object_to_report(report, trial, 'model', 'dimensions_dict')
 
     report['nlp_variables'] = np.prod(trial.nlp.V.shape)
-    if hasattr(trial, 'nlp') and hasattr(trial.nlp, 'dimensions_dict'):
-        for local_name in trial.nlp.dimensions_dict.keys():
-            local_val = trial.nlp.dimensions_dict[local_name]
-            if include_val(local_val):
-                report['nlp' + '_' + local_name] = local_val
+    report = add_from_trial_object_to_report(report, trial, 'nlp', 'dimensions_dict')
 
-    if hasattr(trial, 'quality') and hasattr(trial.quality, 'results'):
-        for local_name in trial.quality.results.keys():
-            local_val = trial.quality.results[local_name]
-            if include_val(local_val):
-                report['quality' + '_' + local_name] = local_val
-
-    if hasattr(trial, 'optimization') and hasattr(trial.optimization, 'stats') and hasattr(trial.optimization.stats, 'keys'):
-        for local_name in trial.optimization.stats.keys():
-            local_val = trial.optimization.stats[local_name]
-            if include_val(local_val):
-                report['stats' + '_' + local_name] = local_val
-
-    if hasattr(trial, 'optimization') and hasattr(trial.optimization, 'iterations') and hasattr(trial.optimization.iterations, 'keys'):
-        for local_name in trial.optimization.iterations.keys():
-            local_val = trial.optimization.iterations[local_name]
-            if include_val(local_val):
-                report['iterations' + '_' + local_name] = local_val
-
-    if hasattr(trial, 'optimization') and hasattr(trial.optimization, 'timings') and hasattr(trial.optimization.timings, 'keys'):
-        for local_name in trial.optimization.timings.keys():
-            local_val = trial.optimization.timings[local_name]
-            if include_val(local_val):
-                report['timings' + '_' + local_name] = local_val
-
-    if hasattr(trial, 'optimization') and hasattr(trial.optimization, 'cumulative_max_memory') and hasattr(trial.optimization.cumulative_max_memory, 'keys'):
-        for local_name in trial.optimization.cumulative_max_memory.keys():
-            local_val = trial.optimization.cumulative_max_memory[local_name]
-            if include_val(local_val):
-                report['cumulative_max_memory' + '_' + local_name] = local_val
+    report = add_from_trial_object_to_report(report, trial, 'quality', 'results')
+    
+    for optimization_attr in ['stats', 'iterations', 'timings', 'cpu_timings', 't_wall', 't_proc', 'cumulative_max_memory']:
+        report = add_from_trial_object_to_report(report, trial, 'optimization', optimization_attr)
 
     if hasattr(trial, 'optimization') and hasattr(trial.optimization, 'global_outputs_opt') and hasattr(trial.optimization.global_outputs_opt, 'keys'):
         for odx in range(trial.optimization.global_outputs_opt.shape[0]):
@@ -499,7 +526,7 @@ def save_and_print_info(trial, options):
                     for interest_key in ['avg', 'stdev', 'min', 'max']:
                         report[interesting_output + '_' + local_name + '_' + interest_key] = local_interest[interest_key]
 
-    time_period = trial.optimization.global_outputs_opt['time_period'].full()[0][0]
+
     avg_power_watts = trial.optimization.global_outputs_opt['avg_power_watts'].full()[0][0]
     e_final_joules = trial.optimization.global_outputs_opt['e_final_joules'].full()[0][0]
     if include_val(e_final_joules):

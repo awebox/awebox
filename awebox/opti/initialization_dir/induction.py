@@ -42,6 +42,7 @@ import awebox.tools.print_operations as print_op
 import awebox.opti.initialization_dir.tools as tools_init
 
 import awebox.mdl.aero.induction_dir.actuator_dir.actuator as actuator
+import awebox.mdl.aero.induction_dir.actuator_dir.system as actuator_system
 import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 
@@ -190,15 +191,10 @@ def initial_guess_actuator_support(init_options, model, V_init):
 
         Xdot = struct_op.construct_Xdot_struct(init_options, model.variables_dict)(0.)
         variables = struct_op.get_variables_at_time(init_options, V_init, Xdot, model.variables, 0)
-        n_hat_act = unit_normal.get_n_vec(init_options, parent, variables, model.architecture)
+        n_vec_act = unit_normal.get_n_vec(init_options, parent, variables, model.architecture)
+        n_hat_act = vect_op.normalize(n_vec_act)
         z_hat_act = w_hat
         y_hat_act = vect_op.normed_cross(z_hat_act, n_hat_act)
-        act_dcm = cas.horzcat(n_hat_act, y_hat_act, z_hat_act)
-        act_dcm_cols = cas.reshape(act_dcm, (9, 1))
-
-        dict['act_dcm'] = act_dcm_cols
-        dict['wind_dcm'] = wind_dcm_cols
-        dict['n_vec_length'] = cas.DM(init_options['induction']['n_vec_length'])
 
         if parent == 0:
             parent_position = np.zeros((3, 1))
@@ -209,18 +205,23 @@ def initial_guess_actuator_support(init_options, model, V_init):
         height = init_options['precompute']['height']
         n_rot_hat = tools_init.get_ehat_tether(init_options)
         center = parent_position + n_rot_hat * height
+        q_infty = init_options['induction']['dynamic_pressure']
+        u_infty = init_options['induction']['u_at_altitude']
 
         dict['act_q' + str(parent)] = center
         dict['act_dq' + str(parent)] = cas.DM.zeros((3, 1))
-        dict['u_vec_length' + str(parent)] = vect_op.norm(model.wind.get_velocity(center[2]))
+
+        normal_vectors = {'n': n_hat_act, 'uzero': u_hat}
+        # vector_lengths = {'n': vect_op.norm(n_vec_act), 'uzero': u_infty}
+        for dir in actuator_system.get_list_of_directions():
+            dict[actuator_system.get_actuator_vector_unit_name(dir, parent)] = normal_vectors[dir]
+            # dict[actuator_system.get_actuator_vector_length_name(dir, parent)] = vector_lengths[dir]
 
         uzero_hat = model.wind.get_wind_direction()
         gamma = vect_op.angle_between(n_rot_hat, uzero_hat)
-        u_comp = cas.mtimes(n_rot_hat.T, uzero_hat)
-        g_vec_length = u_comp / cas.cos(gamma)
 
         dict['gamma' + str(parent)] = gamma
-        dict['g_vec_length' + str(parent)] = g_vec_length
+        dict[actuator_system.get_actuator_vector_length_name('g', parent)] = 1.
         dict['cosgamma' + str(parent)] = np.cos(gamma)
         dict['singamma' + str(parent)] = np.sin(gamma)
 
@@ -228,7 +229,6 @@ def initial_guess_actuator_support(init_options, model, V_init):
         dict['bar_varrho' + str(parent)] = dict['varrho' + str(parent)]
         dict['area' + str(parent)] = 2. * np.pi * init_options['precompute']['radius'] * b_ref
 
-        q_infty = init_options['induction']['dynamic_pressure']
         a_ref = cas.DM(init_options['z']['a'])
         dict['thrust' + str(parent)] = 4. * a_ref * (1. - a_ref) * dict['area' + str(parent)] * q_infty
 

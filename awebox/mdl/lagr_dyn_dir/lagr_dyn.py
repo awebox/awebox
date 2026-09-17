@@ -17,7 +17,7 @@ import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 
 import numpy as np
 
-def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling):
+def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc, parameters, outputs, wake, scaling, kite_obj_for_printing_only=None, tether_obj=None):
 
     parent_map = architecture.parent_map
     number_of_nodes = architecture.number_of_nodes
@@ -30,13 +30,20 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # --------------------------------
     # tether and ground station masses
     # --------------------------------
-    outputs = mass_comp.generate_mass_outputs(options, system_variables['SI'], outputs, parameters, architecture, scaling)
+    outputs, tether_obj = mass_comp.generate_mass_outputs(options, system_variables['SI'], outputs,
+                                                          parameters, architecture, scaling,
+                                                          tether_obj=tether_obj)
 
     # --------------------------------
     # lagrangian
     # --------------------------------
-
-    outputs = energy_comp.energy_outputs(options, parameters, outputs, system_variables['SI'], architecture, scaling)
+    outputs, kite_obj_for_printing_only, tether_obj = energy_comp.energy_outputs(options, parameters,
+                                                                                 outputs,
+                                                                                 system_variables['SI'],
+                                                                                 architecture,
+                                                                                 scaling,
+                                                                                 kite_obj_for_printing_only=kite_obj_for_printing_only,
+                                                                                 tether_obj=tether_obj)
     e_kinetic = sum(outputs['e_kinetic'][nodes] for nodes in list(outputs['e_kinetic'].keys()))
     e_potential = sum(outputs['e_potential'][nodes] for nodes in list(outputs['e_potential'].keys()))
 
@@ -55,7 +62,17 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # generalized forces in the system
     # --------------------------------
 
-    f_nodes, outputs = forces_comp.generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
+    f_nodes, outputs, kite_obj_for_printing_only, tether_obj = forces_comp.generate_f_nodes(options,
+                                                                                            atmos,
+                                                                                            wind,
+                                                                                            wake,
+                                                                                            system_variables,
+                                                                                            outputs,
+                                                                                            parameters,
+                                                                                            architecture,
+                                                                                            scaling,
+                                                                                            kite_obj_for_printing_only=kite_obj_for_printing_only,
+                                                                                            tether_obj=tether_obj)
     outputs = forces_comp.generate_tether_moments(options, system_variables['SI'], system_variables['scaled'], work_holonomic, outputs,
                                                   architecture)
 
@@ -89,7 +106,10 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     lagrangian_lhs_translation = dlagr_dqdot_si_dt - dlagr_dq_si
 
     # lagrangian momentum correction
-    lagrangian_momentum_correction = momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling)
+    lagrangian_momentum_correction, tether_obj = momentum_correction(options, generalized_coordinates,
+                                                                     system_variables, parameters,
+                                                                     outputs, architecture, scaling,
+                                                                     tether_obj=tether_obj)
 
     # rhs of lagrange equations
     lagrangian_rhs_translation = cas.vertcat(*[f_nodes['f' + str(n) + str(parent_map[n])] for n in range(1, number_of_nodes)])
@@ -98,6 +118,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
     # scaling
     node_mass_scaling = mass_comp.estimate_node_mass_scaling(options, system_variables['SI'], parameters, architecture, scaling)
     force_scaling = node_mass_scaling * options['scaling']['other']['g'] * 10.
+    # todo: why have we hardcoded this?
     inverse_characteristic_forces = cas.inv(cas.diag(force_scaling))
 
     dynamics_translation_si = (lagrangian_lhs_translation - lagrangian_rhs_translation)
@@ -115,7 +136,11 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
     lagrangian_lhs_constraints = holonomic_comp.get_constraint_lhs(g, gdot, gddot, parameters)
     lagrangian_rhs_constraints = cas.DM.zeros(g.shape)
-    holonomic_scaling = holonomic_comp.generate_holonomic_scaling(options, architecture, scaling, system_variables['SI'], parameters)
+    holonomic_scaling, tether_obj = holonomic_comp.generate_holonomic_scaling(options, architecture,
+                                                                              scaling,
+                                                                              system_variables['SI'],
+                                                                              parameters,
+                                                                              tether_obj=tether_obj)
 
     dynamics_constraints_si = (lagrangian_lhs_constraints - lagrangian_rhs_constraints)
     dynamics_constraints_scaled = cas.mtimes(cas.inv(cas.diag(holonomic_scaling)), dynamics_constraints_si)
@@ -154,6 +179,7 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
 
             si_diff = system_variables['SI']['xdot'][name] - system_variables['SI'][undiff_type][name]
 
+            # todo: should this scaling somehow reflect/correct-for the nlp.n_k/t_f ratio that shows up in the KKT's gradient block?
             undiff_scaling = scaling[undiff_type, name]
             xdot_scaling = scaling['xdot', name]
             mean_scaling = []
@@ -168,10 +194,10 @@ def get_dynamics(options, atmos, wind, architecture, system_variables, system_gc
                                                   name='trivial_' + name)
             cstr_list.append(trivial_dyn_cstr)
 
-    return cstr_list, outputs
+    return cstr_list, outputs, kite_obj_for_printing_only, tether_obj
 
 
-def momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling):
+def momentum_correction(options, generalized_coordinates, system_variables, parameters, outputs, architecture, scaling, tether_obj=None):
     """Compute momentum correction for translational lagrangian dynamics of an open system.
     Here the system is "open" because the main tether mass is changing in time. During reel-out,
     momentum is injected in the system, and during reel-in, momentum is extracted.
@@ -184,7 +210,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, para
     """
 
     # momentum transfer rate
-    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, system_variables['SI'], parameters, 1)
+    segment_properties, tether_obj = tether_aero.get_tether_segment_properties(options, architecture, scaling, system_variables['SI'], parameters, 1, tether_obj=tether_obj)
     mass = segment_properties['seg_mass']
     mass_flow = tools.time_derivative(mass, system_variables['scaled'], architecture, scaling)
 
@@ -201,7 +227,7 @@ def momentum_correction(options, generalized_coordinates, system_variables, para
     partial_local_qdot_partial_all_qdots = cas.jacobian(xgcdot_scaled['dq10'], xgcdot_scaled.cat).T
     generalized_momentum_transfer_rate = mass_flow * cas.mtimes(partial_local_qdot_partial_all_qdots, velocity)
 
-    return generalized_momentum_transfer_rate
+    return generalized_momentum_transfer_rate, tether_obj
 
 
 def generate_rotational_dynamics(options, variables, f_nodes, parameters, outputs, architecture):

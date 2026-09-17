@@ -77,7 +77,7 @@ def aero():
     aero_validity['alpha_min_deg'] = alpha_min #-20.
     aero_validity['beta_max_deg'] = 15.
     aero_validity['beta_min_deg'] = -15.0
-
+    
     return stab_derivs, aero_validity
 
 
@@ -88,7 +88,7 @@ def set_settings(options, inputs={}):
     options['user_options.kite_standard'] = data_dict()
     b_ref = options['user_options.kite_standard']['geometry']['b_ref']
     AR = options['user_options.kite_standard']['geometry']['ar']
-    
+
     ### problem basics
     options['user_options.trajectory.system_type'] = 'lift_mode'
     options['user_options.trajectory.lift_mode.windings'] = 5  # Figure B.4, thesis, page 131, also awebox default in 2016
@@ -97,9 +97,6 @@ def set_settings(options, inputs={}):
         options[name] = val
     windings = options['user_options.trajectory.lift_mode.windings'] # gives the option to decrease the number of windings through inputs, for faster-but-small-scale testing.
 
-    n_k_per_winding = 22
-    n_k = n_k_per_winding * windings
-    options['nlp.n_k'] = n_k # number of control intervals. We've increased this from the value given in Haas2019 (80) because in the current awebox (though not in the 2019 awebox) the inequality constraints are only applied at the control nodes, to avoid LICQ. 22 n_k/windings uses roughly 85% of 128GB RAM.
     options['model.tether.control_var'] = 'dddl_t'  # tether jerk control, Haas2019, page 4
     options['user_options.induction_model'] = 'not_in_use' # don't include induction effects
 
@@ -109,6 +106,7 @@ def set_settings(options, inputs={}):
     options['params.wind.log_wind.z0_air'] = 0.0002 # value from Haas2019, page 7
 
     ### tether model
+    options['model.aero.aero_coeff_ref_velocity'] = 'app'
     options['params.tether.cd'] = 0.0501 # in Haas2019, Table 1
     options['model.tether.aero_elements'] = 10 # 10 was the default value in the awebox c. 2019, the value of '13' is after tuning to get 7.5MW power output
     options['user_options.tether_drag_model'] = 'equivalent_buggy' # Haas2019 seems to suggest that the model 'kite_only' is being used, but the results are much closer with the 'equivalent_buggy' tether model, and this was the awebox default in 2019.
@@ -158,7 +156,7 @@ def set_settings(options, inputs={}):
     # Notice that the coordinates of the kite trajectory center given in Haas 2019, are mostly because the trajectory is shifted within the virtual windtunnel in the x- and y- directions.
     z_center_init = 260.
     x_center = (lt_init**2. - z_center_init**2.)**0.5 * vect_op.xhat() + z_center_init * vect_op.zhat()  # determine the center's axial position, given the tether length and center altitude
-    
+
     ### pre-process initialization
     z_center_init = float(x_center[2])
     radius_init = float(z_center_init - q_z_lb)    
@@ -181,9 +179,11 @@ def set_settings(options, inputs={}):
     options['solver.initialization.check_reference'] = True # double-check that we haven't started with an infeasible reference
 
     ### time and phase-fixing 
-    phase_fix_reelout = t_switch / tf_target
     options['user_options.trajectory.fixed_params'] = {'diam_t': diam_t, 't_f': tf_target} # match the tether diameter and the final time exactly to those shown in Haas2019
-
+    phase_fix_reelout = t_switch / tf_target
+    # in combination with the t_f fixing below, this matches the switching times
+    options['nlp.phase_fix_reelout'] = phase_fix_reelout
+    options['solver.cost.t_f.0'] = 1e6
 
     ### problem scaling
     options['model.scaling.other.flight_radius_estimate'] = 'cone'

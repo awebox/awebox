@@ -273,12 +273,12 @@ def get_constraint_lhs(g, gdot, gddot, parameters):
     return lagrangian_lhs_constraints
 
 
-def generate_holonomic_scaling(options, architecture, scaling, variables_si, parameters):
+def generate_holonomic_scaling(options, architecture, scaling, variables_si, parameters, tether_obj=None):
     holonomic_scaling = []
 
     for node in range(1, architecture.number_of_nodes):
 
-        seg_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+        seg_properties, tether_obj = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node, tether_obj=tether_obj)
         length = seg_properties['scaling_length']
         speed = seg_properties['scaling_speed']
         acceleration = seg_properties['scaling_acc']
@@ -308,5 +308,5 @@ def generate_holonomic_scaling(options, architecture, scaling, variables_si, par
             local_scaling = scaling['theta', dict_cross_tether[cross_index]]**2
             holonomic_scaling = cas.vertcat(holonomic_scaling, local_scaling)
 
-    return holonomic_scaling
+    return holonomic_scaling, tether_obj
 

@@ -13,11 +13,21 @@ Energy, Vol.173, pp. 569-585, 2019.
 
 import awebox as awe
 import awebox.opts.kite_data.ampyx_ap2_settings as ampyx_ap2_settings
-import matplotlib.pyplot as plt
-import numpy as np
-import awebox.tools.print_operations as print_op
 
-def run(plot_show_block=True, overwrite_options={}):
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+import casadi.tools as cas
+import numpy as np
+from awebox.tools import vector_operations
+import awebox.tools.save_operations as save_op
+
+from awebox.logger.logger import Logger as awelogger
+awelogger.logger.setLevel(10)
+
+
+def run(plot_show_block=True, overwrite_options={}, final_homotopy_step='final'):
 
     # indicate desired system architecture
     # here: single kite with 6DOF Ampyx AP2 model
@@ -52,19 +62,26 @@ def run(plot_show_block=True, overwrite_options={}):
     # note: this may result in slightly slower solution timings
     options['nlp.compile_subfunctions'] = False
 
+    options['model.scaling.other.flight_radius_estimate'] = 'anticollision'
+    options['model.scaling.other.period_estimate'] = 't_f_bounds'
+    options['model.scaling.other.position_scaling_method'] = 'radius_and_tether'
+    options['model.scaling.other.force_scaling_method'] = 'aero'
+    options['model.scaling.other.tension_estimate'] = 'power'
+    options['model.scaling.other.power_estimate'] = 'loyd'
+
     for option_name, option_val in overwrite_options.items():
         options[option_name] = option_val
 
     # build and optimize the NLP (trial)
     trial = awe.Trial(options, 'Ampyx_AP2')
     trial.build()
-    trial.optimize()
+    trial.optimize(final_homotopy_step=final_homotopy_step)
 
     # write the solution to CSV file, interpolating the collocation solution with given frequency.
     trial.write_to_csv(filename = 'Ampyx_AP2_solution', frequency = 30)
 
     # draw some of the pre-coded plots for analysis
-    trial.plot(['states', 'controls', 'constraints', 'quad'])
+    trial.plot(['states', 'controls', 'constraints', 'quad', 'isometric'])
 
     # extract information from the solution for independent plotting or post-processing
     # here: plot relevant system outputs, compare to [Licitra2019, Fig 11].
@@ -77,7 +94,8 @@ def run(plot_show_block=True, overwrite_options={}):
     print('Average power: {} kW'.format(avg_power))
     print('======================================')
 
-    plt.subplots(5, 1, sharex=True)
+    mm_to_in = 0.0393701
+    plt.subplots(5, 1, sharex=True, figsize=(206*mm_to_in, 238*mm_to_in))
     plt.subplot(511)
     plt.plot(time, plot_dict['x']['l_t'][0], label='Tether Length')
     plt.ylabel('[m]')
@@ -101,19 +119,20 @@ def run(plot_show_block=True, overwrite_options={}):
     plt.subplot(514)
     plt.plot(time, 180.0 / np.pi * outputs['aerodynamics']['alpha1'][0], label='Angle of Attack')
     plt.plot(time, 180.0 / np.pi * outputs['aerodynamics']['beta1'][0], label='Side-Slip Angle')
-
     plt.ylabel('[deg]')
     plt.legend()
     plt.hlines([9, -6], time[0], time[-1], linestyle='--', color='black')
     plt.grid(True)
 
     plt.subplot(515)
-    plt.plot(time, outputs['local_performance']['tether_force10'][0], label='Tether Force Magnitude')
-    plt.ylabel('[N]')
+    plt.plot(time, outputs['local_performance']['tether_force10'][0] * 1e-3, label='Tether Force Magnitude')
+    plt.ylabel('[kN]')
     plt.xlabel('t [s]')
     plt.legend()
-    plt.hlines([50, 1800], time[0], time[-1], linestyle='--', color='black')
+    plt.hlines([50e-3, 1800e-3], time[0], time[-1], linestyle='--', color='black')
     plt.grid(True)
+    plt.xlim(time[0], time[-1])
+    plt.tight_layout()
 
     # a block=False argument will automatically close the figures after they've been created
     plt.show(block=plot_show_block)
@@ -130,7 +149,7 @@ def make_comparison(trial):
     criteria['avg_power_kw']['found'] = plot_dict['power_and_performance']['avg_power']/1e3
     criteria['avg_power_kw']['expected'] = 4.4 # see Fig. 10., page 580. "circular trajectory"
     
-    # Notice that the value of 4.6kW given on page 579 ("In an optimal scenario the expected average power output PAV is roughly 4.6 kW") very clearly corresponds (see Figures 6 and 7, page 577) to the lemniscate trajectory, when we are generating a topologically "circular" trajectory as a result of our initialization. The difference in power between 4.6kW and 4.4kW is not large, but choosing the wrong 'expected solution' means that the optimization period will be different - and this may cause the test_examples test to fail.
+    # Notice that the value of 4.6kW given on page 579 ("In an optimal scenario the expected average power output PAV is roughly 4.6 kW") very clearly corresponds (see Figures 6 and 7, page 577) to the lemniscate trajectory, when we are generating a topologically "circular" trajectory as a result of our initialization. The difference in power between 4.6kW and 4.4kW is not large, but setting the wrong 'expected solution' means that the optimization period will be different - and this may cause the test_examples test to fail.
 
     criteria['winding_period_s']['found'] = plot_dict['time_grids']['ip'][-1]
     criteria['winding_period_s']['expected'] = 39.6 # see Fig. 11, page 580. "circular trajectory"
@@ -139,7 +158,55 @@ def make_comparison(trial):
 
     return criteria
 
+def get_overwrite_options_to_replicate_Licitra2019():
+
+    overwrite_options = {
+                        # Table 1 of Licitra2019 gives CX0 value as positive, this is either a typo, or it represents
+                        # a propeller force? Either way, the match when computed with the given stability derivatives
+                        # is much, much worse, then when computed with the Malz version of these coefficients.
+                        #  'model.aero.overwrite.CX0': [0.456],
+                        #  'model.aero.overwrite.CXalpha': [8.320],
+                        #  'model.aero.overwrite.CXdeltae': [-0.011, 0.112],
+                        #  'model.aero.overwrite.CYbeta': [-0.186],
+                        #  'model.aero.overwrite.CYp': [-0.102],
+                        #  'model.aero.overwrite.CYdeltaa': [-0.05],
+                        #  'model.aero.overwrite.CYdeltar': [0.103],
+                        #  'model.aero.overwrite.CZ0': [-5.4],
+                        #  'model.aero.overwrite.CZalpha': [1.226, 10.203],
+                        #  'model.aero.overwrite.Clbeta': [-0.062],
+                        #  'model.aero.overwrite.Clp': [-0.559],
+                        #  'model.aero.overwrite.Cldeltaa': [-0.248, 0.041],
+                        #  'model.aero.overwrite.Cldeltar': [0.004],
+                        #  'model.aero.overwrite.Cm0': [-0.315],
+                        #  'model.aero.overwrite.Cmalpha': [0.205],
+                        #  'model.aero.overwrite.Cmdeltae': [-1.019],
+                        #  'model.aero.overwrite.Cnr': [-0.052],
+                        #  'model.aero.overwrite.Cndeltar': [-0.041],
+                         'user_options.trajectory.fixed_params': {'diam_t': 0.002},
+                         'params.tether.rho': 0.0046 / (np.pi * (0.002/2.)**2.),
+                         'params.tether.cd': 1.2,
+                         'user_options.tether_drag_model': 'kite_only',
+                         'user_options.trajectory.lift_mode.phase_fix': 'single_reelout',
+                         'solver.initialization.init_clipping': False, # there is no feasible circular trajectory. so, we will rely on IPOPT and the homotopy and provide an uninformed initial guess
+                         'solver.cost.beta.0': 1e1,
+                         'user_options.wind.model': 'power',
+                         'user_options.atmosphere': 'uniform',
+                         'model.model_bounds.airspeed.include': True,
+                         'params.model_bounds.airspeed_limits': np.array([13., 32.]),
+                         'model.model_bounds.rotation.include': True,
+                         'model.model_bounds.rotation.type': 'roll_pitch',
+                         'params.model_bounds.rot_angles': np.array([50. * np.pi/180., 40. * np.pi/180., 160. * np.pi/180.]),
+                         'model.system_bounds.x.ddl_t': [-2.3, 2.4]
+                         }
+
+    return overwrite_options
+
 if __name__ == "__main__":
-    trial = run()
 
+    licitra2019_overwrite_options = get_overwrite_options_to_replicate_Licitra2019()
+    trial = run(overwrite_options=licitra2019_overwrite_options, plot_show_block=True)
 
+    import suggested_latex_dict as suggested_dict_mod
+    latex_dict = suggested_dict_mod.get_suggested_latex_dictionary()
+    trial.make_report(to_echo_or_latex='latex', latex_dict=latex_dict, save=True)
+    import pdb; pdb.set_trace()

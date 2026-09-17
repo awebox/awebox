@@ -140,8 +140,11 @@ def plot_trajectory_against_wind_velocity(solution_dict, cosmetics, fig_num, rel
     ax = fig.add_subplot(1, 1, 1)
     ax2 = ax.twiny()
 
+    model_parameters = solution_dict['model_parameters']
+    parameters = model_parameters(solution_dict['parameters_plot'])
+
     h = list(range(1, int(maxlim)))
-    ax2.plot([float(wind.get_velocity(zz)[0])
+    ax2.plot([float(wind.get_velocity(zz, external_parameters=parameters)[0])
               for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'xz', reload_dict, bool(False), bool(False))
@@ -180,8 +183,11 @@ def plot_trajectory_against_wind_shear(solution_dict, cosmetics, fig_num, reload
     ax = fig.add_subplot(1, 1, 1)
     ax2 = ax.twiny()
 
+    model_parameters = solution_dict['model_parameters']
+    parameters = model_parameters(solution_dict['parameters_plot'])
+
     h = list(range(1, int(maxlim)))
-    ax2.plot([float(wind.get_velocity(zz)[1]) for zz in h], h, color='b')
+    ax2.plot([float(wind.get_velocity(zz, external_parameters=parameters)[1]) for zz in h], h, color='b')
 
     tools.plot_trajectory_contents(ax, solution_dict, cosmetics, 'yz', reload_dict, bool(False), bool(False))
 

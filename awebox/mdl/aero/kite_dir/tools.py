@@ -139,19 +139,43 @@ def get_framed_moments(vec_u, kite_dcm, variables, kite, architecture, m_vector=
 
 ##### the velocities
 
+def get_3dof_reference_air_velocity_in_earth_frame(options, variables, wind, kite, architecture):
+    aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
+    app_reference = (aero_coeff_ref_velocity == 'app')
+    eff_reference = (aero_coeff_ref_velocity == 'eff')
+
+    if app_reference: # because the 3DOF CL \neq CL(uapp), it's directly controlled by \dot CL. of Faero = Faero(uapp), it's only the orientation that changes, which means there's no
+        return get_local_apparent_velocity_in_earth_frame_without_any_induction_correction(variables, wind, kite, architecture)
+    elif eff_reference:
+        return get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
+    else:
+        message = 'something went wrong with getting the 3dof kite reference air velocity'
+        print_op.log_and_raise_error(message)
+        return None
+
 def get_local_air_velocity_in_earth_frame(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs):
 
     aero_coeff_ref_velocity = options['aero']['aero_coeff_ref_velocity']
+    app_reference = (aero_coeff_ref_velocity == 'app')
+    eff_reference = (aero_coeff_ref_velocity == 'eff')
 
-    if aero_coeff_ref_velocity == 'app':
+    kite_has_6dof = (int(options['kite_dof']) == 6)
+    kite_has_3dof = not kite_has_6dof
+
+    if kite_has_3dof:
+        return get_3dof_reference_air_velocity_in_earth_frame(options, variables, wind, kite, architecture)
+
+    elif kite_has_6dof and app_reference:
         vec_u_app_body = get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, architecture, parameters, outputs)
-        vec_u_earth = frames.from_body_to_earth(kite_dcm, vec_u_app_body)
+        return frames.from_body_to_earth(kite_dcm, vec_u_app_body)
 
-    elif aero_coeff_ref_velocity == 'eff':
-        vec_u_eff = get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
-        vec_u_earth = vec_u_eff
+    elif kite_has_6dof and eff_reference:
+        return get_u_eff_in_earth_frame(options, variables, wind, kite, architecture)
 
-    return vec_u_earth
+    else:
+        message = 'something went wrong when getting the local air velocity in the earth-fixed frame'
+        print_op.log_and_raise_error(message)
+        return None
 
 
 def get_u_eff_in_body_frame(options, variables, wind, kite, kite_dcm, architecture):
@@ -169,7 +193,7 @@ def get_u_eff_in_earth_frame(options, variables, wind, kite, architecture):
     return u_eff
 
 def get_u_eff_in_earth_frame_without_induction(variables, wind, kite, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+    vec_u_app_alone_in_earth_frame = get_local_apparent_velocity_in_earth_frame_without_any_induction_correction(variables, wind, kite, architecture)
 
     # approximation!
     vec_u_eff_in_earth_frame = vec_u_app_alone_in_earth_frame
@@ -203,7 +227,7 @@ def get_u_app_alone_in_body_frame(options, variables, wind, kite, kite_dcm, arch
 
     return u_app
 
-def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture):
+def get_local_apparent_velocity_in_earth_frame_without_any_induction_correction(variables, wind, kite, architecture):
 
     parent = architecture.parent_map[kite]
 
@@ -217,7 +241,7 @@ def get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, arch
     return vec_u_app_alone_in_earth_frame
 
 def get_u_app_alone_in_body_frame_without_induction(variables, wind, kite, kite_dcm, architecture):
-    vec_u_app_alone_in_earth_frame = get_u_app_alone_in_earth_frame_without_induction(variables, wind, kite, architecture)
+    vec_u_app_alone_in_earth_frame = get_local_apparent_velocity_in_earth_frame_without_any_induction_correction(variables, wind, kite, architecture)
     vec_u_app_alone_in_body_frame = frames.from_earth_to_body(kite_dcm, vec_u_app_alone_in_earth_frame)
 
     return vec_u_app_alone_in_body_frame

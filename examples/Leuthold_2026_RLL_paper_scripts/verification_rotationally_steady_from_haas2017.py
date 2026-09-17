@@ -1,33 +1,17 @@
 #!/usr/bin/python3
-from platform import architecture
 
-import matplotlib
-matplotlib.use('TkAgg')
+# matplotlib.use('TkAgg')
 
-import awebox as awe
-
-import matplotlib.pyplot as plt
-import pickle
 import numpy as np
-import csv
-import os
-
-from datetime import date
-import random
-
 
 import awebox.trial as awe_trial
-import c5a_data as c5a_data
+from examples.Leuthold_2026_RLL_paper_scripts import c5a_data as c5a_data
 
 import awebox.tools.vector_operations as vect_op
-import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
 import awebox.tools.save_operations as save_op
 
 import helpful_operations as help_op
-
-import awebox.viz.wake as wake_viz
-import awebox.opti.initialization_dir.initialization as initialization
 
 from awebox.logger.logger import Logger as awelogger
 import casadi.tools as cas
@@ -156,7 +140,7 @@ def run(inputs={}):
     options['solver.cost.xdot_regularisation.0'] = 1.e-8
     # options['solver.weights.vortex'] = 1.e-8
 
-    options = help_op.toggle_vortex_options(options)
+    options = help_op.toggle_simulation_options(options)
     
     # build trial and optimize
     trial_name = help_op.build_unique_trial_name(base_name, inputs)
@@ -165,6 +149,11 @@ def run(inputs={}):
     trial.optimize(final_homotopy_step='induction')
     
     trial.print_cost_information()
+    
+    import suggested_latex_dict as suggested_dict_mod
+    latex_dict = suggested_dict_mod.get_suggested_latex_dictionary()
+    
+    trial.make_report(to_echo_or_latex='latex', latex_dict=latex_dict, save=True)
     
     help_op.save_results_including_figures(trial, options)
 
@@ -262,6 +251,9 @@ if __name__ == "__main__":
     inputs = {}
     inputs['n_k'] = 30
     inputs['periods_tracked'] = 2
-
+    
+    inputs['n_k'] = 10 # for testing
+    inputs['periods_tracked'] = 0.001 # for testing
+    
     trial = run(inputs)
 

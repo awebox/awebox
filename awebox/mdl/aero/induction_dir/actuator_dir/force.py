@@ -36,6 +36,7 @@ import numpy as np
 
 import awebox.mdl.aero.geometry_dir.geometry as geom
 import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
+import awebox.mdl.aero.induction_dir.general_dir.tools as general_tools
 
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.print_operations as print_op
@@ -72,7 +73,7 @@ def get_actuator_moment(model_options, variables, outputs, parent, architecture)
 def get_actuator_thrust_val(variables, outputs, parent, architecture):
 
     total_force_aero = get_actuator_force(outputs, parent, architecture)
-    nhat = actuator_geom.get_n_hat_var(variables, parent)
+    nhat = general_tools.get_n_hat_var(variables, parent)
     thrust = cas.mtimes(total_force_aero.T, nhat)
 
     return thrust
@@ -90,6 +91,9 @@ def get_thrust_constraint(variables, outputs, parent, architecture, scaling):
     thrust_val = get_actuator_thrust_val(variables, outputs, parent, architecture)
 
     resi_si = thrust_val - thrust_var
+
+    # print_op.warn_about_temporary_functionality_alteration()
+    # resi_si = thrust_var - 5e3
 
     var_type = 'z'
     var_name = 'thrust' + str(parent)

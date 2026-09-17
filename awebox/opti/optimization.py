@@ -30,6 +30,7 @@
 # matplotlib.use('TkAgg')
 # import matplotlib.pyplot as plt
 import pickle
+
 from . import scheduling
 from . import preparation
 from . import diagnostics
@@ -45,6 +46,7 @@ from numpy import linspace
 
 from sys import platform
 import copy
+from pathlib import Path
 
 from awebox.logger.logger import Logger as awelogger
 
@@ -55,9 +57,11 @@ class Optimization(object):
         self.__status = 'Optimization not yet built.'
         self.__V_opt = None
         self.__timings = {}
+        self.__cpu_timings = {}
         self.__cumulative_max_memory = {}
         self.__iterations = {}
         self.__t_wall = {}
+        self.__t_proc = {}
         self.__return_status_numeric = {}
         self.__outputs_init = None
         self.__outputs_opt = None
@@ -65,11 +69,11 @@ class Optimization(object):
         self.__time_grids = None
         self.__debug_fig_num = 1000
 
-    def build(self, options, nlp, model, formulation, name):
+    def build(self, options, nlp, model, formulation, trial_name):
 
         awelogger.logger.info('Building NLP solver...')
 
-        self.__name = name
+        self.__trial_name = trial_name
 
         if self.__status == 'I am an optimization.':
             return None
@@ -79,16 +83,18 @@ class Optimization(object):
             self.print_optimization_info()
 
             timer = time.time()
+            process_timer = time.process_time()
 
             # prepare callback
             self.__awe_callback = self.initialize_callback('awebox_callback', nlp, model, options)
 
             # generate solvers
             if options['generate_solvers']:
-                self.generate_solvers(model, nlp, formulation, options, self.__awe_callback)
+                self.generate_solvers(nlp, options, self.__awe_callback, trial_name)
 
             # record set-up time
             self.__timings['setup'] = time.time() - timer
+            self.__cpu_timings['setup'] = time.process_time() - process_timer
             if platform == 'linux':
                 import resource
                 self.__cumulative_max_memory['setup'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -179,6 +185,7 @@ class Optimization(object):
 
         for step in (set(self.__timings.keys()) - set(['setup']) | set(['optimization'])):
             self.__timings[step] = 0.
+            self.__cpu_timings[step] = 0.
 
         for step in (set(self.__cumulative_max_memory.keys()) - set(['setup']) | set(['optimization'])):
             self.__cumulative_max_memory[step] = 0
@@ -186,6 +193,7 @@ class Optimization(object):
         for step in (set(self.__iterations.keys()) - set(['setup']) | set(['optimization'])):
             self.__iterations[step] = 0.
             self.__t_wall[step] = 0.
+            self.__t_proc[step] = 0.
 
         for step in (set(self.__return_status_numeric.keys()) - set(['setup']) | set(['optimization'])):
             self.__return_status_numeric[step] = 17
@@ -208,14 +216,15 @@ class Optimization(object):
         V_ref_scaled = self.__V_ref
         visualization.plot(V_plot_scaled, self.__p_fix_num, visualization.options, self.output_vals,
                            self.integral_output_vals, self.__debug_flags, self.__time_grids, cost,
-                           self.__name, sweep_toggle, V_ref_scaled, self.__global_outputs_opt, fig_name=fig_name)
+                           self.__trial_name, sweep_toggle, V_ref_scaled, self.__global_outputs_opt, fig_name=fig_name)
 
         return None
 
-
-    def update_runtime_info(self, timer, step_name):
+    def update_runtime_info(self, timer, step_name, process_timer=None):
 
         self.__timings[step_name] = time.time() - timer
+        if process_timer is not None:
+            self.__cpu_timings[step_name] = time.process_time() - process_timer
         if platform == 'linux':
             import resource
             self.__cumulative_max_memory[step_name] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -228,8 +237,11 @@ class Optimization(object):
 
         self.__iterations['optimization'] = self.__iterations['optimization'] + self.__iterations[step_name]
         self.__t_wall['optimization'] = self.__t_wall['optimization'] + self.__t_wall[step_name]
+        self.__t_proc['optimization'] = self.__t_proc['optimization'] + self.__t_proc[step_name]
+
         self.__return_status_numeric['optimization'] = self.__return_status_numeric[step_name]
         self.__timings['optimization'] = self.__timings['optimization'] + self.__timings[step_name]
+        self.__cpu_timings['optimization'] = self.__cpu_timings['optimization'] + self.__cpu_timings[step_name]
         if platform == 'linux':
             self.__cumulative_max_memory['optimization'] = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
@@ -250,9 +262,9 @@ class Optimization(object):
 
     ### solvers
 
-    def generate_solvers(self, model, nlp, formulation, options, awe_callback):
+    def generate_solvers(self, nlp, options, awe_callback, trial_name):
 
-        self.__solvers = preparation.generate_solvers(awe_callback, nlp, options)
+        self.__solvers = preparation.generate_solvers(awe_callback, nlp, options, trial_name)
 
         return None
 
@@ -296,8 +308,9 @@ class Optimization(object):
             if self.__solve_succeeded:
 
                 timer = time.time()
-                self.solve_specific_homotopy_step(trial_name, step_name, final_homotopy_step, nlp, model, options, visualization)
-                self.update_runtime_info(timer, step_name)
+                process_timer = time.process_time()
+                self.solve_specific_homotopy_step(trial_name, step_name, final_homotopy_step, nlp, model, visualization)
+                self.update_runtime_info(timer, step_name, process_timer=process_timer)
 
         awelogger.logger.info(print_op.hline('#'))
 
@@ -315,21 +328,21 @@ class Optimization(object):
             return self.__solvers['middle']
 
 
-    def solve_specific_homotopy_step(self, trial_name, step_name, final_homotopy_step, nlp, model, options, visualization):
+    def solve_specific_homotopy_step(self, trial_name, step_name, final_homotopy_step, nlp, model, visualization):
 
         local_solver = self.get_appropriate_solver_for_step(step_name)
 
         if (step_name == 'initial') or (step_name == 'final'):
-            self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, 0, options, nlp, model, local_solver, visualization)
+            self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, 0, nlp, model, local_solver, visualization)
 
         else:
             number_of_steps = len(list(self.__schedule['bounds_to_update'][step_name].keys()))
             for homotopy_part in range(number_of_steps):
-                self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, homotopy_part, options, nlp, model, local_solver, visualization)
+                self.solve_general_homotopy_step(trial_name, step_name, final_homotopy_step, homotopy_part, nlp, model, local_solver, visualization)
 
         return None
 
-    def solve_general_homotopy_step(self, trial_name, step_name, final_homotopy_step, counter, solver_options, nlp, model, solver, visualization):
+    def solve_general_homotopy_step(self, trial_name, step_name, final_homotopy_step, counter, nlp, model, solver, visualization):
 
         if self.__solve_succeeded:
 
@@ -350,17 +363,18 @@ class Optimization(object):
             self.__arg['lbx'] = self.__V_bounds['lb']
 
             # find current homotopy parameter
-            if solver_options['homotopy_method']['type'] == 'single':
+            if self.options['homotopy_method']['type'] == 'single':
                 phi_name = 'middle'
-                solver_options['homotopy_method']['middle'] = 'penalty'
+                self.options['homotopy_method']['middle'] = 'penalty'
             else:
                 phi_name = scheduling.find_current_homotopy_parameter(model.parameters_dict['phi'], self.__V_bounds)
 
             # solve
-            step_has_defined_method = phi_name in solver_options['homotopy_method'].keys()
-            if (phi_name != None) and step_has_defined_method and (solver_options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
-                if (solver_options['homotopy_step'][phi_name] < 1.0):
-                    self.__perform_classic_continuation(step_name, phi_name, solver_options, solver)
+            step_has_defined_method = phi_name in self.options['homotopy_method'].keys()
+
+            if (phi_name != None) and step_has_defined_method and (self.options['homotopy_method'][phi_name] == 'classic') and (counter == 0):
+                if (self.options['homotopy_step'][phi_name] < 1.0):
+                    self.__perform_classic_continuation(step_name, phi_name, self.options, solver)
 
             else:
                 print_op.base_print('Calling the solver...', level='info')
@@ -374,7 +388,15 @@ class Optimization(object):
             diagnostics.print_runtime_values(self.__stats)
             diagnostics.print_homotopy_values(nlp, self.__solution, self.__p_fix_num)
 
-            problem_is_healthy_or_unchecked = diagnostics.health_check(trial_name, step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, solver_options, self.__stats, self.__iterations, self.__cumulative_max_memory)
+            if self.__options['record_ipopt_log']:
+                processed_stats = diagnostics.process_ipopt_log_file()
+                for stat_name, stat_val in processed_stats.items():
+                    self.__stats[stat_name] = stat_val
+
+                if self.__options['homotopy_method']['consider_restoration_as_failure']:
+                    self.__mark_fail_if_problem_entered_restoration_mode()
+
+            problem_is_healthy_or_unchecked = diagnostics.health_check(trial_name, step_name, final_homotopy_step, nlp, model, self.__solution, self.__arg, self.options, self.__stats, self.__iterations, self.__cumulative_max_memory)
             if (not problem_is_healthy_or_unchecked) and (not self.__options['homotopy_method']['advance_despite_ill_health']):
                 self.__solve_succeeded = False
 
@@ -391,6 +413,17 @@ class Optimization(object):
 
         return None
 
+    def __mark_fail_if_problem_entered_restoration_mode(self):
+
+        used_restoration = self.__stats['used_restoration']
+
+        if used_restoration:
+            message = 'This problem was logged as having entered restoration mode, and the options indicate that entering restoration mode should be considered as failure. Therefore, the solve is not considered to have succeeded.'
+            print_op.base_print(message, level='warning')
+            self.__solve_succeeded = False
+            self.__stats['success'] = False
+
+        return None
 
     def __perform_classic_continuation(self, step_name, phi_name, options, solver):
 
@@ -432,14 +465,61 @@ class Optimization(object):
 
         if step_name not in list(self.__t_wall.keys()):
             self.__t_wall[step_name] = 0.
+        if step_name not in list(self.__t_proc.keys()):
+            self.__t_proc[step_name] = 0.
 
         self.__iterations[step_name] += self.__stats['iter_count']
         self.__t_wall[step_name] += self.__stats['t_wall_total']
         if 't_wall_callback_fun' in self.__stats.keys():
             self.__t_wall[step_name] -= self.__stats['t_wall_callback_fun']
 
+        self.__t_proc[step_name] += self.__stats['t_proc_total']
+        if 't_proc_callback_fun' in self.__stats.keys():
+            self.__t_proc[step_name] -= self.__stats['t_proc_callback_fun']
+
         return None
 
+    def cpu_usage(self):
+        usage_entire_step = {}
+        for step_name in self.__timings.keys():
+            if step_name in self.__cpu_timings.keys():
+                if self.__timings[step_name] > 0:
+                    usage_entire_step[step_name] = self.__cpu_timings[step_name] / self.__timings[step_name]
+
+        usage_ipopt = {}
+        for step_name in self.__t_wall.keys():
+            if step_name in self.__t_proc.keys():
+                if self.__t_wall[step_name] > 0:
+                    usage_ipopt[step_name] = self.__t_proc[step_name] / self.__t_wall[step_name]
+
+        return usage_entire_step, usage_ipopt
+
+    def report_timings(self, to_echo_or_latex='echo', latex_dict={}, trial_name=None, save=False):
+
+        caption = 'solution time per problem phase'
+        if trial_name is not None:
+            caption += ' for ' + trial_name
+
+        useage_entire_step, useage_ipopt = self.cpu_usage()
+        all_timing_dict = {'wall time (whole step)': dict(tuple(self.__timings.items()) + tuple({'units': 's'}.items())),
+                           'wall time (IPOPT)': dict(tuple(self.__t_wall.items()) + tuple({'units': 's'}.items())),
+                           'cpu time (whole step)': dict(tuple(self.__cpu_timings.items()) + tuple({'units': 's'}.items())),
+                           'cpu time (IPOPT)': dict(tuple(self.__t_proc.items()) + tuple({'units': 's'}.items())),
+                           'cpu useage (whole step)': dict(tuple(useage_entire_step.items()) + tuple({'units': None}.items())),
+                           'cpu useage (IPOPT)': dict(tuple(useage_ipopt.items()) + tuple({'units': None}.items())),
+                           }
+        string_out = print_op.print_dict_as_table(all_timing_dict, to_echo_or_latex=to_echo_or_latex,
+                                                  latex_dict=latex_dict, caption=caption, digits=2,
+                                                  nan_replacement='--', transpose=True)
+        if save:
+            save_op.write_string_to_txt_or_tex(string_out, trial_name.replace(' ', '_'),
+                                               to_echo_or_latex=to_echo_or_latex)
+
+        return None
+
+    def make_report(self, to_echo_or_latex='echo', latex_dict={}, trial_name=None, save=False):
+        self.report_timings(to_echo_or_latex=to_echo_or_latex, latex_dict=latex_dict, trial_name=trial_name, save=save)
+        return None
 
     ### arguments
 
@@ -723,7 +803,7 @@ class Optimization(object):
     def print_optimization_info(self):
 
         awelogger.logger.info('')
-        awelogger.logger.info('Solver options:')
+        table_name = 'Solver options:'
 
         options_dict = {
             'NLP solver': self.__options['nlp_solver'],
@@ -739,7 +819,7 @@ class Optimization(object):
         if self.__options['homotopy_method'] == 'classic':
             options_dict['Homotopy step'] = self.__options['homotopy_step']
 
-        print_op.print_dict_as_table(options_dict)
+        print_op.print_dict_as_table(options_dict, caption=table_name)
 
         return None
 
@@ -833,6 +913,14 @@ class Optimization(object):
     @timings.setter
     def timings(self, value):
         awelogger.logger.warning('Cannot set timings object.')
+
+    @property
+    def cpu_timings(self):
+        return self.__cpu_timings
+
+    @cpu_timings.setter
+    def cpu_timings(self, value):
+        awelogger.logger.warning('Cannot set cpu_timings object.')
 
     @property
     def cumulative_max_memory(self):
@@ -945,6 +1033,14 @@ class Optimization(object):
     @t_wall.setter
     def t_wall(self, value):
         awelogger.logger.warning('Cannot set t_wall object.')
+
+    @property
+    def t_proc(self):
+        return self.__t_proc
+
+    @t_proc.setter
+    def t_proc(self, value):
+        awelogger.logger.warning('Cannot set t_proc object.')
 
     @property
     def return_status_numeric(self):

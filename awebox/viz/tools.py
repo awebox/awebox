@@ -1037,11 +1037,12 @@ def calibrate_visualization(model, nlp, name, options):
     plot_dict['outputs_fun'] = model.outputs_fun
     plot_dict['integral_output_names'] = model.integral_outputs.keys()
     plot_dict['architecture'] = model.architecture
+    plot_dict['Collocation'] = nlp.Collocation
+
     plot_dict['variable_bounds'] = model.variable_bounds
     plot_dict['global_output_names'] = nlp.global_outputs.keys()
-    plot_dict['wind'] = model.wind
 
-    plot_dict['Collocation'] = nlp.Collocation
+    plot_dict['wind'] = model.wind
 
     if model.wake is not None:
         model.wake.define_model_variables_to_info_functions(model.variables, model.parameters)
@@ -1344,8 +1345,19 @@ def set_layer_plot_scale(axes, nrows, x_min, x_max, y_min, y_max):
 
 
 def add_single_block_temporal_orientation_epigraph(ax, plot_dict, tau, linestyle='--'):
-    t_f = float(plot_dict['time_grids']['ip'][-1])
-    ax.axvline(x=float(tau * t_f), color='gray', linestyle=linestyle)
+
+    tg_last = plot_dict['time_grids']['ip'][-1]
+    if isinstance(tg_last, float):
+        tf = tg_last
+    elif isinstance(tg_last, np.ndarray):
+        tf = float(tg_last[0])
+    elif isinstance(tg_last, cas.DM) and tg_last.shape == (1, 1):
+        tf = float(tg_last)
+    elif isinstance(tg_last, cas.DM):
+        tf = float(vect_op.columnize(tg_last)[0])
+    else:
+        tf = float(tg_last) # pytest tells me this syntax is apparently going to be depreciated soon?
+    ax.axvline(x=float(tau * tf), color='gray', linestyle=linestyle)
     return None
 
 def add_block_plot_temporal_orientation_epigraphs(ax, plot_dict):

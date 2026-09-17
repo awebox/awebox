@@ -353,8 +353,7 @@ def test_continuity_of_get_variables_at_time(nlp_options, V_init_si, model):
 
         if len(listed_differences.keys()) > 0:
             message = 'the variable slices produced by struct_op are not continuous. normalized differences are: '
-            print_op.base_print(message, level='error')
-            print_op.print_dict_as_table(listed_differences, level='error')
+            print_op.print_dict_as_table(listed_differences, level='error', caption=message)
             raise Exception(message + repr(listed_differences))
 
     elif direct_collocation and not(V_has_collocation_vars):
@@ -1163,10 +1162,15 @@ def generate_nested_dict_struct(v):
             entry_list.append(cas.entry(k1,struct= substruct))
 
         else:
-            if isinstance(v1,float) or isinstance(v1,int):
+            if vect_op.is_numeric_scalar(v1):
+                shape = (1,1)
+            elif hasattr(v1, 'shape'):
+                shape = v1.shape
+            elif isinstance(v1, float): #this will catch +- inf values
                 shape = (1,1)
             else:
-                shape = v1.shape
+                # come back to this list, if anything ever raises an error here.
+                shape = (1,1)
             # append value to entry list
             entry_list.append(cas.entry(k1, shape= shape))
 
@@ -1739,3 +1743,38 @@ def eval_time_grids_SAM(nlp_options: dict, tf_opt: cas.DM) -> Dict[str, np.ndarr
         timegrid_SAM[key] = f_scale.map(timegrid_AWEbox_eval[key].size)(timegrid_AWEbox_eval[key]).full().flatten()
 
     return timegrid_SAM
+
+def make_copy_of_parameter_dict_with_value_column_evaluated(param_dict, V_opt=None, p_fix_num=None, model_parameters=None):
+
+    if (V_opt is None) or (p_fix_num is None) or (model_parameters is None):
+        message = 'not enough information available to evaluate parameter dict. returning unevaluated_dict'
+        print_op.base_print(message, level='warning')
+        return param_dict
+
+    def evaluate(param_symbolic, V_opt, p_fix_num, model_parameters):
+        if isinstance(param_symbolic, cas.SX) or isinstance(param_symbolic, cas.MX):
+            params_at_time = get_parameters_at_time(V_opt, p_fix_num, model_parameters)
+            param_eval_fun = cas.Function('param_eval_fun', [model_parameters], [param_symbolic])
+            param_eval = param_eval_fun(params_at_time)
+        else:
+            param_eval = param_symbolic
+        return param_eval
+
+    eval_dict = copy.deepcopy(param_dict)
+    for top_name, sub_dict in eval_dict.items():
+        if not isinstance(sub_dict, dict) and vect_op.is_numeric(sub_dict):
+            param_symbolic = sub_dict
+            param_eval = evaluate(param_symbolic, V_opt, p_fix_num, model_parameters)
+            eval_dict[top_name] = param_eval
+        elif 'value' in sub_dict.keys():
+            param_symbolic = sub_dict['value']
+            param_eval = evaluate(param_symbolic, V_opt, p_fix_num, model_parameters)
+            eval_dict[top_name]['value'] = param_eval
+        else:
+            for param_name, param_dict in sub_dict.items():
+                if isinstance(param_dict, dict) and ('value' in param_dict.keys()):
+                    param_symbolic = param_dict['value']
+                    param_eval = evaluate(param_symbolic, V_opt, p_fix_num, model_parameters)
+                    eval_dict[top_name][param_name]['value'] = param_eval
+
+    return eval_dict

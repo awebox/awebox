@@ -35,6 +35,7 @@ import casadi.tools as cas
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.performance_operations as perf_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.vector_operations as vect_op
 
 from awebox.logger.logger import Logger as awelogger
 import awebox.ocp.operation as operation
@@ -53,9 +54,10 @@ def get_scaled_variable_bounds(nlp_options, V, model):
     periodic = perf_op.determine_if_periodic(nlp_options)
 
     u_poly = (nlp_options['collocation']['u_param'] == 'poly')
-    u_zoh_ineq_shoot = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes')
-    u_zoh_ineq_coll = (nlp_options['collocation']['u_param'] == 'zoh') and (nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes')
-    inequalities_at_collocation_nodes = u_poly or u_zoh_ineq_coll
+    u_zoh = (nlp_options['collocation']['u_param'] == 'zoh')
+    u_zoh_ineq_shoot = u_zoh and (nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes')
+    u_zoh_ineq_coll = u_zoh and (nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes')
+    u_zoh_ineq_all_but_integrated_controls = u_zoh and (nlp_options['collocation']['ineq_constraints'] == 'all_but_integrated_controls')
 
     # fill in bounds
     for canonical_name in set_of_canonical_names_on_zeroth_dim:
@@ -63,26 +65,37 @@ def get_scaled_variable_bounds(nlp_options, V, model):
         [var_is_coll_var, var_type, kdx, ddx, name, _] = struct_op.get_V_index(canonical_name)
         use_depending_on_periodicity = ((periodic and (not kdx is None) and (kdx < n_k)) or (not periodic))
 
+        var_derivative_in_controls = 'd' + name in model.variables_dict['u'].keys()
+        inequalities_on_shooting_nodes = u_zoh_ineq_shoot or (u_zoh_ineq_all_but_integrated_controls and var_derivative_in_controls)
+        inequalities_on_collocation_nodes = u_poly or u_zoh_ineq_coll or (u_zoh_ineq_all_but_integrated_controls and not var_derivative_in_controls)
+
         if (var_type == 'x'):
 
-            if var_is_coll_var and u_poly:
+            if var_is_coll_var and inequalities_on_collocation_nodes:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
             
-            elif use_depending_on_periodicity  and (not var_is_coll_var) and not u_poly:
+            elif (not var_is_coll_var) and (use_depending_on_periodicity and inequalities_on_shooting_nodes):
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
             [vars_lb, vars_ub] = assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, var_is_coll_var,
                                                             var_type, kdx, ddx, name)
 
-        elif (var_type in {'z', 'u'}):
-            if (var_type in V.keys()) and (not var_is_coll_var):
-
+        elif (var_type == 'u'):
+            if var_is_coll_var:
+                vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
+            else:
                 vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
 
-            elif var_is_coll_var and inequalities_at_collocation_nodes:
+        elif (var_type == 'z'):
+            if (var_type in V.keys()) and (not var_is_coll_var) and inequalities_on_shooting_nodes:
+                vars_lb[var_type, kdx, name] = model.variable_bounds[var_type][name]['lb']
+                vars_ub[var_type, kdx, name] = model.variable_bounds[var_type][name]['ub']
+
+            elif var_is_coll_var and inequalities_on_collocation_nodes:
                 vars_lb['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['lb']
                 vars_ub['coll_var', kdx, ddx, var_type, name] = model.variable_bounds[var_type][name]['ub']
 
@@ -104,6 +117,9 @@ def get_scaled_variable_bounds(nlp_options, V, model):
             vars_lb[var_type, name] = model.parameter_bounds[name]['lb']
             vars_ub[var_type, name] = model.parameter_bounds[name]['ub']
 
+    if (nlp_options['discretization'] == 'direct_collocation') and u_zoh and ('coll_var' in V.keys()):
+        fast_sanity_check_that_first_integral_of_control_is_treated_reasonably(nlp_options, model, vars_lb, vars_ub)
+
     return [vars_lb, vars_ub]
 
 
@@ -112,6 +128,68 @@ class PhaseOptions:
     REELOUT = 'reelout'
     REELIN = 'reelin'
     TRANSITION = 'transition'
+
+
+def fast_sanity_check_that_first_integral_of_control_is_treated_reasonably(nlp_options, model, vars_lb, vars_ub):
+
+    test_control = model.options['tether']['control_var']
+    if test_control in model.variables_dict['u'].keys():
+
+        vars_bounds = {'ub': vars_ub, 'lb': vars_lb}
+
+        test_first_int = test_control[1:]
+        test_second_int = test_control[2:]
+
+        def has_defined_bound(test_point):
+            return vect_op.is_numeric_scalar(test_point[0])
+
+        comparison_dict = {1: test_first_int}
+        bound_expected_on = {1:'shooting'}
+
+        solutions = {1:{'correct_on_collocation': False, 'correct_on_shooting': False}}
+
+        if (test_second_int != 'dl_t') and (test_second_int in model.variable_bounds['x'].keys()):
+            comparison_dict[2] = test_second_int
+            bound_expected_on[2] = 'collocation'
+            solutions[2] = {'correct_on_collocation': False, 'correct_on_shooting': False}
+
+        for cdx, comp_var_name in comparison_dict.items():
+
+            if vect_op.is_numeric_scalar(model.variable_bounds['x'][comp_var_name]['lb']):
+                comparison_bound = 'lb'
+            elif vect_op.is_numeric_scalar(model.variable_bounds['x'][comp_var_name]['ub']):
+                comparison_bound = 'lb'
+            else:
+                return None
+
+            comparison_vars = vars_bounds[comparison_bound]
+
+            shooting_test_point = comparison_vars['x', 1, comp_var_name]
+            collocation_test_point = comparison_vars['coll_var', 1, 1, 'x', comp_var_name]
+            if nlp_options['collocation']['ineq_constraints'] == 'collocation_nodes':
+                solutions[cdx]['correct_on_shooting'] = not has_defined_bound(shooting_test_point)
+                solutions[cdx]['correct_on_collocation'] = has_defined_bound(collocation_test_point)
+
+            elif nlp_options['collocation']['ineq_constraints'] == 'shooting_nodes':
+                solutions[cdx]['correct_on_shooting'] = has_defined_bound(shooting_test_point)
+                solutions[cdx]['correct_on_collocation'] = not has_defined_bound(collocation_test_point)
+
+            elif nlp_options['collocation']['ineq_constraints'] == 'all_but_integrated_controls':
+                solutions[cdx]['correct_on_shooting'] = (bound_expected_on[cdx] == 'shooting' and has_defined_bound(shooting_test_point)) or (bound_expected_on[cdx] != 'shooting' and not has_defined_bound(shooting_test_point))
+                solutions[cdx]['correct_on_collocation'] = (bound_expected_on[cdx] == 'collocation' and has_defined_bound(collocation_test_point)) or (bound_expected_on[cdx] != 'collocation' and not has_defined_bound(collocation_test_point))
+
+        criteria = True
+        for cdx, local_solutions_dict in solutions.items():
+            for local_sol in local_solutions_dict.values():
+                criteria = criteria and local_sol
+
+        if not criteria:
+            message = 'something went wrong when assigning bounds to ' + test_first_int + ". fast sanity check that first integral of control is treated 'reasonably' fails"
+            print_op.base_print(message, level='warning')
+
+    return None
+
+
 
 
 def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var_type, kdx, ddx, name):
@@ -215,7 +293,8 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_collocation_node_with_control_freedom:
                     max = given_max_value
-                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
+                    local_min_value = cas.DM(nlp_options['params']['tether']['lb_dl_t_reelout'])
+                    min = struct_op.var_si_to_scaled('x', 'dl_t', local_min_value, model.scaling)
 
                 elif at_reelin_collocation_node_with_control_freedom:
                     max = 0.
@@ -223,7 +302,8 @@ def assign_phase_fix_bounds(nlp_options, model, vars_lb, vars_ub, coll_flag, var
 
                 elif at_reelout_control_node:
                     max = given_max_value
-                    min = nlp_options['params']['tether']['lb_dl_t_reelout'] / model.scaling['x', 'dl_t']
+                    local_min_value = cas.DM(nlp_options['params']['tether']['lb_dl_t_reelout'])
+                    min = struct_op.var_si_to_scaled('x', 'dl_t', local_min_value, model.scaling)
 
                 elif at_reelin_control_node:
                     max = 0.

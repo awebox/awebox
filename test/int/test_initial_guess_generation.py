@@ -2,13 +2,14 @@
 """Test of initial guess generation w.r.t. consistency
 @author: Thilo Bronnenmeyer
 """
-
+from platform import architecture
 
 import awebox as awe
 import logging
 import awebox.opts.kite_data.ampyx_data as ampyx_data
 import numpy as np
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.print_operations as print_op
 
 # logging.basicConfig(filemode='w', format='%(levelname)s:    %(message)s', level=logging.WARNING)
 

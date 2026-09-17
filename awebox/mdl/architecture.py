@@ -27,7 +27,7 @@ Class Architecture contains functions to facilitate architecture construction
 and information storage and retrieval.
 
 @author: jochem de schutter alu-freiburg 2018,
-@edit: rachel leuthold, alu-fr 2019
+@edit: rachel leuthold, alu-fr 2019, 2025
 """
 
 import awebox.tools.print_operations as print_op
@@ -38,7 +38,7 @@ class Architecture:
     def __init__(self, parent_map):
 
         self.__parent_map = parent_map
-        self.__number_of_nodes = len(list(parent_map.keys()))+1
+        self.__number_of_nodes = len(list(parent_map.keys())) + 1  # includes the groundstation node
         self.__build_kite_nodes()
         self.__build_layers()
         self.__build_children_map()
@@ -51,10 +51,8 @@ class Architecture:
         """Construct a list containing all the node numbers that have kite attached to them
         """
 
-        kite_nodes = []
-        for node in list(self.__parent_map.keys()):
-            if node not in list(self.__parent_map.values()):
-                kite_nodes += [node]
+        childfree_nodes = set(self.__parent_map.keys()) - set(self.__parent_map.values())
+        kite_nodes = [node for node in childfree_nodes]
 
         self.__kite_nodes = kite_nodes
         self.__number_of_kites = len(kite_nodes)
@@ -65,14 +63,8 @@ class Architecture:
         """Get number of layers in the tree and build siblings dict (number of siblings per layer)
         """
 
-        if self.__number_of_nodes == 2: # single kites
-
-            self.__layer_nodes = [0]
-            self.__layers = 1
-
-        else: # multiple kites
-            self.__layer_nodes = list(set(self.__parent_map.values())-set([0]))
-            self.__layers = len(self.__layer_nodes)
+        self.__layer_nodes = list(set([self.__parent_map[kite] for kite in self.__kite_nodes]))
+        self.__layers = len(self.__layer_nodes)
 
         return None
 
@@ -139,6 +131,9 @@ class Architecture:
         number_siblings = len(siblings)
         return number_siblings
 
+    def get_number_intermediate_tethers(self):
+        return self.__number_of_nodes - 2 - self.__number_of_kites
+
     def get_all_level_siblings(self):
 
         parent_map = self.__parent_map
@@ -179,7 +174,7 @@ class Architecture:
 
     @property
     def number_of_nodes(self):
-        """number of nodes in tree structure"""
+        """number of nodes in tree structure, including the groundstation node 0"""
         return self.__number_of_nodes
 
     @number_of_nodes.setter

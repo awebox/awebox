@@ -41,6 +41,89 @@ from awebox.logger.logger import Logger as awelogger
 import casadi as cas
 import numpy as np
 
+def process_ipopt_log_file():
+    logtext = read_ipopt_logfile_if_exists()
+    used_restoration = search_logtext_to_see_if_restoration_mode_was_used(logtext)
+    used_autoscaling = search_logtext_to_see_if_autoscaling_was_used(logtext)
+    return {'used_restoration': used_restoration, 'used_autoscaling': used_autoscaling}
+
+def search_logtext_to_see_if_autoscaling_was_used(logtext, rtol=0., atol=0.):
+        """
+        Inspect the LAST (scaled)/(unscaled) Ipopt post-solve table.
+
+        Returns
+        -------
+        autoscale_used
+            True  = scaled and unscaled values differ (autoscaling active)
+            False = all values identical (no effective autoscaling)
+            None = no information available.
+        """
+        import re, math
+
+        # Find the last occurrence of "(scaled)   (unscaled)"
+        header_pattern = re.compile(r"\(scaled\)\s+\(unscaled\)")
+        headers = list(header_pattern.finditer(logtext))
+        if not headers:
+            return None  # No table found → treat as no autoscale indication
+
+        last_header = headers[-1]
+        start_pos = last_header.end()
+        lines = logtext[start_pos:].splitlines()
+
+        # Pattern for rows in the table
+        row_pattern = re.compile(r"""
+            ^\s*
+            (?P<label>[^:]+):
+            \s+
+            (?P<scaled>[+-]?\d+\.\d+e[+-]?\d+)
+            \s+
+            (?P<unscaled>[+-]?\d+\.\d+e[+-]?\d+)
+            \s*$
+        """, re.VERBOSE)
+
+        # Check rows until the table ends
+        for line in lines:
+            if not line.strip():
+                break
+            m = row_pattern.match(line)
+            if not m:
+                break
+
+            scaled = float(m.group("scaled"))
+            unscaled = float(m.group("unscaled"))
+
+            # If any value differs: autoscaling was used
+            if not math.isclose(scaled, unscaled, rel_tol=rtol, abs_tol=atol):
+                return True
+
+        # No differences detected → no autoscaling
+        return False
+
+
+def search_logtext_to_see_if_restoration_mode_was_used(logtext):
+    import re
+    used_restoration = bool(re.search(r"\d+r\b", logtext)) or ("Restoration phase" in logtext)
+    return used_restoration
+
+def read_ipopt_logfile_if_exists():
+    import os
+
+    from pathlib import Path
+
+    logfile = "ipopt.log"
+
+    dir_path = Path(os.getcwd())
+    logfile_path = dir_path / logfile
+    optfile_path = dir_path / "ipopt.opt"
+
+    if not os.path.exists(logfile_path):  # os.path.isfile(os.path.join(directory, self.__unique_logfile)):
+        message = 'In order to check whether restoration mode and/or autoscaling was used during this last solve, the ipopt log file needs to be recorded. This log was not recorded.'
+        if not os.path.exists(optfile_path):  # os.path.isfile(os.path.join(directory, "ipopt.opt")):
+            message += " Current ipopt options only allow the creation of a log file, if that option is read in from a file named 'ipopt.opt' (in the current-working-directory). Please copy-paste that file from the folder awebox/test/trials, for the necessary contents."
+        print_op.log_and_raise_error(message)
+
+    logtext = Path(logfile).read_text()
+    return logtext
 
 def print_homotopy_values(nlp, solution, p_fix_num):
 

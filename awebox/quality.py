@@ -33,21 +33,24 @@ import awebox.mdl.aero.induction_dir.vortex_dir.vortex as vortex
 import awebox.quality_funcs as quality_funcs
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
+import awebox.tools.save_operations as save_op
 
 class Quality(object):
 
     def __init__(self):
         self.__results = {}
         self.__test_param_dict = {}
+        self.__test_units_dict = None
+        self.__printable_summary_dict = {}
         self.__name = ''
 
-    def build(self, options, name, test_param_dict = None):
-
+    def build(self, options, name, test_param_dict = None, options_help_dict=None):
         self.__name = name
         if test_param_dict == None:
-            self.__test_param_dict = quality_funcs.generate_test_param_dict(options)
+            self.__test_param_dict, self.__test_units_dict = quality_funcs.generate_test_param_dict(options, options_help_dict=options_help_dict)
         else:
             self.__test_param_dict = test_param_dict
+            self.__test_units_dict = None
 
     def get_test_inputs(self, trial):
         time_grids = trial.optimization.time_grids
@@ -87,17 +90,20 @@ class Quality(object):
         # get relevant self params
         results = self.__results
         test_param_dict = self.__test_param_dict
+        test_units_dict = self.__test_units_dict
+        printable_summary_dict = {}
 
         # run tests
-        results = quality_funcs.test_opti_success(trial, test_param_dict, results)
-        results = quality_funcs.test_numerics(trial, test_param_dict, results)
-        results = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values)
-        results = quality_funcs.test_node_altitude(trial, test_param_dict, results)
-        results = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values)
-        results = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values, self.__global_input_values)
+        results, printable_summary_dict = quality_funcs.test_opti_success(trial, test_param_dict, results, printable_summary_dict, test_units_dict=test_units_dict)
+        results, printable_summary_dict = quality_funcs.test_numerics(trial, test_param_dict, results, printable_summary_dict, test_units_dict=test_units_dict)
+        results, printable_summary_dict = quality_funcs.test_invariants(trial, test_param_dict, results, self.__input_values, printable_summary_dict, test_units_dict=test_units_dict)
+        results, printable_summary_dict = quality_funcs.test_node_altitude(trial, test_param_dict, results, printable_summary_dict, test_units_dict=test_units_dict)
+        results, printable_summary_dict = quality_funcs.test_power_balance(trial, test_param_dict, results, self.__input_values, printable_summary_dict, test_units_dict=test_units_dict)
+        results, printable_summary_dict = quality_funcs.test_tracked_vortex_periods(trial, test_param_dict, results, self.__input_values, self.__global_input_values, printable_summary_dict, test_units_dict=test_units_dict)
 
         # save test results
         self.__results = results
+        self.__printable_summary_dict = printable_summary_dict
 
     def check_quality(self, trial):
     
@@ -133,6 +139,16 @@ class Quality(object):
         else:
             print_op.base_print(message, level='warning')
 
+    def make_report(self, to_echo_or_latex='echo', latex_dict={}, trial_name=None, save=False):
+        caption = trial_name + ' quality report'
+        string_out = print_op.print_dict_as_table(self.__printable_summary_dict, level='info', to_echo_or_latex=to_echo_or_latex,
+                                                  caption=caption,
+                                                  latex_dict=latex_dict,
+                                                  transpose=True, latex_symbolic_in_first_column=False)
+        if save:
+            save_op.write_string_to_txt_or_tex(string_out, trial_name.replace(' ', '_'),
+                                               to_echo_or_latex=to_echo_or_latex)
+        return None
 
     def print_results(self):
 
@@ -149,8 +165,7 @@ class Quality(object):
                 pass_fail_dict[name] = fail_label
 
         print('########################################')
-        print('QUALITY CHECK details:')
-        print_op.print_dict_as_table(pass_fail_dict)
+        print_op.print_dict_as_table(pass_fail_dict, caption='QUALITY CHECK details:')
         print('#######################################')
 
     @property

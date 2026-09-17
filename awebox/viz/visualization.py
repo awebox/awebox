@@ -205,6 +205,7 @@ class Visualization(object):
         plot_logic_dict['loyd_comparison'] = (output.plot_loyd_comparison, None)
         plot_logic_dict['aero_coefficients'] = (output.plot_aero_coefficients, None)
         plot_logic_dict['aero_dimensionless'] = (output.plot_aero_validity, None)
+        plot_logic_dict['characteristic_frequencies'] = (output.plot_characteristic_frequencies, None)
         plot_logic_dict['actuator_isometric'] = (wake.plot_actuator, {'side':'isometric'})
         plot_logic_dict['actuator_xy'] = (wake.plot_actuator, {'side':'xy'})
         plot_logic_dict['actuator_yz'] = (wake.plot_actuator, {'side':'yz'})

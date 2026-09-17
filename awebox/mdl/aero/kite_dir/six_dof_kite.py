@@ -48,7 +48,7 @@ def get_kite_dcm(kite, variables, architecture):
     return kite_dcm
 
 
-def get_force_and_moment_vector(options, variables_si, atmos, wind, architecture, parameters, kite, outputs):
+def get_force_and_moment_vector(options, variables_si, atmos, wind, architecture, parameters, kite, outputs, kite_obj_for_printing_only=None):
 
     surface_control = options['surface_control']
 
@@ -72,7 +72,7 @@ def get_force_and_moment_vector(options, variables_si, atmos, wind, architecture
     if f_aero_rot_overwrite is not None:
         force_info, moment_info = get_overwrite_force_and_moment(options, outputs, architecture, kite)
     else:
-        force_info, moment_info = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho)
+        force_info, moment_info, kite_obj_for_printing_only = get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho, kite_obj_for_printing_only=kite_obj_for_printing_only)
 
     f_found_frame = force_info['frame']
     f_found_vector = force_info['vector']
@@ -80,10 +80,10 @@ def get_force_and_moment_vector(options, variables_si, atmos, wind, architecture
     m_found_frame = moment_info['frame']
     m_found_vector = moment_info['vector']
 
-    return f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm
+    return f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm, kite_obj_for_printing_only
 
 
-def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs):
+def get_force_cstr(options, variables, atmos, wind, architecture, parameters, outputs, kite_obj_for_printing_only=None):
 
     f_aero_rot_overwrite = options['aero']['overwrite']['f_aero_rot']
     if f_aero_rot_overwrite is not None:
@@ -99,8 +99,8 @@ def get_force_cstr(options, variables, atmos, wind, architecture, parameters, ou
 
         parent = architecture.parent_map[kite]
 
-        f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm = get_force_and_moment_vector(
-            options, variables, atmos, wind, architecture, parameters, kite, outputs)
+        f_found_vector, f_found_frame, m_found_vector, m_found_frame, vec_u_earth, kite_dcm, kite_obj_for_printing_only = get_force_and_moment_vector(
+            options, variables, atmos, wind, architecture, parameters, kite, outputs, kite_obj_for_printing_only=kite_obj_for_printing_only)
 
         forces_dict = tools.get_framed_forces(vec_u_earth, kite_dcm, variables, kite, architecture)
         f_var_frame = tools.force_variable_frame()
@@ -161,7 +161,7 @@ def get_overwrite_force_and_moment(model_options, outputs, architecture, kite):
     return force_info, moment_info
 
 
-def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho):
+def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delta, rho, kite_obj_for_printing_only=None):
 
     # we use the vec_u_earth and the kite_dcm to give the relative orientation.
     # this means, that they must be in the same frame. otherwise, the frame of
@@ -187,6 +187,9 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
     # notice that magnitudes don't change under rotation
     dynamic_pressure = 1. / 2. * rho * cas.mtimes(vec_u_earth.T, vec_u_earth)
     planform_area = parameters['theta0', 'geometry', 's_ref']
+    if kite_obj_for_printing_only is not None:
+        kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.s_ref',
+                                                              parameters['theta0', 'geometry', 's_ref'])
 
     force = CF * dynamic_pressure * planform_area
     force_info['vector'] = force
@@ -194,11 +197,16 @@ def get_force_and_moment(options, parameters, vec_u_earth, kite_dcm, omega, delt
     b_ref = parameters['theta0', 'geometry', 'b_ref']
     c_ref = parameters['theta0', 'geometry', 'c_ref']
     reference_lengths = cas.diag(cas.vertcat(b_ref, c_ref, b_ref))
+    if kite_obj_for_printing_only is not None:
+        kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.b_ref',
+                                                              parameters['theta0', 'geometry', 'b_ref'])
+        kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.c_ref',
+                                                              parameters['theta0', 'geometry', 'c_ref'])
 
     moment = dynamic_pressure * planform_area * cas.mtimes(reference_lengths, CM)
     moment_info['vector'] = moment
 
-    return force_info, moment_info
+    return force_info, moment_info, kite_obj_for_printing_only
 
 
 

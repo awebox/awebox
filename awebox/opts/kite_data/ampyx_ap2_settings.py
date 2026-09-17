@@ -26,7 +26,7 @@ def set_ampyx_ap2_settings(options):
     # tether force limit
     options['model.model_bounds.tether_stress.include'] = False
     options['model.model_bounds.tether_force.include'] = True
-    options['params.model_bounds.tether_force_limits'] = np.array([50, 1800.0])
+    options['params.model_bounds.tether_force_limits'] = np.array([50., 1800.0])
 
     # flight envelope
     options['model.model_bounds.airspeed.include'] = True

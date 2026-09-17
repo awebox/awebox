@@ -39,7 +39,7 @@ def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
     schedule = {}
     schedule['cost'] = define_cost_update_schedule(solver_options['cost'])
     schedule['bounds'] = define_bound_update_schedule(model, nlp, formulation)
-    schedule['homotopy'] = define_homotopy_schedule(formulation, solver_options['homotopy_method']['put_fictitious_before_induction'])
+    schedule['homotopy'] = define_homotopy_schedule(model, formulation, solver_options['homotopy_method']['put_induction_step_after'])
     schedule['costs_to_update'] = define_costs_to_update(nlp.P, formulation)
     schedule['bounds_to_update'] = define_bounds_to_update(model, schedule['bounds'], formulation)
     schedule['labels'] = define_step_labels(formulation)
@@ -50,15 +50,15 @@ def define_homotopy_update_schedule(model, formulation, nlp, solver_options):
     
     return schedule
 
-def define_homotopy_schedule(formulation, put_fictitious_before_induction=True):
+def define_homotopy_schedule(model, formulation, put_induction_step_after='fictitious'):
 
     initial_schedule = ('initial',)
     fictitious_schedule = ('fictitious',)
     induction_schedule = ('induction',)
     tether_release_schedule = ('tether_release',)
     power_schedule = ('power',)
-    if formulation.system_type == 'lift_mode' and formulation.phase_fix == 'single_reelout':
-        power_schedule += ('relax_power_reelout',)
+    if use_relaxed_power(model, formulation):
+         power_schedule += ('relax_power_reelout',)
     transition_schedule = ('transition',)
     nominal_landing_schedule = ('nominal_landing',)
     compromised_landing_schedule = ('compromised_landing',)
@@ -70,16 +70,18 @@ def define_homotopy_schedule(formulation, put_fictitious_before_induction=True):
     tether_drag_model = formulation.tether_drag_model
     fix_tether_length = formulation.fix_tether_length
     make_induction_step = not (induction_model in ['not_in_use', 'averaged'])
+    if make_induction_step and not (put_induction_step_after in ['initial', 'fictitious', 'power']):
+        message = 'unexpected request to put induction step after ' + put_induction_step_after + ' homotopy step. skipping induction step entirely.'
+        print_op.base_print(message, level='warning')
 
     homotopy_schedule = ()
-    homotopy_schedule = homotopy_schedule + initial_schedule
 
-    if make_induction_step and not put_fictitious_before_induction:
+    homotopy_schedule = homotopy_schedule + initial_schedule
+    if make_induction_step and (put_induction_step_after == 'initial'):
         homotopy_schedule = homotopy_schedule + induction_schedule
 
     homotopy_schedule = homotopy_schedule + fictitious_schedule
-
-    if make_induction_step and put_fictitious_before_induction:
+    if make_induction_step and (put_induction_step_after == 'fictitious'):
         homotopy_schedule = homotopy_schedule + induction_schedule
 
     if traj_type == 'tracking' and fix_tether_length == False:
@@ -87,6 +89,8 @@ def define_homotopy_schedule(formulation, put_fictitious_before_induction=True):
 
     if traj_type == 'power_cycle':
         homotopy_schedule = homotopy_schedule + power_schedule
+        if make_induction_step and (put_induction_step_after == 'power'):
+            homotopy_schedule = homotopy_schedule + induction_schedule
 
     if traj_type == 'nominal_landing':
         homotopy_schedule = homotopy_schedule + nominal_landing_schedule
@@ -209,7 +213,6 @@ def define_bounds_to_update(model, bounds_schedule, formulation):
             power_updates[0] += ['l_t']*2
 
     power_updates[1] = ['psi']
-
 
     relax_power_reelout_updates = {}
     relax_power_reelout_updates[0] = ['dl_t']
@@ -477,7 +480,7 @@ def define_bound_update_schedule(model, nlp, formulation):
 
     if 'l_t' in list(model.variables_dict['x'].keys()):
         if 'dl_t' in list(bound_schedule.keys()):
-            if traj_type == 'power_cycle' and model.options['trajectory']['system_type'] == 'lift_mode' and formulation.phase_fix == 'single_reelout':
+            if use_relaxed_power(model, formulation):
                 bound_schedule['dl_t'][1] = ['lb', 'x', 0]
                 bound_schedule['dl_t'][2] = ['ub', 'x', 'final']
                 bound_schedule['dl_t'][3] = ['lb', 'x', 'final']
@@ -493,6 +496,14 @@ def define_bound_update_schedule(model, nlp, formulation):
             bound_schedule['l_t'][2] = ['ub', 'theta', 'final']
 
     return bound_schedule
+
+def use_relaxed_power(model, formulation):
+    traj_type = formulation.traj_type
+    is_power_cycle = traj_type == 'power_cycle'
+    is_lift_mode = model.options['trajectory']['system_type'] == 'lift_mode'
+    is_single_reelout = formulation.phase_fix == 'single_reelout'
+    dl_t_reelout_nonzero = formulation.lb_dl_t_reelout != 0.0
+    return traj_type == is_power_cycle and is_lift_mode and is_single_reelout # and dl_t_reelout_nonzero
 
 def define_cost_update_schedule(cost_solver_options):
     cost_schedule = cost_solver_options

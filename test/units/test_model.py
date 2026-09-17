@@ -2,7 +2,7 @@
 """Test to check model functionality
 
 @author: Jochem De Schutter,
-edit: rachel leuthold, alu-fr 2020
+edit: rachel leuthold, alu-fr 2020, 2025
 """
 import copy
 
@@ -102,8 +102,20 @@ def generate_architecture_dict():
                   'children_map': {0:[1], 1:[2,3,4,5], 5:[6,7]},
                   'kites_map': {0:[],1:[2,3,4], 5:[6,7]}}
 
-
     test_archi_dict['triple_dual_kites'] = archi_dict
+
+    # asymmetrical system
+    archi_dict = {'parent_map': {1: 0, 2: 1, 3: 2, 5: 3, 4: 3, 7: 4, 6: 4, 8: 3, 10: 8, 9: 8},
+                  'kite_nodes': [5, 6, 7, 9, 10],
+                  'layer_nodes': [8, 3, 4],
+                  'layers': 3,
+                  'siblings_map': {5: [5], 6: [7, 6], 7: [7, 6], 9: [10, 9], 10: [10, 9]},
+                  'number_of_nodes': 11,
+                  'children_map': {0: [1], 1: [2], 2: [3], 3: [5, 4, 8], 4: [7, 6], 8: [10, 9]},
+                  'kites_map': {0: [], 1: [], 2: [], 3: [5], 4: [7, 6], 8: [10, 9]}}
+
+    test_archi_dict['asymmetrical_kites'] = archi_dict
+
 
     return test_archi_dict
 
@@ -501,6 +513,7 @@ def get_consistent_inputs_for_pseudo_atwood_problem(system_parameters):
 
     length_hanging_center_of_mass = (mass_kite_si * length_unwound_si + mass_unwound_si * length_unwound_si / 2.) / (mass_kite_si + mass_unwound_si)
     natural_period = 2. * np.pi * (length_hanging_center_of_mass / system_parameters['gravity_si']) ** 0.5
+    # t_f_arbitrary = get_pseudo_atwood_integration_time()
     t_f_arbitrary = natural_period
 
     initial_si = {
@@ -862,6 +875,7 @@ def test_idas_dae_integration(epsilon=1.e-2):
 def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_or_pseudo_atwood='pendulum'):
 
     make_plot = False
+    print_op.warn_about_temporary_functionality_alteration()
 
     problem_name = pendulum_or_pseudo_atwood + '_rod_has_mass_' + str(rod_has_mass) + '_frictionless_' + str(frictionless)
 
@@ -889,7 +903,7 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
 
     elif pendulum_or_pseudo_atwood == 'pseudo_atwood':
         rough_total_time = get_pseudo_atwood_integration_time()
-        ideal_number_of_steps_per_period = 10**3
+        ideal_number_of_steps_per_period = 10**2
 
     else:
         message = 'probable spelling error in system type'
@@ -1003,6 +1017,32 @@ def get_integration_test_setup(frictionless=True, rod_has_mass=False, pendulum_o
     sol_report = sol_history
     integration_outputs = sol_report
     var_final_scaled = dae.reassemble_dae_outputs_into_model_variables(model.variables, integration_outputs, p)
+    #
+    # if pendulum_or_pseudo_atwood == 'pseudo_atwood':
+    #     mass_si = system_parameters['mass_si']
+    #     rod_density_si = system_parameters['rod_density_si']
+    #     area_si = np.pi * (system_parameters['rod_diameter_si'] / 2.)**2.
+    #     gravity_si = system_parameters['gravity_si']
+    #     lt_init = initial_si['l_t']
+    #     dlt_init = initial_si['dl_t']
+    #     length_full_si = system_parameters['length_full_si']
+    #
+    #     cosh_sinh_arg = (rough_total_time * (gravity_si * rod_density_si * area_si)**0.5 / (mass_si + length_full_si * rod_density_si * area_si)**0.5 )
+    #     if gravity_si > 0 and rod_density_si > 0:
+    #         analytical_final_0 = (1. / rod_density_si / area_si)
+    #         analytical_final_1 = -1. * mass_si + (mass_si + lt_init * rod_density_si * area_si) * np.cosh(cosh_sinh_arg)
+    #         analytical_final_2 = dlt_init * (rod_density_si * area_si * (mass_si + length_full_si * rod_density_si * area_si))**0.5 / (gravity_si)**0.5 * np.sinh(cosh_sinh_arg)
+    #         lt_final_analytical = analytical_final_0 * (analytical_final_1 + analytical_final_2)
+    #     else:
+    #         lt_final_analytical = lt_init + rough_total_time * dlt_init + 0.5 * gravity_si * rough_total_time**2.
+    #     q_final_analytical = -1. * lt_final_analytical * vect_op.zhat_dm()
+    #     var_final_si = struct_op.variables_scaled_to_si(model.variables, var_final_scaled, model.scaling)
+    #     print(q_final_analytical)
+    #     print(var_final_si['x', 'q10'])
+    #     print(vect_op.spline_interpolation(np.array(vect_op.columnize(t_history)).T[0], np.array(vect_op.columnize(qz)).T[0], x_points=np.array([rough_total_time])))
+    #     print(t_history[-2:])
+    #     print(step_time)
+
 
     return model, var_init_scaled, param_init_scaled, var_final_scaled
 

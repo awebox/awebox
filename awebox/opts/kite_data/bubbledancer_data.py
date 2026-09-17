@@ -31,7 +31,7 @@ def data_dict():
     data_dict['name'] = 'bubbledancer'
     data_dict['geometry'] = geometry()
 
-    stab_derivs, aero_validity = aero()
+    stab_derivs, aero_validity = aero(data_dict['geometry'])
     data_dict['stab_derivs'] = stab_derivs # stability derivatives
     data_dict['aero_validity'] = aero_validity
 
@@ -41,6 +41,7 @@ def geometry():
 
     # values from AVL sample files
     # and, plan: http://www.charlesriverrc.org/articles/bubbledancer/PDFs/bd_V3.pdf
+    # https://charlesriverrc.org/articles/on-line-plans/mark-drela-designs/bubble-dancer/
 
     geometry = {}
 
@@ -76,7 +77,7 @@ def geometry():
 
     return geometry
 
-def aero():
+def aero(geometry):
 
     # values from AVL run at zero-deg bank angle trim.
 
@@ -128,11 +129,28 @@ def aero():
     stab_derivs['Cn']['p'] = [-0.068262]
     stab_derivs['Cn']['r'] = [-0.066292]
 
-
     aero_validity = {}
-    aero_validity['alpha_max_deg'] = 20.
-    aero_validity['alpha_min_deg'] = -20.
+    # alpha range from polars on https://charlesriverrc.org/articles/on-line-plans/mark-drela-designs/bubble-dancer/
+    aero_validity['alpha_max_deg'] = 8.
+    aero_validity['alpha_min_deg'] = -2.
     aero_validity['beta_max_deg'] = 15.
     aero_validity['beta_min_deg'] = -15.0
 
+    # values roughly from polars on https://charlesriverrc.org/articles/on-line-plans/mark-drela-designs/bubble-dancer/
+    ReSqrtCLmin = 3e4
+    ReSqrtCLmax = 2e5
+    CLapprox = stab_derivs['CL']['0'][0] + stab_derivs['CL']['alpha'][0] * aero_validity['alpha_max_deg'] * np.pi / 180.
+    SqrtCLapprox = np.sqrt(CLapprox)
+    ReMin = ReSqrtCLmin / SqrtCLapprox
+    ReMax = ReSqrtCLmax / SqrtCLapprox
+    kinematic_viscosity = 1.48e-5 #[m^2/s], a really rough estimate without adjusment to applied atmospheric model
+    # reynolds number = speed * chord / kinematic_viscosity -> speed = Re * kinematic_viscosity / chord
+    aero_validity['airspeed_max'] = ReMax * kinematic_viscosity / geometry['c_ref']
+    aero_validity['airspeed_min'] = ReMin * kinematic_viscosity / geometry['c_ref']
+
     return stab_derivs, aero_validity
+
+if __name__ == "__main__":
+    stab_derivs, aero_validity = aero(geometry())
+    print(aero_validity['airspeed_max'])
+    print(aero_validity['airspeed_min'])

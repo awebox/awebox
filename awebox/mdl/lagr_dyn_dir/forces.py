@@ -44,7 +44,7 @@ import awebox.tools.print_operations as print_op
 from awebox.logger.logger import Logger as awelogger
 
 
-def generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
+def generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling, kite_obj_for_printing_only=None, tether_obj=None):
 
     variables_si = system_variables['SI']
 
@@ -56,11 +56,11 @@ def generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, para
         if int(options['kite_dof']) == 6:
             node_forces['m' + str(node) + str(parent)] = cas.SX.zeros((3, 1))
 
-    aero_forces, outputs = generate_aerodynamic_forces(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
+    aero_forces, outputs, kite_obj_for_printing_only = generate_aerodynamic_forces(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling, kite_obj_for_printing_only=kite_obj_for_printing_only)
 
     # # this must be after the kite aerodynamics, because the tether model "kite_only" depends on the kite outputs.
-    tether_drag_forces, outputs = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
-                                                              architecture)
+    tether_drag_forces, outputs, tether_obj = generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs,
+                                                              architecture, tether_obj=tether_obj)
 
     if options['trajectory']['system_type'] == 'drag_mode':
         generator_forces, outputs = generate_drag_mode_forces(variables_si, outputs, architecture)
@@ -77,7 +77,7 @@ def generate_f_nodes(options, atmos, wind, wake, system_variables, outputs, para
         if (force[0] == 'm') and force in list(aero_forces.keys()):
             node_forces[force] += aero_forces[force]
 
-    return node_forces, outputs
+    return node_forces, outputs, kite_obj_for_printing_only, tether_obj
 
 
 def generate_drag_mode_forces(variables_si, outputs, architecture):
@@ -99,37 +99,43 @@ def generate_drag_mode_forces(variables_si, outputs, architecture):
     return generator_forces, outputs
 
 
-def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs, architecture):
+def generate_tether_drag_forces(options, variables_si, parameters, atmos, wind, outputs, architecture, tether_obj=None):
 
     # tether_drag_coeff.plot_cd_vs_reynolds(100, options)
-    tether_cd_fun = tether_drag_coeff.get_tether_cd_fun(options, parameters)
+    cd_fun, info_to_add_to_applied_params_dict = tether_drag_coeff.get_tether_cd_fun(options, parameters)
+    if tether_obj is not None:
+        tether_obj.add_dict_to_applied_params_dict(info_to_add_to_applied_params_dict)
 
     # mass vector, containing the mass of all nodes
     for node in range(1, architecture.number_of_nodes):
-        outputs = tether_aero.get_force_outputs(options, variables_si, parameters, atmos, wind, node, tether_cd_fun, outputs,
-                                                architecture)
+        outputs, tether_obj = tether_aero.get_force_outputs(options, variables_si, parameters, atmos, wind, node, cd_fun, outputs,
+                                                architecture, tether_obj=tether_obj)
 
     if options['tether']['lift_tether_force']:
+        if tether_obj is not None:
+            tether_obj.add_to_applied_params_dict('model.tether.lift_tether_force', options['tether']['lift_tether_force'])
+
         tether_drag_forces = {}
         for node in range(1, architecture.number_of_nodes):
             parent = architecture.parent_map[node]
             tether_drag_forces['f' + str(node) + str(parent)] = tether_aero.get_force_var(variables_si, node, architecture)
+
     else:
         tether_drag_forces = tether_aero.distribute_tether_drag_forces(options, variables_si, architecture, outputs)
 
     # collect tether drag losses
     outputs = indicators.collect_tether_drag_losses(variables_si, tether_drag_forces, outputs, architecture)
 
-    return tether_drag_forces, outputs
+    return tether_drag_forces, outputs, tether_obj
 
 
-def generate_aerodynamic_forces(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling):
+def generate_aerodynamic_forces(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling, kite_obj_for_printing_only=None):
     # homotopy parameters
     p_dec = parameters.prefix['phi']
     variables_si = system_variables['SI']
 
     # get aerodynamic forces and moments
-    outputs = kite_aero.get_forces_and_moments(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling)
+    outputs, kite_obj_for_printing_only = kite_aero.get_forces_and_moments(options, atmos, wind, wake, system_variables, outputs, parameters, architecture, scaling, kite_obj_for_printing_only=kite_obj_for_printing_only)
 
     # attribute aerodynamic forces to kites
     aero_forces = {}
@@ -142,7 +148,7 @@ def generate_aerodynamic_forces(options, atmos, wind, wake, system_variables, ou
         if int(options['kite_dof']) == 6:
             aero_forces['m' + str(kite) + str(parent)] = homotopy_moment
 
-    return aero_forces, outputs
+    return aero_forces, outputs, kite_obj_for_printing_only
 
 
 def fictitious_embedding(options, p_dec, variables_si, kite, parent, outputs):

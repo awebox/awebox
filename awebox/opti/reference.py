@@ -121,24 +121,22 @@ def check_reference_scaled_magnitudes(V_ref, orders_of_magnitude=1, zero_value_t
     warning_message_end += 'to consider adjusting either the initialization or the scaling of:'
 
     if any(larger_than_max):
-        message = warning_message_start + 'larger' + warning_message_end
-        print_op.base_print(message, level='warning')
+        table_name = warning_message_start + 'larger' + warning_message_end
 
         dict_larger_than_max = {}
         for idx in range(len(larger_than_max)):
             if larger_than_max[idx]:
                 dict_larger_than_max[V_ref.labels()[idx]] = V_ref.cat[idx]
-        print_op.print_dict_as_table(dict_larger_than_max, level='warning')
+        print_op.print_dict_as_table(dict_larger_than_max, level='warning', caption=table_name)
 
     if any(smaller_than_min):
-        message = warning_message_start + 'smaller' + warning_message_end
-        print_op.base_print(message, level='warning')
+        table_name = warning_message_start + 'smaller' + warning_message_end
         dict_smaller_than_min = {}
 
         for idx in range(len(smaller_than_min)):
             if smaller_than_min[idx]:
                 dict_smaller_than_min[V_ref.labels()[idx]] = V_ref.cat[idx]
-        print_op.print_dict_as_table(dict_smaller_than_min, level='warning')
+        print_op.print_dict_as_table(dict_smaller_than_min, level='warning', caption=table_name)
 
         if any(larger_than_max) and hasattr(dict_larger_than_max, 'keys'):
             message = str(len(dict_larger_than_max.keys())) + ' variables are initialized too large.'
@@ -176,14 +174,17 @@ def check_reference_feasibility(solver_options, V_ref, p_fix_num, nlp):
             is_violated += [local_violation_is_reported]
 
         if any(is_violated):
-            message = cstr_type + ' constraints violated at:'
-            print_op.base_print(message, level='warning')
+            table_name = cstr_type + ' constraints violated at:'
 
             dict_is_violated = {}
             for idx in range(len(is_violated)):
                 if is_violated[idx]:
                     dict_is_violated[name_list[idx]] = cstr_vals[idx]
-            print_op.print_dict_as_table(dict_is_violated, level='warning')
+            print_op.print_dict_as_table(dict_is_violated, level='warning', caption=table_name)
+
+            if nlp.options['collocation']['d'] < 4:
+                message = 'If inequality constraints are only violated at a temporally-discontinuous subset of points along the trajectory, it may be worth checking to see if the problem goes away when you increase the number of collocation nodes.'
+                print_op.base_print(message, level='warning')
 
             if raise_exception:
                 print_op.log_and_raise_error('initial guess violates path constraints')

@@ -42,24 +42,24 @@ import awebox.tools.print_operations as print_op
 
 
 
-def append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period):
-    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period)
+def append_scaling_to_options_tree(options, geometry, options_tree, architecture, q_scaling, u_altitude, CL, varrho_ref, winding_period, airspeed):
+    inputs = get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period, airspeed)
 
     options_tree = append_geometric_scaling(options, geometry, options_tree, architecture, inputs, q_scaling, varrho_ref, winding_period)
     options_tree = append_induced_velocity_scaling(options, geometry, options_tree, architecture, inputs, u_altitude)
     return options_tree
 
 
-def get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period):
+def get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period, airspeed):
     c_ref = geometry['c_ref']
     b_ref = geometry['b_ref']
 
-    a_ref = options['model']['aero']['actuator']['a_ref']
-
-    flight_radius = varrho_ref * b_ref
-    rotational_speed = 2. * np.pi * flight_radius / winding_period
-    axial_speed = u_altitude * (1 - a_ref)
-    airspeed = (rotational_speed**2. + axial_speed**2.)**0.5
+    # a_ref = options['model']['aero']['actuator']['a_ref']
+    #
+    # flight_radius = varrho_ref * b_ref
+    # # rotational_speed = 2. * np.pi * flight_radius / winding_period
+    # axial_speed = u_altitude * (1 - a_ref)
+    # airspeed = (rotational_speed**2. + axial_speed**2.)**0.5
 
     if not (options['model']['aero']['overwrite']['f_aero_rot'] is None):
         # L/b = rho v gamma
@@ -72,8 +72,8 @@ def get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding
         filament_strength = 0.5 * CL * airspeed * c_ref
 
     strength_dict = {'CL': CL, 'varrho_ref': varrho_ref, 'airspeed': airspeed, 'c_ref': c_ref, 'strength': filament_strength}
-    print_op.base_print('initialization values related to filament strength are:')
-    print_op.print_dict_as_table(strength_dict)
+    table_name = 'initialization values related to filament strength are:'
+    print_op.print_dict_as_table(strength_dict, caption=table_name)
 
     return filament_strength
 
@@ -159,11 +159,11 @@ def append_geometric_scaling(options, geometry, options_tree, architecture, inpu
     return options_tree
 
 
-def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period):
+def get_scaling_inputs(options, geometry, architecture, u_altitude, CL, varrho_ref, winding_period, airspeed):
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
     wake_nodes = options['model']['aero']['vortex']['wake_nodes']
-    filament_strength = get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period)
+    filament_strength = get_filament_strength(options, geometry, u_altitude, CL, varrho_ref, winding_period, airspeed)
 
     inputs = {
         'u_ref': u_ref * a_ref,
@@ -181,6 +181,7 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
 
     u_ref = options['user_options']['wind']['u_ref']
     a_ref = options['model']['aero']['actuator']['a_ref']
+    a_betz = 1./3.
     expected_number_of_elements_dict_for_wake_types = vortex_tools.get_expected_number_of_elements_dict_for_wake_types(
         options,
         architecture)
@@ -196,12 +197,18 @@ def append_induced_velocity_scaling(options, geometry, options_tree, architectur
     # wu_ind_induced_velocity constraints, and so will help the vortex_basic_health_trial test pass
     if scaling_method == 'ref_full':
         wu_ind_scale = u_ref
-    elif scaling_method == 'ref_betz':
+    elif scaling_method == 'ref_ref':
         wu_ind_scale = u_ref * a_ref
+    elif scaling_method == 'ref_betz':
+        wu_ind_scale = u_ref * a_betz
+
     elif scaling_method == 'infty_full':
         wu_ind_scale = u_altitude
-    elif scaling_method == 'infty_betz':
+    elif scaling_method == 'infty_ref':
         wu_ind_scale = u_altitude * a_ref
+    elif scaling_method == 'infty_betz':
+        wu_ind_scale = u_altitude * a_betz
+
     else:
         message = 'unfamiliar wu_ind_scaling_method (' + scaling_method + ').'
         print_op.log_and_raise_error(message)

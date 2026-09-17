@@ -191,14 +191,16 @@ def build_nlp_options(options, help_options, user_options, options_tree, archite
     options_tree.append(('nlp', None, None, 'system_type', user_options['trajectory']['system_type'],  ('AWE system type', ('lift_mode', 'drag_mode')),'x'))
 
     n_k = options['nlp']['n_k']
-    N_n = architecture.number_of_nodes
-    N_k = architecture.number_of_kites
-    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             n_k*N_n,             ('tracking cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     n_k*N_k,             ('regularisation cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', n_k,             ('regularisation cost normalization', None), 'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  n_k*N_n,             ('xdot_regularisation cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           n_k*N_k,             ('fictitious cost normalization', None),'x'))
-    options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 n_k*N_k,             ('regularisation cost normalization', None),'x'))
+    N_control_intervals = n_k
+    N_nodes = architecture.number_of_nodes
+    N_kites = architecture.number_of_kites
+    # these factors will divide by the number of instances of the associated variables that show up in a function mapped over the number of control intervals
+    options_tree.append(('nlp', 'cost', 'normalization', 'tracking',             N_control_intervals * N_nodes,     ('tracking cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'u_regularisation',     N_control_intervals * N_kites,     ('regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'theta_regularisation', N_control_intervals,               ('regularisation cost normalization', None), 'x')) # this is not 1, because we're applying the function to get_variables_at_time, so, parameters show up in the weighting function n_k times
+    options_tree.append(('nlp', 'cost', 'normalization', 'xdot_regularisation',  N_control_intervals * N_nodes,     ('xdot_regularisation cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'fictitious',           N_control_intervals * N_kites,     ('fictitious cost normalization', None),'x'))
+    options_tree.append(('nlp', 'cost', 'normalization', 'beta',                 N_control_intervals * N_kites,     ('regularisation cost normalization', None),'x'))
 
     options_tree.append(('nlp', None, None, 'kite_dof', user_options['system_model']['kite_dof'], ('give the number of states that designate each kites position: 3 (implies roll-control), 6 (implies DCM rotation)', [3, 6]), 'x')),
 
@@ -297,6 +299,8 @@ def build_solver_options(options, help_options, user_options, options_tree, arch
     options_tree.append(('solver', 'initialization', 'model', 'architecture', user_options['system_model']['architecture'],('secondary  tether natural diameter [m]', None),'x'))
     options_tree.append(('solver', 'initialization', None, 'min_altitude', options['model']['system_bounds']['x']['q'][0][2], ('?????', None),'x'))
 
+    if options['solver']['homotopy_method']['consider_restoration_as_failure']:
+        options['solver']['record_ipopt_log'] = True
 
     ## cross-tether
     options_tree.append(('solver', 'initialization', None, 'cross_tether', user_options['system_model']['cross_tether'], ('enable cross-tether',[True,False]),'x'))
@@ -369,6 +373,7 @@ def build_formulation_options(options, help_options, user_options, options_tree,
     options_tree.append(('formulation', None, None, 'system_type', user_options['trajectory']['system_type'], ('system_type', None),'x'))
     options_tree.append(('formulation', 'landing', None, 'xi_0_initial', user_options['trajectory']['compromised_landing']['xi_0_initial'], ('starting position on initial trajectory between 0 and 1', None),'x'))
     options_tree.append(('formulation', 'compromised_landing', None, 'emergency_scenario', user_options['trajectory']['compromised_landing']['emergency_scenario'], ('???', None),'x'))
+    options_tree.append(('formulation', 'params', 'tether', 'ld_dl_t_reelout', options['params']['tether']['lb_dl_t_reelout'], ('???', None), 'x'))
 
     if int(user_options['system_model']['kite_dof']) == 3:
         coeff_max = options['model']['system_bounds']['x']['coeff'][1]

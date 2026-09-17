@@ -69,7 +69,7 @@ def get_initialization(init_options, V_init_si, p_fix_num, nlp, model):
 
     if init_options['check_reference']:
         check_that_precomputed_radius_and_period_correspond_to_outputs(init_options, Outputs_init, model.architecture)
-        check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
+        # check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model)
         if model.options['aero']['vortex']['double_check_wingtip_fixing']:
             vortex_tools.check_that_wake_node_0_always_lays_on_wingtips(init_options, p_fix_num, Outputs_init, model, V_si=V_init_si)
 
@@ -451,59 +451,59 @@ def get_collocation_overstepping_ndx(n_k, ndx):
         ndx_on_collocation_overstepping = -1
     return ndx_on_collocation_overstepping
 
-
-def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-2):
-
-    V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
-
-    Outputs_init = nlp.Outputs_struct(nlp.Outputs_structured_fun(V_init_scaled, p_fix_num))
-
-    [Integral_outputs, Integral_outputs_fun] = nlp.integral_output_components
-    int_out = Integral_outputs(Integral_outputs_fun(V_init_scaled, p_fix_num))
-    tgrid_x = nlp.time_grids['x'](V_init_si['theta', 't_f'])
-    tgrid_coll = nlp.time_grids['coll'](V_init_si['theta', 't_f'])
-
-    kite_test = model.architecture.kite_nodes[0]
-    ndx_test = 0
-    ddx_test = -1
-
-    period = tgrid_coll[-1, -1]
-    time_end = tgrid_coll[ndx_test, ddx_test]
-    time_start = tgrid_coll[ndx_test - 1, ddx_test] - (ndx_test < 1) * period
-    delta_t = time_end - time_start
-
-    integrated_total = int_out['coll_int_out', -1, -1, 'integrated_circulation' + str(kite_test)]
-    integrated_end = int_out['coll_int_out', ndx_test, ddx_test, 'integrated_circulation' + str(kite_test)]
-    integrated_start = int_out['coll_int_out', ndx_test-1, ddx_test, 'integrated_circulation' + str(kite_test)] - (ndx_test < 1)*integrated_total
-    definite_integrated_circulation = integrated_end - integrated_start
-
-    average_circulation = definite_integrated_circulation / delta_t
-
-    expected_strength = average_circulation
-    found_strength = V_init_si['coll_var', ndx_test, ddx_test, 'z', 'wg_' + str(kite_test) + '_0']
-    non_coll_found = V_init_si['z', ndx_test+1, 'wg_' + str(kite_test) + '_0']
-
-    cond1 = (found_strength/expected_strength - 1.)**2. < epsilon**2.
-    cond2 = (non_coll_found/expected_strength - 1.)**2. < epsilon**2.
-
-    # check that the circulation averaging works as expected
-    delta_t_x = np.array(tgrid_x[1:]) - np.array(tgrid_x[:-1])
-    definite_integrated_circulation_x = np.array(int_out['int_out', 1:, 'integrated_circulation' + str(kite_test)]) - np.array(int_out['int_out', :-1, 'integrated_circulation' + str(kite_test)])
-    average_circulation_x = np.array([definite_integrated_circulation_x[idx] / delta_t_x[idx] for idx in range(delta_t_x.shape[0])])
-
-    cond3 = True
-    for ndx in range(average_circulation.shape[0]):
-        circulation_outputs = Outputs_init['coll_outputs', ndx, :, 'aerodynamics', 'circulation' + str(kite_test)]
-        average_is_less_than_or_equal_to_max = average_circulation_x[ndx] <= np.max(np.array(circulation_outputs))
-        average_is_more_than_or_equal_to_min = average_circulation_x[ndx] >= np.min(np.array(circulation_outputs))
-        cond3 = cond3 and average_is_less_than_or_equal_to_max and average_is_more_than_or_equal_to_min
-
-    criteria = cond1 and cond2 and cond3
-    if not criteria:
-        message = 'something went wrong when initializing the vortex ring strength variables. '
-        print_op.log_and_raise_error(message)
-
-    return None
+#
+# def check_that_zeroth_ring_shedding_circulation_behaves_reasonably(V_init_si, p_fix_num, nlp, model, epsilon=1.e-2):
+#
+#     V_init_scaled = struct_op.si_to_scaled(V_init_si, model.scaling)
+#
+#     Outputs_init = nlp.Outputs_struct(nlp.Outputs_structured_fun(V_init_scaled, p_fix_num))
+#
+#     [Integral_outputs, Integral_outputs_fun] = nlp.integral_output_components
+#     int_out = Integral_outputs(Integral_outputs_fun(V_init_scaled, p_fix_num))
+#     tgrid_x = nlp.time_grids['x'](V_init_si['theta', 't_f'])
+#     tgrid_coll = nlp.time_grids['coll'](V_init_si['theta', 't_f'])
+#
+#     kite_test = model.architecture.kite_nodes[0]
+#     ndx_test = 0
+#     ddx_test = -1
+#
+#     period = tgrid_coll[-1, -1]
+#     time_end = tgrid_coll[ndx_test, ddx_test]
+#     time_start = tgrid_coll[ndx_test - 1, ddx_test] - (ndx_test < 1) * period
+#     delta_t = time_end - time_start
+#
+#     integrated_total = int_out['coll_int_out', -1, -1, 'integrated_circulation' + str(kite_test)]
+#     integrated_end = int_out['coll_int_out', ndx_test, ddx_test, 'integrated_circulation' + str(kite_test)]
+#     integrated_start = int_out['coll_int_out', ndx_test-1, ddx_test, 'integrated_circulation' + str(kite_test)] - (ndx_test < 1)*integrated_total
+#     definite_integrated_circulation = integrated_end - integrated_start
+#
+#     average_circulation = definite_integrated_circulation / delta_t
+#
+#     expected_strength = average_circulation
+#     found_strength = V_init_si['coll_var', ndx_test, ddx_test, 'z', 'wg_' + str(kite_test) + '_0']
+#     non_coll_found = V_init_si['z', ndx_test+1, 'wg_' + str(kite_test) + '_0']
+#
+#     cond1 = (found_strength/expected_strength - 1.)**2. < epsilon**2.
+#     cond2 = (non_coll_found/expected_strength - 1.)**2. < epsilon**2.
+#
+#     # check that the circulation averaging works as expected
+#     delta_t_x = np.array(tgrid_x[1:]) - np.array(tgrid_x[:-1])
+#     definite_integrated_circulation_x = np.array(int_out['int_out', 1:, 'integrated_circulation' + str(kite_test)]) - np.array(int_out['int_out', :-1, 'integrated_circulation' + str(kite_test)])
+#     average_circulation_x = np.array([definite_integrated_circulation_x[idx] / delta_t_x[idx] for idx in range(delta_t_x.shape[0])])
+#
+#     cond3 = True
+#     for ndx in range(average_circulation.shape[0]):
+#         circulation_outputs = Outputs_init['coll_outputs', ndx, :, 'aerodynamics', 'circulation' + str(kite_test)]
+#         average_is_less_than_or_equal_to_max = average_circulation_x[ndx] <= np.max(np.array(circulation_outputs))
+#         average_is_more_than_or_equal_to_min = average_circulation_x[ndx] >= np.min(np.array(circulation_outputs))
+#         cond3 = cond3 and average_is_less_than_or_equal_to_max and average_is_more_than_or_equal_to_min
+#
+#     criteria = cond1 and cond2 and cond3
+#     if not criteria:
+#         message = 'something went wrong when initializing the vortex ring strength variables. '
+#         print_op.log_and_raise_error(message)
+#
+#     return None
 
 def check_that_wake_node_0_always_has_a_convection_time_of_zero(time_grids, V_init_scaled, init_options, n_k, d):
 

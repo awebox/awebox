@@ -52,6 +52,40 @@ def get_dict_of_saveable_objects_and_extensions(trial_or_sweep='Trial'):
 
     return saveable_dict
 
+
+def find_unpickleable(obj, path="root", depth=8):
+    try:
+        pickle.dumps(obj)
+        return []
+    except Exception as exc:
+        err = str(exc)
+
+    if depth <= 0:
+        return [(path, type(obj), err)]
+
+    out = []
+
+    if hasattr(obj, "__dict__"):
+        for k, v in obj.__dict__.items():
+            out += find_unpickleable(v, f"{path}.{k}", depth - 1)
+
+    elif isinstance(obj, dict):
+        for k, v in obj.items():
+            out += find_unpickleable(v, f"{path}[{repr(k)}]", depth - 1)
+
+    elif isinstance(obj, (list, tuple)):
+        for i, v in enumerate(obj):
+            out += find_unpickleable(v, f"{path}[{i}]", depth - 1)
+
+    else:
+        return [(path, type(obj), err)]
+
+    if not out:
+        return [(path, type(obj), err)]
+
+    return out
+
+
 def get_object_and_extension(saving_method='reloadable_seed', trial_or_sweep='Trial'):
 
     saveable_dict = get_dict_of_saveable_objects_and_extensions(trial_or_sweep=trial_or_sweep)
@@ -97,6 +131,9 @@ def is_filename_acceptable_length(file_name):
 
 
 def save(data, file_name, file_type):
+
+    for item in find_unpickleable(data):
+        print_op.base_print('pickle error likely for: ' + item, level='warning')
 
     if is_filename_acceptable_length(file_name):
         file_pi = open(file_name + '.' + file_type, 'wb')
@@ -154,6 +191,21 @@ def load_saved_data_from_dict(filename):
     filehandler.close()
 
     return data
+
+
+def write_string_to_txt_or_tex(string, filename, extension=None, to_echo_or_latex='echo'):
+
+    if extension is not None:
+        ext = extension
+    elif to_echo_or_latex == 'latex':
+        ext = 'tex'
+    else:
+        ext = 'txt'
+
+    text_file = open(filename + "." + ext, "a")
+    text_file.write(string)
+    text_file.close()
+    return None
 
 
 def write_csv_data(data_dict, filename, rotation_representation='dcm'):
@@ -241,7 +293,11 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                     var = data_dict[variable_type][variable][sub_variable]
                     variable_length = len(var)
                     for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = str(var[index][k])
+                        if isinstance(var[index], list) and (len(var[index]) > 0):
+                            local_value = var[index][k]
+                        else:
+                            local_value = var[index]
+                        write_csv_dict[variable_type + '_' + variable + '_' + sub_variable + '_' + str(index)] = str(local_value)
 
             # continue if no sub_variables exist
             else:
@@ -264,7 +320,11 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
                     var = data_dict[variable_type][variable]
                     variable_length = len(var)
                     for index in range(variable_length):
-                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(var[index][k])
+                        if isinstance(var[index], list) and (len(var[index]) > 0):
+                            local_value = var[index][k]
+                        else:
+                            local_value = var[index]
+                        write_csv_dict[variable_type + '_' + variable + '_' + str(index)] = str(local_value)
 
     write_csv_dict['time'] = tgrid_ip[k]
 
@@ -310,6 +370,25 @@ def write_data_row(pcdw, data_dict, write_csv_dict, tgrid_ip, k, rotation_repres
     ordered_dict = collections.OrderedDict(sorted(list(write_csv_dict.items()), key=lambda t: t[0]))
     pcdw.writerow(ordered_dict)
 
+    return None
+
+def test_append_strings_to_file():
+    save_filenmame = 'save_op_test'
+    list_of_strings = ['apples', 'bananas', 'oranges']
+    expected = ''
+    for string in list_of_strings:
+        write_string_to_txt_or_tex(string, save_filenmame, extension='txt')
+        expected += string
+
+    filehandler = open(save_filenmame + '.txt', 'r')
+    string_read = filehandler.read()
+    criteria = (string_read == expected)
+    if not criteria:
+        message = 'something went wrong when saving strings to a file'
+        print_op.log_and_raise_error(message)
+
+    filehandler.close()
+    os.remove(save_filenmame + '.txt')
     return None
 
 
@@ -361,6 +440,7 @@ def test_table_save_to_csv():
 def test():
     # todo: test variable saving? and/or join with the table-save routine?
     test_table_save_to_csv()
+    test_append_strings_to_file()
     return None
 
 

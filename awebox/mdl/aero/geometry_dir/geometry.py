@@ -40,6 +40,8 @@ import awebox.mdl.aero.geometry_dir.averaged_geometry as averaged_geom
 import awebox.mdl.aero.geometry_dir.parent_geometry as parent_geom
 import awebox.mdl.aero.geometry_dir.unit_normal as unit_normal
 
+import awebox.mdl.aero.induction_dir.actuator_dir.geom as actuator_geom
+
 import awebox.tools.vector_operations as vect_op
 import awebox.tools.struct_operations as struct_op
 import awebox.tools.print_operations as print_op
@@ -110,6 +112,9 @@ def get_local_period_of_rotation(model_options, variables_si, kite, architecture
 
     dq_kite = struct_op.get_variable_from_model_or_reconstruction(variables_si, 'x', 'dq' + str(kite) + str(parent))
     dx_center = get_center_velocity(model_options, parent, variables_si, architecture)
+    if model_options['induction_model'] == 'actuator':
+        dx_center = actuator_geom.get_actuator_velocity_var(variables_si, parent)
+
     vec_v = dq_kite - dx_center
 
     vec_to_kite = get_vector_from_center_to_kite(model_options, variables_si, architecture, kite)
@@ -132,6 +137,8 @@ def get_vector_from_center_to_kite(model_options, variables, architecture, kite)
 
     q_kite = struct_op.get_variable_from_model_or_reconstruction(variables, 'x', 'q' + str(kite) + str(parent))
     center = get_center_position(model_options, parent, variables, architecture)
+    if model_options['induction_model'] == 'actuator':
+        center = actuator_geom.get_actuator_position_var(variables, parent)
 
     radius_vec = q_kite - center
 
@@ -145,6 +152,9 @@ def kite_motion_is_right_hand_rule_positive_around_wind_direction(model_options,
 
     x_center = get_center_position(model_options, parent, variables_si, architecture)
     dx_center = get_center_velocity(model_options, parent, variables_si, architecture)
+    if ('induction_model' in model_options.keys()) and (model_options['induction_model'] == 'actuator'):
+        x_center = actuator_geom.get_actuator_position_var(variables_si, parent)
+        dx_center = actuator_geom.get_actuator_velocity_var(variables_si, parent)
 
     u_hat = wind.get_wind_direction()
 
@@ -225,6 +235,7 @@ def construct_geometry_test_object(geometry_type='averaged'):
     model_options['wind']['power_wind'] = {'exp_ref': -999}
 
     model_options['induction'] = {'normal_vector_model': 'xhat'}
+    model_options['induction_model'] = 'not_in_use'
 
     wind_struct = cas.struct([
         cas.entry('u_ref', shape=(1, 1)),

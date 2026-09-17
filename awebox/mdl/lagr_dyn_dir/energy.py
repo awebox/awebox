@@ -40,7 +40,7 @@ import awebox.mdl.aero.tether_dir.tether_aero as tether_aero
 from awebox.logger.logger import Logger as awelogger
 
 
-def energy_outputs(options, parameters, outputs, variables_si, architecture, scaling):
+def energy_outputs(options, parameters, outputs, variables_si, architecture, scaling, kite_obj_for_printing_only=None, tether_obj=None):
 
     # kinetic and potential energy in the system
     energy_types = ['e_kinetic', 'e_potential']
@@ -50,10 +50,10 @@ def energy_outputs(options, parameters, outputs, variables_si, architecture, sca
 
     number_of_nodes = architecture.number_of_nodes
     for node in range(1, number_of_nodes):
-        outputs = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling)
-        outputs = add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling)
+        outputs, kite_obj_for_printing_only, tether_obj = add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling, kite_obj_for_printing_only=kite_obj_for_printing_only, tether_obj=tether_obj)
+        outputs, kite_obj_for_printing_only, tether_obj = add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling, kite_obj_for_printing_only=kite_obj_for_printing_only, tether_obj=tether_obj)
 
-    return outputs
+    return outputs, kite_obj_for_printing_only, tether_obj
 
 
 def get_reelout_speed(variables_si):
@@ -70,7 +70,7 @@ def get_reelout_speed(variables_si):
     return reelout_speed
 
 
-def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling):
+def add_node_kinetic(node, options, variables_si, parameters, outputs, architecture, scaling, kite_obj_for_printing_only=None, tether_obj=None):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
@@ -78,7 +78,13 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     node_has_a_kite = node in architecture.kite_nodes
     kites_have_6dof = int(options['kite_dof']) == 6
 
-    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    if kite_obj_for_printing_only is not None:
+        kite_obj_for_printing_only.add_to_applied_params_dict('user_options.system_model.kite_dof', options['kite_dof'])
+
+    segment_properties, tether_obj = tether_aero.get_tether_segment_properties(options, architecture,
+                                                                               scaling, variables_si,
+                                                                               parameters, node,
+                                                                               tether_obj=tether_obj)
     mass_segment = segment_properties['seg_mass']
 
     q_node = variables_si['x']['q' + label]
@@ -100,6 +106,9 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
     if node_has_a_kite:
         mass_kite = parameters['theta0', 'geometry', 'm_k']
         e_kin_kite_trans = 0.5 * mass_kite * cas.mtimes(dq_node.T, dq_node)
+        if kite_obj_for_printing_only is not None:
+            kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.m_k', parameters['theta0', 'geometry', 'm_k'])
+
     outputs['e_kinetic']['kite_trans' + label] = e_kin_kite_trans
 
     e_kinetic_kite_rot = cas.DM(0.)
@@ -107,13 +116,15 @@ def add_node_kinetic(node, options, variables_si, parameters, outputs, architect
         omega = variables_si['x']['omega' + label]
         j_kite = parameters['theta0', 'geometry', 'j']
         e_kinetic_kite_rot = 0.5 * cas.mtimes(cas.mtimes(omega.T, j_kite), omega)
+        if kite_obj_for_printing_only is not None:
+            kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.j', parameters['theta0', 'geometry', 'j'])
 
     outputs['e_kinetic']['kite_rot' + label] = e_kinetic_kite_rot
 
-    return outputs
+    return outputs, kite_obj_for_printing_only, tether_obj
 
 
-def add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling):
+def add_node_potential(node, options, variables_si, parameters, outputs, architecture, scaling, kite_obj_for_printing_only=None, tether_obj=None):
 
     label = architecture.node_label(node)
     parent_label = architecture.parent_label(node)
@@ -129,7 +140,7 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
         q_parent = variables_si['x']['q' + parent_label]
     q_mean = (q_node + q_parent) / 2.
 
-    segment_properties = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node)
+    segment_properties, tether_obj = tether_aero.get_tether_segment_properties(options, architecture, scaling, variables_si, parameters, node, tether_obj=tether_obj)
     mass_segment = segment_properties['seg_mass']
 
     e_potential_tether = gravity * mass_segment * q_mean[2]
@@ -139,7 +150,9 @@ def add_node_potential(node, options, variables_si, parameters, outputs, archite
     if node_has_a_kite:
         mass_kite = parameters['theta0', 'geometry', 'm_k']
         e_potential_kite += gravity * mass_kite * q_node[2]
+        if kite_obj_for_printing_only is not None:
+            kite_obj_for_printing_only.add_to_applied_params_dict('model.geometry.overwrite.m_k', parameters['theta0', 'geometry', 'm_k'])
 
     outputs['e_potential']['kite' + label] = e_potential_kite
 
-    return outputs
+    return outputs, kite_obj_for_printing_only, tether_obj

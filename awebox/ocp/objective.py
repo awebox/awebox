@@ -42,6 +42,7 @@ import collections
 
 import awebox.tools.print_operations as print_op
 import awebox.tools.struct_operations as struct_op
+import awebox.tools.vector_operations as vect_op
 
 import awebox.tools.cached_functions as cf
 from awebox.mdl.model import Model
@@ -105,7 +106,8 @@ def get_costs_struct(V):
         cas.entry("u_regularisation_cost"),
         cas.entry("fictitious_cost"),
         cas.entry("theta_regularisation_cost"),
-        cas.entry("beta_cost")] +
+        cas.entry("beta_cost"),
+        ] +
        [cas.entry(name + '_cost') for name in struct_op.subkeys(V, 'phi')] +
        [cas.entry("time_cost"),
         cas.entry("power_cost"),
@@ -385,7 +387,7 @@ def find_general_problem_cost(component_costs):
     time_cost = component_costs['time_cost']
     fictitious_cost = component_costs['fictitious_cost']
 
-    general_problem_cost = fictitious_cost + u_regularisation_cost + xdot_regularisation_cost + theta_regularisation_cost + beta_cost + time_cost
+    general_problem_cost = (fictitious_cost + u_regularisation_cost + xdot_regularisation_cost + theta_regularisation_cost + beta_cost + time_cost)
 
     return general_problem_cost
 

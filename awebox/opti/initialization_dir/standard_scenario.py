@@ -275,7 +275,6 @@ def set_user_winding_period(init_options):
     radius = init_options['precompute']['radius']
     time_period = (2. * np.pi * radius) / ground_speed
     init_options['precompute']['winding_period'] = time_period
-
     return init_options
 
 

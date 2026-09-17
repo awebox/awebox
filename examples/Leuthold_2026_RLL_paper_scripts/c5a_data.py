@@ -249,5 +249,19 @@ def aero():
     aero_validity['beta_min_deg'] = -20.
 
 
+    # we recommend, to adjust the groundspeed initialization and airspeed limits to reflect
+    # V_2 = 125 knots = 64 m/s
+    # https://aerosavvy.com/airspeed-indicator/
+    # https://skybrary.aero/aircraft/c5
+    # and
+    # Mach 0.79 (at 'cruise altitude') ~ 856 km/h = 238 m/s
+    # https://en.wikipedia.org/wiki/Lockheed_C-5_Galaxy
+    # in the style of
+    # options['solver.initialization.groundspeed'] = 100.
+    # notice that finding a valid initial guess will likely require adjusting the trajectory to satisfy the tether_force/stress constraint
+    aero_validity['airspeed_max'] = 238.
+    aero_validity['airspeed_min'] = 64.
+
+
     return stab_derivs, aero_validity
 

@@ -239,6 +239,7 @@ def make_periodicity_equality(model, initial_model_variables, terminal_model_var
         variable_is_from_comparison_model = is_induction_variable_from_comparison_model(name, options)
 
         variable_is_not_periodic = variable_is_an_integration_variable or variable_is_a_wake_variable or variable_is_from_comparison_model
+
         if not variable_is_not_periodic:
 
             initial_value = vect_op.columnize(initial_model_variables['x', name])

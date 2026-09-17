@@ -335,5 +335,7 @@ def aero(aero_model="VLM"):
     aero_validity['beta_max_deg'] = 10.
     aero_validity['beta_min_deg'] = -10.
 
+    aero_validity['airspeed_max'] = 120.
+    aero_validity['airspeed_min'] = 10.
 
     return stab_derivs, aero_validity

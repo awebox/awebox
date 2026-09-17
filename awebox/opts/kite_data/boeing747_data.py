@@ -168,7 +168,8 @@ def aero():
     # https://www.quora.com/What-is-the-top-speed-of-a-Boeing-747-400-Can-it-exceed-its-Mach-number-Why-or-why-not
     # in the style of
     # options['solver.initialization.groundspeed'] = 100.
-    # options['params.model_bounds.airspeed_limits'] = np.array([77., 273.])
     # notice that finding a valid initial guess will likely require adjusting the trajectory to satisfy the tether_force/stress constraint
+    aero_validity['airspeed_max'] = 273.
+    aero_validity['airspeed_min'] = 77.
 
     return stab_derivs, aero_validity

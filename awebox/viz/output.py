@@ -247,6 +247,13 @@ def plot_aero_validity(plot_dict, cosmetics, fig_name, fig_num = None):
                            ('aerodynamics', 'mach')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
 
+def plot_characteristic_frequencies(plot_dict, cosmetics, fig_name, fig_num=None):
+    interesting_outputs = []
+    for out_name in plot_dict['interpolation_si']['outputs']['aerodynamics'].keys():
+        if out_name[:len('fstar')] == 'fstar':
+            interesting_outputs += [('aerodynamics', out_name)]
+    plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)
+
 def plot_power(plot_dict, cosmetics, fig_name, fig_num = None):
     interesting_outputs = [('performance', 'p_current')]
     plot_output(plot_dict, cosmetics, fig_name, interesting_outputs, fig_num)

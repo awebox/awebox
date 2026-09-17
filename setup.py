@@ -21,7 +21,7 @@
 #    License along with awebox; if not, write to the Free Software Foundation,
 #    Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 #
-#
+#   edit: rcleuthold, 2026
 
 from setuptools import setup, find_packages
 
@@ -63,6 +63,10 @@ setup(name='awebox',
         'pandas==2.0.3',
         'progress==1.5',
         'python-resources',
-        'jinja2'
+        'jinja2',
+        'reportlab',
+        'dill',
+        'sympy',
+        'joblib'
    ],
 )

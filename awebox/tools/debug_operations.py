@@ -109,7 +109,7 @@ def health_check(trial_name, solver_options, nlp, model, solution, arg, stats, i
             awelogger.logger.warning('')
             message = 'this unhealthy behavior seems to appear in the power portion of the homotopy.'
             print_op.base_print(message, level='warning')
-            message = 'problems of this type can frequently be resolved by increasing: solver.cost_factor.power and/or nlp.n_k'
+            message = 'problems with this symptom can frequently be resolved by increasing: solver.cost_factor.power, nlp.n_k, and/or solver.cost.u_regularization.0'
             print_op.base_print(message, level='warning')
 
         if not (exact_licq_holds and licq_holds):
@@ -189,7 +189,6 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
     tractability['step_name'] = step_name
 
     tractability['autoscale'] = solver_options['ipopt']['autoscale']
-    # todo: find a way to determine this from ipopt output directly, just-in-case our autoscaling-block ever changes
     for stat_name in stats.keys():
         tractability['stats: ' + stat_name] = stats[stat_name]
 
@@ -200,15 +199,9 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
 
     tractability['total_iterations'] = get_total_iterations(iterations)
 
+    awelogger.logger.info('get model and ocp sizes...')
     for key in model.variables.keys():
         tractability['model: n_' + key] = model.variables[key].shape[0]
-
-    for cstr_type in ['eq', 'ineq']:
-        if hasattr(model.constraints_list.get_expression_list(cstr_type), 'nnz'):
-            tractability['model: nnz_' + cstr_type] = model.constraints_list.get_expression_list(cstr_type).nnz()
-
-    for key in model.variables.keys():
-        tractability['model: nninf_bounds_' + key] = model.number_noninf_variable_bounds(key)
 
     tractability['ocp: n_k'] = nlp.n_k
     if hasattr(nlp, 'd'):
@@ -217,11 +210,22 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
     tractability['ocp: n_V'] = nlp.V.shape[0]
     tractability['ocp: n_theta'] = nlp.V['theta'].shape[0]
 
+    awelogger.logger.info('describe model and ocp constraints...')
+    for cstr_type in ['eq', 'ineq']:
+        if hasattr(model.constraints_list.get_expression_list(cstr_type), 'nnz'):
+            tractability['model: nnz_' + cstr_type] = model.constraints_list.get_expression_list(cstr_type).nnz()
+
+    for key in model.variables.keys():
+        tractability['model: nninf_bounds_' + key] = model.number_noninf_variable_bounds(key)
+
     for cstr_type in ['eq', 'ineq']:
         if hasattr(nlp.ocp_cstr_list.get_expression_list(cstr_type), 'nnz'):
             tractability['ocp: nnz_' + cstr_type] = nlp.ocp_cstr_list.get_expression_list(cstr_type).nnz()
 
+    awelogger.logger.info('get kkt size and rank...')
     tractability['kkt: size'] = repr(kkt_matrix.shape)
+    tractability['kkt: exact rank'] = repr(get_matrix_rank(kkt_matrix, solver_options['health_check'], tol=0.))
+    tractability['kkt: numerical rank'] = repr(get_matrix_rank(kkt_matrix, solver_options['health_check']))
     tractability['kkt: nnz'] = kkt_matrix.nnz()
     tractability['kkt: fraction non-zero'] = kkt_matrix.nnz() / (kkt_matrix.shape[0] * kkt_matrix.shape[1])
     tractability['kkt: diagonality'] = get_pearson_diagonality(kkt_matrix)
@@ -242,8 +246,8 @@ def collect_tractability_indicators(trial_name, step_name, solver_options, stats
         if 'kkt:' in name:
             subset_of_tractability[name] = value
 
-    awelogger.logger.info('tractability indicator report')
-    print_op.print_dict_as_table(subset_of_tractability)
+    table_name = 'tractability indicator report'
+    print_op.print_dict_as_table(subset_of_tractability, caption=table_name)
 
     return tractability
 
@@ -311,14 +315,17 @@ def is_reduced_hessian_positive_definite(min_reduced_hessian_eigenvalue, health_
     return min_reduced_hessian_eigenvalue > reduced_hessian_eig_thesh
 
 
-def is_matrix_full_rank(matrix, health_solver_options, tol=None):
-
+def get_matrix_rank(matrix, health_solver_options, tol=None):
     if tol is None:
         rank_tolerance = health_solver_options['tol']['constraint_jacobian_rank']
     else:
         rank_tolerance = tol
-
     matrix_rank = np.linalg.matrix_rank(matrix, rank_tolerance)
+    return matrix_rank
+
+def is_matrix_full_rank(matrix, health_solver_options, tol=None):
+
+    matrix_rank = get_matrix_rank(matrix, health_solver_options, tol=tol)
     required_rank = np.min(matrix.shape)
 
     return (required_rank == matrix_rank)

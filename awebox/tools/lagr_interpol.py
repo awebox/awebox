@@ -47,7 +47,7 @@ def lagrange_poly(x, y):
     return lfcn
 
 
-def smooth_lagrange_poly(x, y):
+def smooth_lagrange_poly(x, y, weight_diff=0.1, weight_deriv=1e5):
     t    = cas.SX.sym('t')
     d    = len(x)                       # amount of parameters
     tau  = cas.SX.sym('tau',d)              # parameter as minimisation variable
@@ -66,8 +66,37 @@ def smooth_lagrange_poly(x, y):
     # [ddL,_,_]  = ddL_fun([t,tau])
 
     # minimise tau = fct output, incl penalize curvature
-    res = 0.1 *  sum([(L_fun(x[k],tau) - y[k])**2 for k in range(d)])[0]
-    res += sum([ddL_fun(x[k],tau)[0]**2 * 1e5 for k in range(d)])[0]
+    res = weight_diff * sum([(L_fun(x[k], tau) - y[k]) ** 2 for k in range(d)])[0]
+    res += weight_deriv * sum([ddL_fun(x[k], tau)[0] ** 2 for k in range(d)])[0]
+
+    Cost= cas.Function('cost',[tau],[res])
+    nlp = {'x': tau, 'f': res}
+    opts = {}
+    opts['ipopt.print_level'] = 0
+    solver = cas.nlpsol("solver", "ipopt", nlp,opts)
+    sol = solver(**{})
+    opts['ipopt.print_level'] = 0
+    tau_opt = sol['x']                  # optimal parameter for polynomial
+    return L_fun, tau_opt
+
+def smooth_polyfit(x, y, order=6, weight_diff=0.1, weight_deriv=1e5):
+    t    = cas.SX.sym('t')
+    d    = len(x)                       # amount of parameters
+    tau  = cas.SX.sym('tau', (order, 1))              # parameter as minimisation variable
+    poly = 0
+
+    for tdx in range(order):
+        poly += tau[tdx] * t**(float(tdx))
+
+    L_fun   = cas.Function('L_fun', [t,tau], [poly])
+    ddL,_     = cas.hessian(poly,t)
+    ddL_fun = cas.Function('ddL_fun', [t,tau], [ddL])
+    # ddL_fun = L_fun.hessian(0)          # second order derivative to
+    # [ddL,_,_]  = ddL_fun([t,tau])
+
+    # minimise tau = fct output, incl penalize curvature
+    res = weight_diff * sum([(L_fun(x[k], tau) - y[k]) ** 2 for k in range(d)])[0]
+    res += weight_deriv * sum([ddL_fun(x[k], tau)[0] ** 2 for k in range(d)])[0]
 
     Cost= cas.Function('cost',[tau],[res])
     nlp = {'x': tau, 'f': res}

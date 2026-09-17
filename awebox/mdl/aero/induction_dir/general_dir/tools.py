@@ -74,3 +74,28 @@ def get_option_from_possible_dicts(options, name, actuator_or_vortex):
         print_op.log_and_raise_error(message)
 
     return value
+
+
+def get_n_hat_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_n_hat' + str(parent)
+    var_val = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var_val
+
+def get_z_hat_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_z_hat' + str(parent)
+    var_val = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var_val
+
+def get_uzero_hat_var(variables_si, parent):
+    var_type = 'z'
+    var_name = 'act_uzero_hat' + str(parent)
+    var_val = struct_op.get_variable_from_model_or_reconstruction(variables_si, var_type, var_name)
+    return var_val
+
+def get_act_z_vec_val(variables_si, parent):
+    n_hat = get_n_hat_var(variables_si, parent)
+    uzero_hat = get_uzero_hat_var(variables_si, parent)
+    z_hat = vect_op.normed_cross(uzero_hat, n_hat)
+    return z_hat

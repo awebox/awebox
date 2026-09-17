@@ -28,7 +28,7 @@ from casadi.tools import vertcat
 def data_dict():
 
     data_dict = {}
-    data_dict['name'] = 'ampyx'
+    data_dict['name'] = 'Ampyx AP2'
 
     data_dict['geometry'] = geometry() # kite geometry
 
@@ -55,7 +55,7 @@ def geometry():
     geometry['m_k'] = 36.8  # [kg]
 
     geometry['ar'] = geometry['b_ref'] / geometry['c_ref']
-    geometry['j'] = np.array([[25., 0.0, 0.47],
+    geometry['j'] = np.array([[25., 0.0, 0.47], # kg m^2
                               [0.0, 32., 0.0],
                               [0.47, 0.0, 56.]])
 
@@ -237,5 +237,7 @@ def aero():
     aero_validity['beta_max_deg'] = 20.
     aero_validity['beta_min_deg'] = -20.
 
+    aero_validity['airspeed_max'] = 32. # todo: figure out where these values came from
+    aero_validity['airspeed_min'] = 13.
 
     return stab_derivs, aero_validity

@@ -29,8 +29,6 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import casadi.tools as cas
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 
 import awebox.mdl.aero.induction_dir.vortex_dir.vortex_objects_dir.element as obj_element
@@ -44,8 +42,6 @@ from awebox.logger.logger import Logger as awelogger
 import matplotlib
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 matplotlib.use(DEFAULT_MPL_BACKEND)
-import awebox.mdl.aero.induction_dir.vortex_dir.tools as vortex_tools
-
 
 
 
@@ -87,6 +83,7 @@ class FiniteFilament(obj_element.Element):
         # which is the unit-consistent version what's used in
         # A. van Garrel. Development of a Wind Turbine Aerodynamics Simulation Module. Technical report,
         # Energy research Centre of the Netherlands. ECN-C–03-079, aug 2003
+        # https://publications.tno.nl/publication/34628334/xt4R73/c03079.pdf
         length = vect_op.norm(x_1 - x_0)
         epsilon_vortex = r_core ** 2. * length ** 2.
 

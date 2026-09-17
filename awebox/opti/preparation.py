@@ -27,7 +27,7 @@
 python-3.5 / casadi-3.4.5
 - authors: rachel leuthold, thilo bronnenmeyer, alu-fr 2018
 '''
-
+from sympy.physics.units import steradian
 
 from . initialization_dir import modular as initialization_modular, initialization
 
@@ -215,7 +215,6 @@ def set_initial_bounds(nlp, model, formulation, options, V_init_si, schedule):
 
     return V_bounds, g_bounds
 
-
 def generate_default_solver_options(options):
 
     opts = {}
@@ -229,6 +228,10 @@ def generate_default_solver_options(options):
         opts['ipopt.mu_init'] = options['mu_init']
         opts['ipopt.tol'] = options['tol']
 
+        opts['ipopt.alpha_for_y'] = options['ipopt']['alpha_for_y']
+        opts['ipopt.ma57_pivtol'] = options['ipopt']['ma57_pivtol']
+        opts['ipopt.ma57_pivtolmax'] = options['ipopt']['ma57_pivtolmax']
+
         autoscale = (options['nlp_solver'] == 'ipopt') and options['ipopt']['autoscale']
         if autoscale:
             opts['ipopt.nlp_scaling_method'] = 'gradient-based'
@@ -238,7 +241,7 @@ def generate_default_solver_options(options):
             else:
                 opts['ipopt.linear_system_scaling'] = 'mc19'  # default for ma27, ma57, ma77, and ma86
 
-            opts['ipopt.linear_scaling_on_demand'] = 'yes'
+            opts['ipopt.linear_scaling_on_demand'] = options['ipopt']['linear_scaling_on_demand']
             opts['ipopt.ma57_automatic_scaling'] = 'yes'
             opts['ipopt.ma86_scaling'] = 'mc64'  # default
             # there's an ma97_scaling option, too. but if you turn it on, then ipopt complains about 'invalid options'
@@ -415,9 +418,11 @@ def generate_nonhippo_strategy_solvers(awebox_callback, nlp, options):
     return solvers
 
 
-def generate_solvers(awebox_callback, nlp, options):
+def generate_solvers(awebox_callback, nlp, options, trial_name):
 
     use_hippo_strategy = options['hippo_strategy']
+
+    prepare_for_recording_ipopt_logfile_if_appropriate(options, trial_name)
 
     if use_hippo_strategy and (options['nlp_solver'] == 'ipopt'):
         solvers = generate_hippo_strategy_solvers(awebox_callback, nlp, options)
@@ -425,6 +430,17 @@ def generate_solvers(awebox_callback, nlp, options):
         solvers = generate_nonhippo_strategy_solvers(awebox_callback, nlp, options)
 
     return solvers
+
+def prepare_for_recording_ipopt_logfile_if_appropriate(solver_options, trial_name):
+    from pathlib import Path
+    path = Path("ipopt.opt")
+    if solver_options['record_ipopt_log']:
+        path.write_text("file_print_level 5 \noutput_file ipopt.log")
+    else:
+        path.write_text("")
+
+    return None
+
 
 def fix_q_and_r_values_if_necessary(solver_options, nlp, model, V_bounds, V_init):
 

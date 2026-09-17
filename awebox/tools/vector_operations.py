@@ -30,6 +30,8 @@ _python-3.5 / casadi-3.4.5
 '''
 
 import matplotlib
+from scipy.constants import yard
+
 from awebox.viz.plot_configuration import DEFAULT_MPL_BACKEND
 matplotlib.use(DEFAULT_MPL_BACKEND)
 import matplotlib.pyplot as plt
@@ -275,6 +277,17 @@ def upper_triangular_inclusive(matrix):
                 elements = cas.vertcat(elements, matrix_resquared[r, c])
     return elements
 
+def upper_triangular_exclusive(matrix):
+
+    matrix_resquared = resquare(matrix)
+
+    elements = []
+    for r in range(matrix_resquared.shape[0]):
+        for c in range(matrix_resquared.shape[1]):
+            if c > r:
+                elements = cas.vertcat(elements, matrix_resquared[r, c])
+    return elements
+
 def lower_triangular_exclusive(matrix):
 
     matrix_resquared = resquare(matrix)
@@ -385,6 +398,30 @@ def find_zero_cols(matrix, tol):
 def unitstep(val, eps=1e-8):
     heavi = cas.arctan(val / eps) / np.pi + 0.5
     return heavi
+
+def interpolate_by_unit_stepping(x_data, y_data, x_sym, epsilon_factor=0.01):
+    if data_is_obviously_uninterpolatable(x_data, y_data):
+        message = 'unit-step interpolation will not work, data is obviously un-interpretable'
+        print_op.log_and_raise_error(message)
+
+    fun = y_data[0]
+
+    halfway_x = (x_data[0:-1] + x_data[1:]) / 2.
+    halfway_y = (y_data[0:-1] + y_data[1:]) / 2.
+    for idx in range(x_data.shape[0]-1):
+        delta_x = x_data[idx+1] - x_data[idx]
+        delta_y = y_data[idx+1] - y_data[idx]
+        linear_m = delta_y / delta_x
+        linear_b = halfway_y[idx] - linear_m * halfway_x[idx]
+        local_linear = linear_m * x_sym + linear_b
+        next_unit_step = step_in_out(x_sym, x_data[idx], x_data[idx+1], delta_x * epsilon_factor)
+        fun += local_linear * next_unit_step
+
+    delta_x = x_data[-1] - x_data[-2]
+    next_unit_step = unitstep(x_sym - x_data[-1], delta_x * epsilon_factor)
+    fun += y_data[-1] * next_unit_step
+
+    return fun
 
 def step_in_out(number, step_in, step_out, eps=1e-4):
     step_in = unitstep(number - step_in, eps)
@@ -833,21 +870,6 @@ def test_elliptic_e(epsilon=1.e-5):
         test_elliptic_e_at_position(approximation_order_for_elliptic_integrals, elliptic_m=(1.0 - delta), epsilon=epsilon)
     return None
 
-def synthesize_estimate_from_a_list_of_positive_scalar_floats(available_estimates):
-    if not isinstance(available_estimates, list):
-        message = 'method is not defined for this data-type. the input must be a list'
-        print_op.log_and_raise_error(message)
-
-    if not all([isinstance(available_estimates[idx], float) for idx in range(len(available_estimates))]):
-        message = 'method is not defined for this data-type. all available estimates must be floats'
-        print_op.log_and_raise_error(message)
-
-    number_of_estimates = len(available_estimates)
-    averaging_fraction = 1. / number_of_estimates
-    geometric_average = np.exp(np.sum(np.log(available_estimates)) * averaging_fraction)
-    return geometric_average
-
-
 def find_jacobian_based_scalar_expression_scaling(local_resi_si_scalar, variables_scaled, parameters):
     jac_norm = smooth_norm(cas.jacobian(local_resi_si_scalar, variables_scaled).T)
     jac_norm_fun = cas.Function('jac_norm_fun', [variables_scaled, parameters], [jac_norm])
@@ -979,6 +1001,8 @@ def is_strictly_increasing(array):
     if not ((len(array.shape) == 1) or (array.shape[0] == 1) or (array.shape[1] == 1)):
         return False
 
+    array = columnize(array)
+
     for idx in range(1, array.shape[0]):
         if not (array[idx] > array[idx-1]):
             return False
@@ -1063,7 +1087,7 @@ def spline_interpolation(x_data, y_data, x_points):
 
         n_points = np.prod(x_points.shape)
 
-    elif hasattr(x_points, 'len'):
+    elif isinstance(x_points, list):
         n_points = len(x_points)
     else:
         message = 'unable to count the number of interpolation points'

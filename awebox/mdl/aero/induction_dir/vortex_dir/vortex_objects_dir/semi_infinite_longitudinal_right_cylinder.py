@@ -249,6 +249,8 @@ def test_biot_savart_induction_tangential_component_on_axis(cyl_unregularized, e
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
+    # print("test_biot_savart_induction_tangential_component_on_axis: " + str(expected))
+
     if not criteria:
         message = 'vortex ' + cyl_unregularized.element_type + ': biot-savart induction, tangential-component, computation does not behave as expected on-axis'
         print_op.log_and_raise_error(message)
@@ -271,6 +273,8 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_at_start(cyl
     found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_tangential_component(unpacked, r_obs, z_obs,
                                                                                                elliptic_m0, elliptic_m)
     expected = 0.
+
+    # print("test_biot_savart_induction_tangential_component_inside_cylinder_at_start: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -299,6 +303,8 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_at_start(cy
                                                                                                elliptic_m0, elliptic_m)
 
     expected = strength / 2. * (r_cyl / r_obs)
+
+    # print("test_biot_savart_induction_tangential_component_outside_cylinder_at_start: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -337,6 +343,8 @@ def test_regularized_biot_savart_induction_tangential_component_inside_cylinder_
     part_3 = part_3a * (part_3b - part_3c)
     expected = part_1 * (part_2 + part_3)
 
+    # print("test_regularized_biot_savart_induction_tangential_component_inside_cylinder_far_upstream: " + str(expected))
+
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
@@ -362,6 +370,8 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_far_upstream
                                                                                                elliptic_m0, elliptic_m)
 
     expected = 0.
+
+    # print("test_biot_savart_induction_tangential_component_inside_cylinder_far_upstream: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -400,6 +410,8 @@ def test_regularized_biot_savart_induction_tangential_component_inside_cylinder_
     part_3 = part_3a * (part_3b - part_3c)
     expected = part_1 * (part_2 + part_3)
 
+    # print("test_regularized_biot_savart_induction_tangential_component_inside_cylinder_far_downstream: " + str(expected))
+
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
@@ -425,6 +437,8 @@ def test_biot_savart_induction_tangential_component_inside_cylinder_far_downstre
                                                                                                elliptic_m0, elliptic_m)
 
     expected = 0.
+
+    # print("test_biot_savart_induction_tangential_component_inside_cylinder_far_downstream: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -464,6 +478,8 @@ def test_regularized_biot_savart_induction_tangential_component_outside_cylinder
     part_3 = part_3a * (part_3b - part_3c)
     expected = part_1 * (part_2 + part_3)
 
+    # print("test_regularized_biot_savart_induction_tangential_component_outside_cylinder_far_upstream: " + str(expected))
+
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
@@ -489,6 +505,8 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_far_upstrea
     found, _, _ = cyl_unregularized.get_regularized_biot_savart_induction_tangential_component(unpacked, r_obs, z_obs, elliptic_m0, elliptic_m)
 
     expected = 0.
+
+    # print("test_biot_savart_induction_tangential_component_outside_cylinder_far_upstream: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -528,6 +546,8 @@ def test_regularized_biot_savart_induction_tangential_component_outside_cylinder
     part_3 = part_3a * (part_3b - part_3c)
     expected = part_1 * (part_2 + part_3)
 
+    # print("test_regularized_biot_savart_induction_tangential_component_outside_cylinder_far_downstream: " + str(expected))
+
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
@@ -554,6 +574,8 @@ def test_biot_savart_induction_tangential_component_outside_cylinder_far_downstr
                                                                                                elliptic_m0, elliptic_m)
 
     expected = strength * r_cyl / r_obs
+
+    # print("test_biot_savart_induction_tangential_component_outside_cylinder_far_downstream: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -590,6 +612,8 @@ def test_regularized_biot_savart_induction_tangential_component_on_surface(cyl_r
     part_3 = part_3a * (part_3b - part_3c)
     expected = part_1 * (part_2 + part_3)
 
+    # print("test_regularized_biot_savart_induction_tangential_component_on_surface: " + str(expected))
+
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
 
@@ -619,6 +643,8 @@ def test_regularized_biot_savart_induction_tangential_component_at_critical_poin
     part_2 = 0.5
     part_3 = 0.
     expected = part_1 * (part_2 + part_3)
+
+    # print("test_regularized_biot_savart_induction_tangential_component_at_critical_point: " + str(expected))
 
     diff = found - expected
     criteria = (diff ** 2. < epsilon ** 2.)
@@ -688,6 +714,8 @@ def test_biot_savart_function(cyl_unregularized, epsilon=1.e-4):
 
     expected = tangential_component * theta_hat
 
+    # print("test_biot_savart_function: " + str(expected))
+
     packed_info = cyl_unregularized.info
     biot_savart_fun = cyl_unregularized.biot_savart_fun
     found = biot_savart_fun(packed_info, x_obs)
@@ -719,4 +747,5 @@ def test(test_includes_visualization=False, epsilon=1.e-6):
 
     return None
 
-# test()
+if __name__ == "__main__":
+    test()
